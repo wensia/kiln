@@ -252,6 +252,7 @@ Clearing a filter select — the X lives in the trigger:
 - The Radix/shadcn trigger is itself a `<button>`, so the clear affordance **cannot be a nested real button**. Use `<span role="button" aria-label="清空筛选">` and kill the event in `onPointerDown` (`preventDefault` + `stopPropagation`); without that, the same press that clears also opens the dropdown.
 - Map the "all" sentinel (`'all'`, `'__all__'`, `undefined` — whatever the page already uses) to an empty value inside the wrapper so the placeholder renders. Business code keeps passing its own sentinel.
 - Ship this once as a shared wrapper (`FilterSelect`, taking `value / onChange / options / placeholder / allValue`) rather than wiring a trigger and a clear button per page. Filter selects have no exemptions.
+- The same rule governs **multi-select filter triggers** (a popover/command combobox showing "全部渠道 / 已选 3 项"). A "清空选择" row at the top of the option list is the same mistake wearing a different hat: the clear device is hidden one click deep, inside the very list the user opened to *add* conditions. Put the X in the trigger — chevron when nothing is selected, X once anything is — and drop the clear row so there is exactly one way to clear. Because that trigger is usually a real `<button>`, the X is again `span[role="button"]` with the press killed in `onPointerDown` (a popover opens on click, a select on pointerdown — stop both).
 
 Boundary — this rule is about **filters**, not forms:
 
