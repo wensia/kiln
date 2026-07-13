@@ -165,6 +165,10 @@ const collect = () =>
     }
 
     out.font = getComputedStyle(document.body).fontFamily;
+    // 字体栈里**写着** Noto Sans SC ≠ 它真的被加载了。
+    // 没有 @font-face（例如没装 @fontsource），中文会静默回退到系统字体
+    // （macOS 苹方 / Windows 微软雅黑）—— 各平台渲染不一致，而字体栈看起来完全正常。
+    out.notoLoaded = [...document.fonts].some((f) => /Noto Sans SC/i.test(f.family));
     return out;
   })();
 
@@ -261,8 +265,16 @@ async function audit(page, name, url, kind = "admin") {
     fail(name, `字体栈缺少 Noto Sans SC：${d.font.slice(0, 60)}`);
   } else if (/Geist/.test(d.font)) {
     fail(name, `字体栈含 Geist —— 规范禁止竞争性 webfont`);
+  } else if (!d.notoLoaded) {
+    // 这条曾经漏掉：只查字体栈，不查是否真的加载 —— 于是一个从没装过
+    // @fontsource 的项目也能「通过」，而它的中文其实一直在用系统字体。
+    fail(
+      name,
+      `Noto Sans SC 在字体栈里，但**没有加载 webfont** —— 中文会回退到系统字体，` +
+        `各平台渲染不一致。装 @fontsource/noto-sans-sc（400/500/600），或 @import kiln/tokens/fonts.css。`
+    );
   } else {
-    pass(name, `中文字体走 Noto Sans SC，无竞争 webfont`);
+    pass(name, `Noto Sans SC 已加载，无竞争 webfont`);
   }
 
 }
