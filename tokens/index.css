@@ -1,0 +1,15 @@
+/* ============================================================
+   kiln — 单一入口。消费方只需 @import 这一个文件。
+
+   数值的唯一真相源就在这些 CSS 里。
+   散文（SKILL.md / references/*.md）只命名 token、解释意图，
+   references/tokens.md 是它们的镜像，由 scripts/verify.mjs 校验一致。
+   ============================================================ */
+
+@import "./fonts.css";
+@import "./colors.css";
+@import "./typography.css";
+@import "./spacing.css";
+@import "./radius.css";
+@import "./elevation.css";
+@import "./base.css";

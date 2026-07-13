@@ -1,0 +1,29 @@
+/* ============================================================
+   kiln — Elevation tokens
+   靠留白 + 暖调柔和阴影分离层次，非必要不用边框。
+   白卡片浮在近白页面上，阴影是主要分离手段。
+   阴影色一律暖黑 rgba(54,47,42,·) —— 绝不用冷调 slate/蓝调。
+   组件里禁止硬编码阴影，一律消费这里的 token。
+   ============================================================ */
+
+:root {
+  /* 暖调柔和卡片阴影（白卡片浮在近白页面上的主要分离手段） */
+  --shadow-xs: 0 1px 2px rgba(54, 47, 42, 0.05);
+  --shadow-card: 0 2px 8px rgba(54, 47, 42, 0.06), 0 1px 2px rgba(54, 47, 42, 0.04);
+  --shadow-card-hover: 0 6px 18px rgba(54, 47, 42, 0.09), 0 2px 5px rgba(54, 47, 42, 0.05);
+
+  /* 输入框内高光 + 极轻投影 */
+  --shadow-input: 0 1px 2px rgba(54, 47, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  /* 主色焦点环 */
+  --shadow-primary-focus:
+    0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent),
+    0 10px 24px color-mix(in srgb, var(--foreground) 8%, transparent);
+  --ring-focus: 0 0 0 1px var(--primary);
+
+  /* popover / dropdown / dialog 柔和阴影 */
+  --shadow-popover: 0 8px 28px rgba(54, 47, 42, 0.12), 0 2px 6px rgba(54, 47, 42, 0.07);
+
+  /* 顶栏分隔高光 */
+  --shadow-topbar: 0 1px 0 rgba(255, 255, 255, 0.72);
+}

@@ -1,0 +1,7 @@
+#!/bin/sh
+# 自检不过就不让提交 —— 散文与 token 漂移是这套系统坏掉的唯一方式。
+node scripts/verify.mjs || {
+  echo ""
+  echo "提交被拦下：kiln 自检未通过。修完再提交。"
+  exit 1
+}

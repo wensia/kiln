@@ -1,0 +1,24 @@
+/* ============================================================
+   kiln — Spacing tokens
+   紧凑的生产节奏。固定步进，不做乘数派生出小数像素。
+   ============================================================ */
+
+:root {
+  /* ---- Spacing ladder: 2 / 4 / 8 / 12 / 16 / 24 / 32 / 48 ---- */
+  --space-0\.5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* ---- Control heights ---- */
+  --nav-item-height: 36px;     /* 侧边导航项 */
+  --table-row-height: 48px;    /* 表格行基线 */
+  --toolbar-control: 32px;     /* 工具栏控件 32-36 */
+  --control-height: 36px;      /* 表单 / 按钮默认 (h-9) */
+  --control-height-sm: 32px;   /* 小号控件 (h-8) */
+  --field-rhythm: 12px;        /* 表单字段垂直节奏 8-12 */
+}

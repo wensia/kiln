@@ -1,0 +1,47 @@
+{
+  "skill_name": "kiln",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "给一个后台 SaaS 的记录表做 kiln 风格设计规范：需要搜索、状态筛选、分页、冻结操作列，行操作有查看、编辑、删除三个动作。",
+      "expected_output": "Output should apply kiln data-table density, semantic tokens, the DataTableDock directly on the canvas (no card wrap), horizontal-only row dividers, a frozen action column, and collapse the three row actions into a single MoreHorizontal / ... dropdown.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "设计一个日期区间选择器，要求桌面弹窗、移动端贴底，能选开始日期和结束日期。",
+      "expected_output": "Output should use the Date / Time Picker reference: outline trigger, compact dialog, selection summary, month nav, 7-column calendar grid, selected/in-range/outside-month states, and automatic start/end normalization.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "把 kiln 迁移成另一个运营后台项目的全局设计规范，要求能复用但不要照搬业务页面。",
+      "expected_output": "Output should preserve token/component/layout rules (including the bundled Noto Sans SC webfont with system-stack fallback), separate the portable design language from product-specific page blueprints, and use the platform mapping / reuse guide rather than producing a prose summary.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "设计一个可多选的资源包卡片列表，包含未选中、hover、focus、已选中、禁用状态，要求选中态极简克制。",
+      "expected_output": "Output should use the Selectable Resource Pack Card rules: compact 72-88px card, weak default border, quiet hover/focus, selected state with only one thin primary signal plus a small check indicator, no thick clay border, filled corner, heavy shadow, strong tint, or CTA-style selected badge.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "把一个已有 shadcn/Tailwind 后台全局切到 kiln。现在 --radius 已经是 0.375rem，但两个页面看起来圆角不一致，按钮也都用了红色 primary。请给出迁移步骤和验收标准。",
+      "expected_output": "Output should run the existing shadcn/Tailwind migration gate: load tokens/components/platform mapping, map rounded-md to 4px controls and rounded-lg to 6px cards/panels, audit rounded-md by semantic role instead of blind replacement, change the ordinary filled Button default to solid/ink with a separate primary variant reserved for the single key action and active/selected states (at most one clay fill per viewport), and require live/computed-style QA.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "详情页顶部的编辑、关闭、重置按钮太弱，都是透明 ghost 或只有 hover 才看得出来。请按 kiln 给出全局按钮规范和验收标准。",
+      "expected_output": "Output should prohibit transparent or hover-only ghost buttons for visible page/detail actions, map ghost to a neutral soft surface or use outline, keep ordinary commands neutral instead of clay, and require default/hover/focus computed-style QA for visible background, border, dimensions, and no layout shift.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "规范说白卡靠阴影分层，但我把 button-tab 放进白卡后选中态就看不出来了。为什么？",
+      "expected_output": "Output should identify that the tab track uses a semi-transparent muted mix, so its contrast depends on what sits underneath: on the canvas the track and the active plate differ clearly, but inside a white card they collapse to ~2 tonal steps. The fix is to put the tabs on the canvas (or give the active plate the white --card surface), and the general lesson is that semi-transparent surfaces are context-dependent and only computed-style assertions catch this.",
+      "files": []
+    }
+  ]
+}

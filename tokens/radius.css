@@ -1,0 +1,18 @@
+/* ============================================================
+   kiln — Radius tokens
+   精确 4 / 6 / 8px 阶梯。状态徽章默认 4px，避免到处胶囊。
+   ============================================================ */
+
+:root {
+  --radius-control: 4px;   /* 侧栏/导航/表单控件/按钮 */
+  --radius-card: 6px;      /* 紧凑卡片、popover、dialog */
+  --radius-panel: 8px;     /* 大型重复面板，仅在结构上有益时 */
+  --radius-pill: 999px;    /* 仅 tag/chip 显式使用 */
+
+  /* shadcn radius bridge */
+  --radius: 0.375rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+}

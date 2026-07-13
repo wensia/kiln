@@ -1,0 +1,90 @@
+/* ============================================================
+   kiln — Color tokens
+   纯白主表面 + 暖米色衬底 + 陶土红主色。明快、平面化。
+   表面（卡片/面板/表格/弹层/侧栏/顶栏）走纯白，米色只作页面衬底，
+   让白色表面浮起来；边框走轻盈浅中性色，避免发旧。
+   不使用紫色主导、不使用裸 green/orange/red hex。
+   语义状态色统一从同一调色板派生。
+   ============================================================ */
+
+:root {
+  /* ---- Palette base ---- */
+  --palette-white: #ffffff;    /* 主表面：卡片 / 面板 / 表格 / 弹层 / 侧栏 / 顶栏 */
+  --palette-clay: #b6533c;     /* primary / selected / focus / 关键动作 */
+  --palette-canvas: #fbfaf8;   /* 页面衬底：近白极淡暖白，靠阴影而非颜色区分层次 */
+  --palette-surface: #f1eee9;  /* muted / 浅填充面（仅悬停/选中等必要反馈） */
+  --palette-line: #d8d3cc;     /* strong border（仅输入框/必要分隔） */
+  --palette-ink: #2f2f2f;      /* primary text */
+
+  /* ---- Palette accents（窑变釉色：做旧、低饱和、与陶土红互补和谐） ---- */
+  --palette-teal: #3e8c7d;     /* 窑青绿 — success / 强调 */
+  --palette-peacock: #2e6e79;  /* 孔雀蓝 — info / 点缀 */
+  --palette-amber: #be7c32;    /* 暖琥珀 — warning */
+
+  /* ---- Palette derived ---- */
+  --palette-muted-ink: color-mix(in srgb, var(--palette-ink) 68%, var(--palette-line));
+  --palette-primary-soft: color-mix(in srgb, var(--palette-clay) 10%, var(--palette-white));
+
+  /* ---- Semantic surfaces ---- */
+  --background: var(--palette-canvas);
+  --foreground: var(--palette-ink);
+  --card: var(--palette-white);
+  --card-foreground: var(--palette-ink);
+  --popover: var(--palette-white);
+  --popover-foreground: var(--palette-ink);
+  --muted: var(--palette-surface);
+  --muted-foreground: var(--palette-muted-ink);
+  --accent: color-mix(in srgb, var(--palette-surface) 60%, var(--palette-white));
+  --accent-foreground: var(--palette-ink);
+
+  /* ---- Primary (clay) ---- */
+  --primary: var(--palette-clay);
+  --primary-foreground: var(--palette-white);
+  --primary-subtle: var(--palette-primary-soft);
+
+  /* ---- Secondary (surface) ---- */
+  --secondary: color-mix(in srgb, var(--palette-surface) 60%, var(--palette-white));
+  --secondary-foreground: var(--palette-ink);
+
+  /* ---- Solid action (ink) — 普通实心命令 ---- */
+  --solid: var(--palette-ink);
+  --solid-hover: color-mix(in srgb, var(--palette-ink) 84%, var(--palette-clay));
+  --solid-foreground: var(--palette-white);
+
+  /* ---- Borders / inputs / ring（轻盈浅中性，非必要不用边框；优先阴影分离） ---- */
+  --border: #efece7;
+  --border-visible: var(--palette-line);
+  --input: #dcd7d0;
+  --ring: var(--palette-clay);
+
+  /* ---- Semantic status（窑青绿=成功、孔雀蓝=信息、琥珀=警示、陶土红=危险） ---- */
+  --success: var(--palette-teal);
+  --success-bg: color-mix(in srgb, var(--palette-teal) 12%, var(--palette-white));
+  --info: var(--palette-peacock);
+  --info-bg: color-mix(in srgb, var(--palette-peacock) 12%, var(--palette-white));
+  --warning: var(--palette-amber);
+  --warning-bg: color-mix(in srgb, var(--palette-amber) 13%, var(--palette-white));
+  --destructive: var(--palette-clay);
+  --destructive-foreground: var(--palette-white);
+  --destructive-bg: color-mix(in srgb, var(--palette-clay) 11%, var(--palette-white));
+
+  /* ---- Chart series ---- */
+  --chart-1: var(--palette-clay);
+  --chart-2: var(--palette-teal);
+  --chart-3: var(--palette-peacock);
+  --chart-4: var(--palette-amber);
+  --chart-5: color-mix(in srgb, var(--palette-ink) 62%, var(--palette-surface));
+
+  /* ---- Sidebar（纯白侧栏） ---- */
+  --sidebar: var(--palette-white);
+  --sidebar-foreground: var(--palette-ink);
+  --sidebar-primary: var(--palette-clay);
+  --sidebar-primary-foreground: var(--palette-white);
+  --sidebar-accent: color-mix(in srgb, var(--palette-surface) 70%, var(--palette-white));
+  --sidebar-accent-foreground: var(--palette-ink);
+  --sidebar-border: #efece7;
+  --sidebar-ring: var(--palette-clay);
+
+  /* ---- Topbar（纯白半透明） ---- */
+  --topbar: color-mix(in srgb, var(--palette-white) 82%, transparent);
+}

@@ -1,0 +1,26 @@
+/* ============================================================
+   kiln — Webfont
+   主字体：Noto Sans SC，全平台统一渲染。
+   字重 400 / 500 / 600 对应 正文 / 激活 / 标题。
+   不引入任何其它 webfont。
+
+   ── 来源：Google Fonts CDN（需联网）──────────────────────
+   Google 的 CSS 按 unicode-range 自动分包，仅下载用到的子集。
+   ── 面向中国大陆用户时改用自托管（见下）──────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap");
+
+/* ── 自托管 / 完全离线（推荐用于中国大陆）───────────────────
+   1. npm i @fontsource/noto-sans-sc，或从 gwfh.mranftl.com 下载 woff2。
+   2. 删除上面那行 @import。
+   3. 直接 import '@fontsource/noto-sans-sc/{400,500,600}.css'，
+      或取消下面整段注释并把 woff2 放进 assets/fonts/。
+   ──────────────────────────────────────────────────────────
+
+@font-face { font-family: "Noto Sans SC"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("../assets/fonts/noto-sans-sc-400.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans SC"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("../assets/fonts/noto-sans-sc-500.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans SC"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../assets/fonts/noto-sans-sc-600.woff2") format("woff2"); }
+*/

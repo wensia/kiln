@@ -1,0 +1,37 @@
+/* ============================================================
+   kiln — Typography tokens
+   主字体 Noto Sans SC，以 webfont 形式捆绑（见 tokens/fonts.css），
+   全平台（含 macOS/iOS）渲染一致；系统中文字体栈仅作离线 / 加载期回退。
+   后台正文默认 400；选中/激活止步 500，靠颜色与指示符表达。
+   计数 / 总数 / 完成率 / 分页用等宽数字。
+   ============================================================ */
+
+:root {
+  --font-sans: -apple-system, "Helvetica Neue", Arial, "Noto Sans SC",
+    "Hiragino Sans GB", STHeiti, "Microsoft YaHei", "Microsoft JhengHei",
+    "Source Han Sans SC", "Noto Sans CJK SC", "Source Han Sans CN",
+    "Source Han Sans TC", "Noto Sans CJK TC", SimSun, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, "Courier New", monospace;
+
+  /* ---- Type scale（后台密度）—— 有下限也有上限 ---- */
+  --text-page-title: 15px;      /* 页面标题 15-16 / 600 */
+  --text-section-title: 14px;   /* 区块标题 14-15 / 600 */
+  --text-body: 13px;            /* 正文 / 表格单元 13 / 400-500 */
+  --text-meta: 12px;            /* 次级元信息 12 / 400-500 */
+  --text-tiny: 11px;            /* 极小标签 11-12 / 400 —— 字号下限 */
+  --text-data: 22px;            /* 看板关键数字 —— 字号上限，仅真实数据看板 */
+
+  /* ---- Weights ---- */
+  --weight-regular: 400;
+  --weight-medium: 500;       /* 选中 / 激活上限 */
+  --weight-semibold: 600;     /* 标题 */
+
+  /* ---- Line height ---- */
+  --leading-tight: 1.25;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* ---- Numeric ---- */
+  --font-feature-tabular: "tnum" 1, "lnum" 1;
+}
