@@ -57,8 +57,9 @@ const isWarmShadow = (s) =>
 const collect = () =>
   // eslint-disable-next-line no-undef
   (() => {
-    const out = { buttons: [], cards: [], shadows: [], verticalGrids: [], heroHeadings: [], tinyText: [], font: "", clayFills: 0 };
-    const CLAY = "rgb(182, 83, 60)";
+    const out = { buttons: [], cards: [], shadows: [], verticalGrids: [], heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [] };
+    const CLAY = "rgb(182, 83, 60)";   // --primary 陶土红：信号，稀缺
+    const INK = "rgb(47, 47, 47)";     // --solid 墨黑：普通实心动作的重量，不是信号
 
     for (const b of document.querySelectorAll("button")) {
       const s = getComputedStyle(b);
@@ -77,6 +78,28 @@ const collect = () =>
       // 规范明确要求它们用 clay，把它们计入上限会让任何带侧栏的页面必然超限。
       if (s.backgroundColor === CLAY && b.getAttribute("aria-current") === null) {
         out.clayFills++;
+      }
+    }
+
+    // 表格行内的填充按钮（Button 判定表第 5 行）：
+    // clay **永不**进操作列 —— 20 行就是 20 个红，红在整个产品里都不再是信号；
+    // 行级主动作用 ink，且每行至多一个填充，其余动作低权重或收进 ... 菜单。
+    for (const row of document.querySelectorAll("tbody tr")) {
+      const fills = [...row.querySelectorAll("button, a")]
+        .filter((b) => {
+          const r = b.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        })
+        .map((b) => ({
+          text: (b.textContent || "").trim().slice(0, 10),
+          bg: getComputedStyle(b).backgroundColor,
+          stateful: b.getAttribute("aria-current") !== null || b.getAttribute("aria-pressed") === "true",
+        }))
+        .filter((b) => b.bg === CLAY || b.bg === INK);
+
+      const clay = fills.filter((f) => f.bg === CLAY && !f.stateful);
+      if (clay.length || fills.length > 1) {
+        out.rowFills.push({ clay: clay.map((f) => f.text), fills: fills.map((f) => f.text) });
       }
     }
 
@@ -295,6 +318,25 @@ async function audit(page, name, url, kind = "admin") {
     fail(name, `陶土红填充按钮 ${d.clayFills} 个 —— 每视口至多 1 个，全红 = 没有状态信号`);
   } else {
     pass(name, `陶土红填充 ${d.clayFills} 个（上限 1）`);
+  }
+
+  // ── 表格行内：clay 禁入，每行至多一个 ink 主动作 ────
+  const clayRows = d.rowFills.filter((r) => r.clay.length);
+  const multiFillRows = d.rowFills.filter((r) => r.fills.length > 1);
+  if (clayRows.length) {
+    fail(
+      name,
+      `表格行内有 clay 填充按钮（${clayRows.length} 行，如「${clayRows[0].clay.join("、")}」）—— ` +
+        `clay 永不进操作列：20 行 20 个红，红在整个产品里都不再是信号。行级主动作用 ink。`
+    );
+  } else if (multiFillRows.length) {
+    fail(
+      name,
+      `表格行内有 ${multiFillRows[0].fills.length} 个填充按钮（「${multiFillRows[0].fills.join("、")}」，${multiFillRows.length} 行）—— ` +
+        `每行至多一个填充动作（行级主动作），其余低权重或收进 ... 菜单。`
+    );
+  } else {
+    pass(name, `表格行内：无 clay 填充，每行至多一个 ink 主动作`);
   }
 
   // ── 白卡：靠阴影分层，不靠边框；圆角 6px（面板 ≤8px）──

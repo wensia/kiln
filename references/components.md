@@ -4,6 +4,23 @@ Use these component rules with `references/tokens.md`. Keep controls compact, st
 
 ## Button
 
+### Variant decision (run this, don't taste it)
+
+Walk it top-down; **the first row that matches wins**. This exists so "红还是黑" is never an aesthetic judgment call made per-button — it is a property of what the action *is*.
+
+| # | Ask | Variant |
+| --- | --- | --- |
+| 1 | Does it express a **state** rather than an action? (current page, selected row/item, a filter trigger holding active conditions, active nav/tab) | **clay `primary`** — and it MUST carry `aria-current` / `aria-pressed` / `data-state`. Stateful fills are **exempt** from the one-clay-per-viewport cap. |
+| 2 | Is it **high-risk and irreversible**? (删除, 作废, 解绑) | `destructive`, plus destructive labeling, a confirm step, or menu placement |
+| 3 | Is it **the single key action of this page or flow**? (the 新建… entry, 开始兑换, the page's reason to exist) | **clay `primary`** — at most **one per viewport** |
+| 4 | Is it an **ordinary filled command**? (dialog/sheet confirm, 保存, 生成, secondary submit) | **ink `default`** (`bg-solid`) |
+| 5 | Is it a **row-level key action**? (one per table row, and it is what the page is *for* — 认领 on a claim queue, 拨打 on a call queue) | **ink `default`**, `sm` size — **at most one filled button per row, and never clay** |
+| 6 | Anything else (toolbar, detail header, secondary/row-secondary actions) | `outline` / `ghost` — must have a **visible surface before hover** |
+
+The red/black split in one line: **clay is a signal and it is scarce; ink is merely weight.** Clay says "this is the one thing" or "this is the state you're in" — repeat it twenty times down a table and it stops saying anything at all. Ink says "this is an action" — it carries no signal, so repeating it per row costs nothing, which is exactly why the row-level key action gets ink and never clay.
+
+A table page whose entire purpose is per-row work (a claim queue, a call list) has **no page-level key action** — nothing matches rows 1–4. That page's only clay is the *stateful* kind (an active filter trigger, the current page in pagination). That is correct. Its visual weight comes from row 5's ink, not from inventing a clay button that has nothing to do.
+
 Base:
 
 - Use the shared button component.
@@ -29,7 +46,7 @@ Rules:
 - Text action buttons default to `default` size. Use `sm` only for an explicit compact context such as dense table toolbars, dialog secondary rows, table operation cells, inline chip actions, or embedded input adornments; a normal page/detail action such as "添加备注" stays full size.
 - Variant semantics come from the DS Button API: `default` = **solid ink** ordinary filled action; `primary` = **clay key action**. Ordinary filled commands — Save, Confirm, Generate, Preview, secondary submits — use the ink/solid treatment (`bg-solid text-solid-foreground`).
 - Dialog and sheet footer confirms (确认兑换, 保存, 生成…) are ordinary submits → `default` ink solid. The clay fill belongs to the page/flow entry that opened them (e.g. 开始兑换, 生成兑换码), not to the confirm step; a flow shows clay once. High-risk AlertDialog confirms (删除, 作废, 解绑) use `destructive` instead.
-- On scan-heavy table pages the visible set is often「1 个 clay 关键动作 + outline/文字动作」with no ink fill at all — that is correct, not a gap. Ink solids surface in dialogs, editors, and form flows where ordinary submits live.
+- On scan-heavy table pages the visible set is often「1 个 clay 关键动作 + outline/文字动作」with no ink fill at all — that is correct, not a gap. Ink solids surface in dialogs, editors, form flows, and as the row-level key action (decision table row 5).
 - Clay `primary` fills are reserved for **the single key action of a flow** (e.g. the "新建…" entry on a resource-management page) and for buttons that themselves represent an active state or stateful filter — an advanced-filter trigger with active hidden conditions, a selected date endpoint, or a nav/tab active state defined by that component. At most one clay-filled action per viewport.
 - In shadcn-style button variants, the `default` filled variant should resolve to solid/ink, with an explicit `primary` variant for the key action and stateful filled controls. Do not leave `default` mapped to `bg-primary`.
 - Destructive actions use the destructive token, which currently maps to clay red, but they still need destructive labeling, confirmation, or menu placement. Do not use clay red alone to imply danger.
@@ -341,9 +358,9 @@ Specs:
 
 Operation column:
 
-- Default language: **low-weight actions** — no filled buttons.
-- Exactly one action: show it as a low-weight text action.
-- **Two or more actions: always collapse to a single `MoreHorizontalIcon` / `...` dropdown trigger** — never a row of text links or icon buttons.
+- Default language: **low-weight actions**. **Clay never enters the operation column** — twenty rows would mean twenty clay fills, and clay would stop being a signal anywhere in the product.
+- **At most one filled button per row**, and only for the **row-level key action** — the thing the page exists to do (认领 on a claim queue, 拨打 on a call list). It is **ink `default`**, `sm` size (decision table row 5). A table where no single action is *the* action gets no fill at all.
+- Everything else in the row stays low-weight: exactly one remaining action → a low-weight text/outline action; **two or more → collapse to a single `MoreHorizontalIcon` / `...` dropdown trigger** — never a row of text links or icon buttons. The row-level key action sits outside that count: the canonical shape is **`[ 主动作 ]` (ink) + `[...]`**.
 - Header and body content are horizontally centered by default. If a product has a deliberate frozen far-right operation column, the header and trigger may be right-aligned, but they must still share the same alignment.
 - The dropdown trigger uses ghost icon-sm, 32px box, 4px radius, muted text, muted hover background.
 - A frozen far-right operation column with only the `...` dropdown trigger should normally be 56px wide: 32px trigger plus symmetric cell padding. Keep width, min-width, and max-width aligned so the table does not distribute spare width into the operation column.
