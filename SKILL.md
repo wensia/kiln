@@ -296,7 +296,7 @@ Avoid:
 - Dialog or AlertDialog frames that touch the viewport edge in split-screen, DevTools, mobile, or narrow-height contexts; ordinary dialogs must keep shared left/right and top/bottom breathing space, while true fullscreen workflows should use a Sheet or an explicit fullscreen exception.
 - Data tables that use only `min-height` and let row count or empty/loading content resize the table instead of a fixed viewport.
 - Data tables whose final data row loses its bottom divider through `last:border-0` or equivalent overrides.
-- Vertical grid lines in a data table. Horizontal row dividers only. (A few structural dividers — a frozen column edge, a pivot table's group boundary in the header — are edges, not a grid.)
+- Vertical grid lines carrying the same visual weight as the row divider — the newspaper grid. The row divider is the structure; a column line, where a data-dense table earns one, must be markedly lighter (≤60% of its weight) or absent entirely. (Structural edges — a frozen column edge, a pivot table's group boundary in the header — are edges, not a grid, and are exempt.)
 - Stacked metric/filter/reason strips whose left or right content inset visibly drifts between rows.
 - Decorative icons in metric cards, statistic strips, summary strips, or filter strips when the label and value already communicate the meaning.
 - Oversized frozen operation columns or right-sticky action cells that stop short of the table container edge, leaving a blank gutter to their right.

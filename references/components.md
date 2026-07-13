@@ -314,7 +314,15 @@ Do not place two button-tab groups in one viewport.
 
 ## Table
 
-The scanning and comparison surface. Airy and light by contract: **horizontal row dividers only — no vertical grid lines**, a quiet low-contrast header, one info point per cell. Never a heavy newspaper grid, and never wrapped in a card (see DataTableDock).
+The scanning and comparison surface. Airy and light by contract: **the row divider is the structure**, a quiet low-contrast header, one info point per cell. Never a heavy newspaper grid, and never wrapped in a card (see DataTableDock).
+
+Vertical grid lines:
+
+- **Default: none.** A table you read row by row (a list of records, a queue, a log) gets horizontal dividers only. Adding column lines to it buys nothing and costs air.
+- **Data-dense tables may have them.** Wide tables the user scans *across* — many narrow columns, numbers compared column-to-column, horizontal scrolling — genuinely lose the eye without column guides. This is a real reading mode, not a lapse in taste.
+- When they exist, a vertical line must be **markedly lighter than the row divider** — at most ~60% of its visual weight (alpha × width). The row divider stays dominant; the column line is a faint alignment aid the eye can ignore. Equal-weight horizontal and vertical lines is the newspaper grid, and that remains banned: it turns a scanning surface into a spreadsheet and every cell into a box.
+- Reference weights from a shipped implementation: row divider `--border` at 70% alpha, column line `--border` at 25% — a 1:2.8 ratio. Header column lines may sit slightly heavier than body ones (35%), since the header is already a distinct surface.
+- Structural edges are **not** grid lines and are exempt from the ratio: the frozen-column border, a split-pane seam, a pivot table's group boundary in the header. These are allowed to be as strong as the structure demands (see the frozen-column rules below).
 
 Specs:
 

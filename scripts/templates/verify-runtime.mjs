@@ -104,28 +104,54 @@ const collect = () =>
       }
     }
 
-    // 表格竖向网格线：规范对 Table 的硬规则是「只有横向行分隔线 —— 无竖向网格」。
-    // 只查**表格行**（tr / role=row）—— 指标条(metric strip)用竖线分隔各格是设计稿认可的，
-    // 它不是数据表格。断言不区分这两者的话会误伤。
-    for (const row of document.querySelectorAll('tr, [role="row"]')) {
-      // 只查**数据行**。<thead> 里的竖线是分组表头的结构边界（透视表按服务 colSpan 分组），
-      // 规范允许 "table dividers" 这类真实结构边缘；硬规则「只有横向行分隔线」约束的是数据行。
-      if (row.closest("thead")) continue;
+    // 表格竖向网格线：**不再是有无之争，而是权重之争**。
+    // 密集表（多窄列、跨列比数字、要横向滚）画竖线是真实的阅读需要，规范允许；
+    // 但行分隔线必须始终是主结构，竖线只能是眼睛可以忽略的对位辅助线 —— 上限是行分隔线
+    // 权重（alpha × 宽度）的 60%。横竖同权重 = 报纸网格 = 禁。
+    //
+    // 只查**数据行**（tbody 的 tr）——指标条(metric strip)的竖线不是表格网格；
+    // thead 的竖线是分组表头的结构边界。两者都不受此约束。
+    const alphaOf = (c) => {
+      if (!c || c === "transparent") return 0;
+      // 现代色彩语法把 alpha 放在斜杠后：oklab(.94 .002 .006 / .25)、color(srgb … / .25)
+      const slash = c.match(/\/\s*([\d.]+%?)\s*\)/);
+      if (slash) return slash[1].endsWith("%") ? parseFloat(slash[1]) / 100 : parseFloat(slash[1]);
+      const n = c.match(/[\d.]+/g);
+      if (/^(rgba|hsla)/.test(c)) return n && n.length >= 4 ? parseFloat(n[3]) : 1;
+      return 1;
+    };
+    const lineWeight = (color, width) => alphaOf(color) * (parseFloat(width) || 0);
+
+    for (const row of document.querySelectorAll("tbody tr")) {
       const cells = [...row.children].filter((c) => c.getBoundingClientRect().height > 0);
-      const withV = cells.filter((c) => {
-        const s = getComputedStyle(c);
-        return parseFloat(s.borderLeftWidth) > 0 || parseFloat(s.borderRightWidth) > 0;
+      if (cells.length < 3) continue;
+
+      const rs = getComputedStyle(row);
+      const rowWeight = lineWeight(rs.borderBottomColor, rs.borderBottomWidth);
+
+      // 冻结列的边框是**结构边缘**，不是网格线 —— 规范明确豁免，它有权比行分隔线更重。
+      const verticals = cells
+        .filter((c) => getComputedStyle(c).position !== "sticky")
+        .map((c) => {
+          const s = getComputedStyle(c);
+          return Math.max(
+            lineWeight(s.borderLeftColor, s.borderLeftWidth),
+            lineWeight(s.borderRightColor, s.borderRightWidth)
+          );
+        })
+        .filter((w) => w > 0);
+
+      // 零星几条竖线是结构分隔（分组边界、分栏），不是网格；过半才算「画了网格」。
+      if (verticals.length < cells.length / 2) continue;
+
+      out.verticalGrids.push({
+        cls: (row.className || "").toString().slice(0, 55),
+        n: verticals.length,
+        of: cells.length,
+        maxV: Math.max(...verticals),
+        rowWeight,
       });
-      // 「网格」= 几乎每个单元格都画竖线。少量竖线是**结构性分隔**（透视表的服务分组边界、
-      // 冻结列、分栏），规范明确允许："one-sided borders are allowed only for real structural
-      // edges such as frozen columns, split panes, timelines, or table dividers"。
-      if (withV.length >= 2 && withV.length >= cells.length - 1) {
-        out.verticalGrids.push({
-          cls: (row.className || "").toString().slice(0, 55),
-          n: withV.length,
-          of: cells.length,
-        });
-      }
+      break; // 一行足以代表整张表
     }
 
     // 字号上限：只查 h1-h3 不够 —— MetricStat 的 28/32px 大数字是个 <span>，
@@ -292,11 +318,23 @@ async function audit(page, name, url, kind = "admin") {
     pass(name, `阴影全部暖黑`);
   }
 
-  // ── 表格：只有横向行分隔线，无竖向网格 ──────────────
+  // ── 表格：行分隔线是主结构，竖线（若有）必须明显更淡 ──
+  const GRID_RATIO = 0.6;
   for (const g of d.verticalGrids) {
-    fail(name, `表格有竖向网格线（${g.n} 个单元格带竖边框）<.${g.cls}> —— 规范：只有横向行分隔线`);
+    const ratio = g.rowWeight > 0 ? g.maxV / g.rowWeight : Infinity;
+    if (g.rowWeight <= 0) {
+      fail(name, `表格画了竖向网格线，却没有行分隔线 <.${g.cls}> —— 行分隔线才是表格的结构，不能反过来`);
+    } else if (ratio > GRID_RATIO) {
+      fail(
+        name,
+        `竖向网格线太重：竖线权重 ${g.maxV.toFixed(2)}，行分隔线 ${g.rowWeight.toFixed(2)}（比值 ${ratio.toFixed(2)}，` +
+          `上限 ${GRID_RATIO}）—— 横竖同权重就是报纸网格。竖线只能是可忽略的对位辅助线。`
+      );
+    } else {
+      pass(name, `竖向网格线存在但明显淡于行分隔线（比值 ${ratio.toFixed(2)} ≤ ${GRID_RATIO}）`);
+    }
   }
-  if (!d.verticalGrids.length) pass(name, "表格无竖向网格线");
+  if (!d.verticalGrids.length) pass(name, "表格无竖向网格线（默认档）");
 
   // ── 字号阶梯上限 ───────────────────────────────────
   // 标题：后台 16px（--text-page-title 15），顾客端 24px（移动蓝图 22-24）。
