@@ -93,26 +93,13 @@ node scripts/verify.mjs
 
 ---
 
-## 同步到 Claude Design 托管项目
+## 关于 Claude Design 的托管项目
 
-网页版的 Design 项目是**另一套副本**，不读本地 git。但 Claude Code 有 `DesignSync` 工具，**可以直接写入**——不需要人肉粘贴。
+kiln **不依赖**任何托管项目。数值的真相源就是这个仓库的 `tokens/*.css`，分发靠 git 和 npm。
 
-在仓库里跑：
-
-```
-/kiln-sync
-```
-
-它会把 `tokens/*.css` 推到托管的 design-system 项目 —— **数值真相源必须统一**。
-
-`references/*.md` 不推（托管项目没有这个目录），`SKILL.md` 也**不整份覆盖**：两边结构不同，
-kiln 仓库那份指向 `references/`，托管那份指向它自己的 `components/` / `ui_kits/`。
-**kiln 是设计语言，托管的 design-system 项目是这套语言在某个产品上的实例** ——
-后者的 `ui_kits/` 装的是那个产品特有的页面。所以托管侧只更新措辞，保留自己的文件索引。
-
-> 注意：普通脚本调不到 `DesignSync`（那是 Claude Code 的内置工具），所以这一步必须由 Claude 执行。git hook 只能提醒，不能代劳。
-
----
+网页版 Claude Design 里的 design-system 项目是**可选的下游**：它能把组件渲染成可视化卡片，适合
+给非工程师看。Claude Code 有 `DesignSync` 工具可以直接写入那类项目（不需要人肉粘贴），但那是
+一条单向的、可有可无的支路——**不要把它当成真相源**，否则又多了一份会漂移的副本。
 
 ## 结构
 
