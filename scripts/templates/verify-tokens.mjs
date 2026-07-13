@@ -25,14 +25,18 @@ import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FRONTEND = join(HERE, "..");
-const REPO = join(FRONTEND, "..");  // 用于打印相对路径
+const ROOT = join(HERE, "..");
+const REPO = ROOT;
 
-const CONTRACT = join(FRONTEND, "node_modules/kiln/contract/tokens.json");
+// 契约 = kiln 的 token 全集。若本项目在 kiln 之上有扩展（kiln 没覆盖的角色，
+// 例如表格色阶、额外的控件尺寸档），把 contract 换成你自己的：
+//   kiln 的 tokens + 你的扩展，并让下面的 tokensCss 也读进你的 :root。
+const CONTRACT = join(ROOT, "node_modules/kiln/contract/tokens.json");
 // token 真相源 = kiln 包（github.com/wensia/kiln），不是本仓库的副本。
 // 本地不再保留手抄的 ds-tokens.css —— 那是第二个真相源，必然漂移。
-const KILN_TOKENS = join(FRONTEND, "node_modules/kiln/tokens");
-const SRC = join(FRONTEND, "src");
+const KILN_TOKENS = join(ROOT, "node_modules/kiln/tokens");
+const LOCAL_CSS = join(ROOT, "src/index.css");  // ★ 你的全局 CSS（只会读它的 :root 块）
+const SRC = join(ROOT, "src");
 
 const failures = [];
 const fail = (msg) => failures.push(msg);
@@ -42,10 +46,16 @@ const contract = JSON.parse(readFileSync(CONTRACT, "utf8"));
 const allowed = new Set(contract.tokens);
 const known = new Set(Object.keys(contract.knownDeviations ?? {}));
 
-const tokensCss = readdirSync(KILN_TOKENS)
-  .filter((f) => f.endsWith(".css") && f !== "index.css" && f !== "fonts.css")
-  .map((f) => readFileSync(join(KILN_TOKENS, f), "utf8"))
-  .join("\n");
+const tokensCss =
+  readdirSync(KILN_TOKENS)
+    .filter((f) => f.endsWith(".css") && f !== "index.css" && f !== "fonts.css")
+    .map((f) => readFileSync(join(KILN_TOKENS, f), "utf8"))
+    .join("\n") +
+  "\n" +
+  // 本项目在 kiln 之上的扩展 —— **只取 :root 块**。
+  // @theme inline 里的 `--color-*` 是 Tailwind 的映射变量（把 token 变成工具类），
+  // 不是设计 token；把它们算进来会误报成一大堆「自造 token」。
+  (readFileSync(LOCAL_CSS, "utf8").match(/^:root \{[\s\S]*?^\}/m)?.[0] ?? "");
 // 匹配定义 `--foo:`，不匹配引用 `var(--foo)` / `var(--foo, x)` —— 引用后面跟的是 `)` 或 `,`，不是 `:`。
 // 不要锚定行首：那样单行写法 `:root { --foo: x }` 会整个漏掉（这个洞是负向测试抓出来的）。
 // \\. 处理 --space-0\.5 这种 CSS 转义。
@@ -75,7 +85,7 @@ for (const t of defined) {
 // readme.md 写画布 #F7F4F0、SKILL.md 写 #F6F3EF，而 colors.css 真值是 #FBFAF8。
 // 三套值，谁照散文实现谁错，且只能靠肉眼发现。
 // 这里把「散文 == CSS」变成一条会失败的检查。
-const SKILL_TOKENS_MD = join(FRONTEND, "node_modules/kiln/references/tokens.md");
+const SKILL_TOKENS_MD = join(ROOT, "node_modules/kiln/references/tokens.md");
 try {
   const prose = readFileSync(SKILL_TOKENS_MD, "utf8");
   // 匹配表格行： | `--palette-clay` | `#B6533C` | …
@@ -118,6 +128,12 @@ const HEX = /#[0-9a-fA-F]{6}\b/;
 const TW_PALETTE =
   /\b(?:bg|text|border|ring|from|via|to|decoration|outline|shadow|accent|caret|divide)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/;
 
+// Tailwind 出厂阴影：shadow-sm / shadow-md / shadow-lg / shadow-xl / shadow-2xl。
+// 它们是**冷调** rgba(0,0,0,·)，绕过了设计系统的暖黑阴影 token。
+// shadcn 的出厂组件几乎全带这个 —— 而它在页面上肉眼分辨不出来，
+// 必须静态拦下：阴影一律走 token（shadow-card / shadow-popover / shadow-input / shadow-xs）。
+const TW_SHADOW = /\bshadow-(?:sm|md|lg|xl|2xl)\b/;
+
 // 写死的固定像素高度：h-[580px]。
 // 只查固定高度，不查 min-h/max-h —— 后者是合法的约束（弹窗 max-h、滚动容器上限），
 // 规范禁止的是「用页面专属固定高度替代 shell 的高度契约」。
@@ -125,10 +141,10 @@ const HARDCODED_HEIGHT = /(?<![a-z-])h-\[\d+px\]/;
 
 // 存量违规按「文件 → 各类计数」记账。新增会让计数超过基线 → 失败。
 // 用计数而不是行号：行号会随无关编辑漂移，计数不会。
-const BASELINE = join(FRONTEND, "design-debt.json");
+const BASELINE = join(ROOT, "design-debt.json");
 const counts = {};
 const bump = (rel, kind) => {
-  counts[rel] ??= { hex: 0, palette: 0, height: 0 };
+  counts[rel] ??= { hex: 0, palette: 0, shadow: 0, height: 0 };
   counts[rel][kind]++;
 };
 
@@ -144,6 +160,7 @@ for (const file of walk(SRC)) {
 
     if (HEX.test(line)) bump(rel, "hex");
     if (TW_PALETTE.test(line)) bump(rel, "palette");
+    if (TW_SHADOW.test(line)) bump(rel, "shadow");
     if (HARDCODED_HEIGHT.test(line)) bump(rel, "height");
   });
 }
@@ -164,7 +181,7 @@ if (updating) {
       2
     ) + "\n"
   );
-  const total = Object.values(counts).reduce((s, c) => s + c.hex + c.palette + c.height, 0);
+  const total = Object.values(counts).reduce((s, c) => s + c.hex + c.palette + c.shadow + c.height, 0);
   console.log(`✓ 已更新设计债基线：${Object.keys(counts).length} 个文件，共 ${total} 项。`);
   process.exit(0);
 }
@@ -181,17 +198,20 @@ try {
 
 const KIND_HINT = {
   hex: "颜色必须走语义 token（bg-primary / text-success…）。",
+  shadow:
+    "禁止 Tailwind 出厂阴影（shadow-sm / md / lg / xl）—— 它们是冷调 rgba(0,0,0,·)，" +
+    "绕过了暖黑阴影 token。改用 shadow-card / shadow-popover / shadow-input / shadow-xs。",
   palette:
     "禁止 Tailwind 调色板裸色（bg-green-100 / text-red-500…）。状态走语义 token：" +
     "success=teal、info=peacock、warning=amber、destructive=clay。",
   height:
     "规范禁止「页面专属的固定高度」，高度应由 shell 通过 flex-1 + min-h-0 提供（见 DataTableDock）。",
 };
-const KIND_NAME = { hex: "裸 hex 颜色", palette: "Tailwind 裸色", height: "写死像素高度" };
+const KIND_NAME = { hex: "裸 hex 颜色", palette: "Tailwind 裸色", shadow: "Tailwind 出厂阴影", height: "写死像素高度" };
 
 for (const [rel, c] of Object.entries(counts)) {
-  const base = baseline[rel] ?? { hex: 0, palette: 0, height: 0 };
-  for (const kind of ["hex", "palette", "height"]) {
+  const base = baseline[rel] ?? { hex: 0, palette: 0, shadow: 0, height: 0 };
+  for (const kind of ["hex", "palette", "shadow", "height"]) {
     const was = base[kind] ?? 0;
     if (c[kind] > was) {
       fail(
@@ -212,7 +232,7 @@ if (failures.length) {
   process.exit(1);
 }
 
-const debtTotal = Object.values(counts).reduce((s, c) => s + c.hex + c.palette + c.height, 0);
+const debtTotal = Object.values(counts).reduce((s, c) => s + c.hex + c.palette + c.shadow + c.height, 0);
 console.log(
   `✓ 设计契约通过：${allowed.size} 个 token 全部定义且无自造值。` +
     (debtTotal

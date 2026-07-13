@@ -174,10 +174,13 @@ cp node_modules/kiln/scripts/templates/verify-tokens.mjs scripts/
 "build": "node scripts/verify-tokens.mjs && tsc -b && vite build"
 ```
 
-它拦四类：
+它拦五类：
 - 契约里的 token 没定义（没同步 kiln）
 - **自造 token**（自己编了一个数值）
 - 业务代码里的**裸 hex** 和 **Tailwind 调色板裸色**（`bg-green-100` / `text-red-500`）
+- **Tailwind 出厂阴影**（`shadow-sm` / `md` / `lg` / `xl`）——它们是冷调 `rgba(0,0,0,·)`，
+  绕过了暖黑阴影 token。**shadcn 的出厂组件几乎全带这个**，而它在页面上肉眼分辨不出来，
+  所以必须**静态**拦下，别等运行时
 - 页面专属的**写死像素高度**（`h-[580px]`）
 
 > 存量太多？用 `--update-baseline` 记账，**新增即失败**，然后慢慢清零。
