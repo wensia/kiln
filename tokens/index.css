@@ -1,12 +1,21 @@
 /* ============================================================
-   kiln — 单一入口。消费方只需 @import 这一个文件。
+   kiln — token 入口。消费方 @import 这一个文件。
 
    数值的唯一真相源就在这些 CSS 里。
-   散文（SKILL.md / references/*.md）只命名 token、解释意图，
+   散文（SKILL.md / references/*.md）只命名 token、解释意图；
    references/tokens.md 是它们的镜像，由 scripts/verify.mjs 校验一致。
+
+   ── 注意：这里**不 import fonts.css** ──────────────────────
+   字体怎么加载是**部署决策**，不是 token 决策：
+     · Google Fonts CDN  → @import "kiln/tokens/fonts.css"
+     · 自托管（推荐用于中国大陆，CDN 不通）
+                         → npm i @fontsource/noto-sans-sc
+                           import '@fontsource/noto-sans-sc/{400,500,600}.css'
+   两条路都让 `--font-sans` 里的 "Noto Sans SC" 生效，
+   但把 CDN 强塞给国内项目会让首屏阻塞在一个必然失败的请求上。
+   所以由消费方选，入口不替它决定。
    ============================================================ */
 
-@import "./fonts.css";
 @import "./colors.css";
 @import "./typography.css";
 @import "./spacing.css";
