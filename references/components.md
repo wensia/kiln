@@ -384,7 +384,7 @@ Frozen column scroll shadow:
 
 Pagination is **one shared global component** — every data table consumes it; never rebuild a per-page variant.
 
-- Height: about 40px.
+- Height: `--table-pagination-height` (40px). Anything that computes a table's fitted height (a dialog table sized to N rows, for instance) must consume that token rather than re-deriving the strip height from a control height — the two drift the moment the strip's padding changes.
 - Pagination sits directly on the canvas with the table — not inside a card. Its vertical insets are **symmetric**: distance from the divider line above the controls = distance from the controls to the work-area bottom (12px each); the shell's bottom gap uses the same value.
 - Pagination is fixed to the bottom of the visible screen/work area; it must not move based on row count, filter results, or form/table data volume. Overflowing rows scroll **inside the table viewport** above it.
 - Left side shows the total only: 「共 N 条」(tabular). Range strings like 「1–15 / 512」carry no decision value — do not render them.

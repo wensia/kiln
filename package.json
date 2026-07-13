@@ -1,6 +1,6 @@
 {
   "name": "kiln",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "kiln — 窑。中文后台工作台设计系统：暖陶土釉色、扁平紧凑、留白+暖黑阴影分层。",
   "type": "module",
   "scripts": {

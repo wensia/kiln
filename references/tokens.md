@@ -156,6 +156,7 @@ Fixed sizes:
 | --- | --- | --- |
 | `--nav-item-height` | `36px` | Sidebar nav item |
 | `--table-row-height` | `48px` | Data table row baseline (the DS `Table` component renders airy 52px rows with 16px cell padding — both are sanctioned; do not go below 48px) |
+| `--table-pagination-height` | `40px` | Pagination strip (a tertiary strip: 32px controls plus breathing room). Anything computing a table's fitted height must consume this, not re-derive it from a control height. |
 | `--toolbar-control` | `32px` | Compact toolbar control (32-36) |
 | `--control-height` | `36px` | Default button, input, select |
 | `--control-height-sm` | `32px` | Small button, inline control |
