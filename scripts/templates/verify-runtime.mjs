@@ -65,6 +65,11 @@ const collect = () =>
       const s = getComputedStyle(b);
       const r = b.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue; // 不可见的不算
+      // Radix 的 Checkbox / Radio / Switch 渲染成 <button role="checkbox|radio|switch">，
+      // 但它们**不是按钮**：勾选框是 16px 见方的选择控件，圆角和 32px 控件下限都不适用于它。
+      // 按 tagName 收集就会把它们一起吃进来 —— 只认标签、不认角色，是这个断言的洞。
+      const role = b.getAttribute("role");
+      if (role === "checkbox" || role === "radio" || role === "switch") continue;
       out.buttons.push({
         text: (b.textContent || "").trim().slice(0, 14),
         radius: s.borderRadius,
@@ -421,6 +426,39 @@ async function audit(page, name, url, kind = "admin") {
     );
   } else {
     pass(name, `Noto Sans SC 已加载，无竞争 webfont`);
+  }
+
+  // ── 分页条带：高度只能来自 --table-pagination-height ──
+  // 真实踩过：条带高度用 padding 拼出来，于是它和 token 分家了 —— 定高表格按 token 算行数，
+  // 条带按 padding 长，两边差几像素没人知道，且改一次 padding 就再分家一次。
+  // 高度归 token，padding 归零，控件靠 items-center 自己居中。
+  const pager = await page.evaluate(() => {
+    const bar = [...document.querySelectorAll("div")].find(
+      (d) => /^共 /.test((d.textContent || "").trim()) && d.querySelector("nav")
+    );
+    if (!bar) return null;
+    const probe = document.createElement("div");
+    probe.style.height = "var(--table-pagination-height)";
+    document.body.appendChild(probe);
+    const tokenH = Math.round(probe.getBoundingClientRect().height);
+    probe.remove();
+    return {
+      height: Math.round(bar.getBoundingClientRect().height),
+      tokenH,
+      pt: getComputedStyle(bar).paddingTop,
+      pb: getComputedStyle(bar).paddingBottom,
+    };
+  });
+  if (pager) {
+    if (Math.abs(pager.height - pager.tokenH) > 1) {
+      fail(
+        name,
+        `分页条带 ${pager.height}px，--table-pagination-height 是 ${pager.tokenH}px` +
+          `（padding ${pager.pt}/${pager.pb}）—— 高度必须来自 token，不要用 padding 拼。`
+      );
+    } else {
+      pass(name, `分页条带 ${pager.height}px = --table-pagination-height`);
+    }
   }
 
   // ── 冻结列：不透明 + 跟随行状态（需要交互，放在静态收集之后）──

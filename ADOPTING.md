@@ -208,6 +208,39 @@ npm i -D playwright
 **覆盖每一个页面、每一个 tab。** 这次迁移里，契约一度「通过」，但那是假象——它只跑了一个 tab。
 一扩到全部，立刻暴露 79 项违规。**断言没走到的地方，等于没有规范。**
 
+#### 需要登录的页面：加一个 dev-only 的设计探针
+
+组合错误最密集的地方——冻结列的四态背景、行高亮、分页条带——几乎总长在**需要登录、需要后端**的
+表格页里。于是门 2 的表格断言被塞进 `if (E2E_TOKEN)` 分支：没有 token 就整段跳过，
+脚本照样打印「通过」。
+
+**一条从不执行的断言比没有断言更坏——它让人以为这里有保护。**（真实情况：冻结列跟随行高亮的
+断言写好了，但因为没人跑 token，它一次都没执行过；与此同时那个 bug 就活在页面上。）
+
+解法不是想办法伪造登录态（守卫会打后端，伪造很脆），而是加一个**不需要 auth、不需要后端**的
+探针路由：
+
+```tsx
+// src/routes/design-probe.tsx —— 生产 build 里 notFound()
+export const Route = createFileRoute('/design-probe')({
+  beforeLoad: () => { if (!import.meta.env.DEV) throw notFound() },
+  component: () => <DataTable columns={FIXED_COLUMNS} data={FIXED_ROWS} … />,
+})
+```
+
+用固定假数据把 DataTable 摆出来，形状与真实表格页一致（左冻结选择列 + 右冻结操作列 + 斑马行 +
+分页条），然后把 `/design-probe` 放进门 2 **不需要 token 的那一段**。这样冻结列和分页条的断言
+在每次 `npm run verify:runtime` 都必定执行。
+
+> 它不是 demo 页，别往里加业务内容。唯一的消费者是 `verify-runtime.mjs`。
+
+#### 断言只认标签会有洞
+
+按 `document.querySelectorAll("button")` 收集控件，会把 Radix 的 Checkbox / Radio / Switch
+一起吃进来——它们渲染成 `<button role="checkbox">`，但**不是按钮**：勾选框就该是 16px 见方，
+32px 的控件下限和 4px 圆角都不适用。**只认标签、不认角色**，于是每个带选择列的表格都会报一串
+假的「按钮高 16px」。模板里已经按 `role` 豁免了这三类。
+
 ---
 
 ## 五、给 AI 用（Claude Code）
