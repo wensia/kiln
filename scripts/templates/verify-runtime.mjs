@@ -168,8 +168,11 @@ const collect = () =>
     return out;
   })();
 
-// kind="admin"：后台工作台，页面标题上限 16px。
-// kind="consumer"：顾客端页面，规范的移动端蓝图允许 22-24px 标题（后台上限是 16px）。
+// kind="admin"    ：后台工作台 —— 页面标题上限 16px（--text-page-title 15px），禁 hero。
+// kind="consumer" ：顾客端页面 —— 移动端蓝图允许 22-24px 标题。
+// kind="landing"  ：登录页 / 品牌门面 —— **不受工作台的标题上限约束**。
+//                   规范禁止的是「后台工作页面里的 hero」，不是产品门面本身。
+//                   但字号**下限**仍然适用：读不了的字，在哪儿都是读不了。
 async function audit(page, name, url, kind = "admin") {
   await page.goto(url, { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
@@ -231,7 +234,11 @@ async function audit(page, name, url, kind = "admin") {
   // 标题：后台 16px（--text-page-title 15），顾客端 24px（移动蓝图 22-24）。
   // 其它文本：一律 ≤22px（--text-data，看板关键数字的上限）。
   for (const h of d.heroHeadings) {
-    const cap = h.isHeading ? (kind === "consumer" ? 24 : 16) : kind === "consumer" ? 24 : 22;
+    const cap = kind === "landing"
+      ? Infinity
+      : h.isHeading
+        ? (kind === "consumer" ? 24 : 16)
+        : kind === "consumer" ? 24 : 22;
     if (h.size > cap) {
       fail(
         name,
