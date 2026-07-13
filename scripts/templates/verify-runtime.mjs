@@ -73,10 +73,12 @@ const collect = () =>
         // tab trigger 是 28px（DS Tabs button 变体规格），不受 32px 控件下限约束
         isTab: b.getAttribute("role") === "tab" || !!b.closest('[role="tablist"]'),
       });
-      // clay 有两种合法用途：「流程唯一的关键动作」和「状态/选中/焦点」。
-      // 上限 1 只约束前者 —— 侧栏 active 导航项、分页当前页是状态填充（aria-current），
-      // 规范明确要求它们用 clay，把它们计入上限会让任何带侧栏的页面必然超限。
-      if (s.backgroundColor === CLAY && b.getAttribute("aria-current") === null) {
+      // clay 有两种合法用途：「流程唯一的关键动作」和「状态/选中/焦点」（判定表第 1、3 行）。
+      // 上限 1 只约束**动作**填充 —— 侧栏 active 导航项、分页当前页（aria-current）、
+      // 持有激活条件的高级筛选触发器（aria-pressed）都是**状态**填充，规范明确要求它们用
+      // clay，计入上限会让任何带侧栏或带筛选器的页面必然超限。
+      const stateful = b.getAttribute("aria-current") !== null || b.getAttribute("aria-pressed") === "true";
+      if (s.backgroundColor === CLAY && !stateful) {
         out.clayFills++;
       }
     }
