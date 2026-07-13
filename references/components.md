@@ -385,6 +385,19 @@ Operation column:
 - The right edge of a frozen operation column should sit flush with the table container edge. If `scrollbar-gutter: stable` creates a blank strip to the right of a right-sticky column, remove that gutter for tables with a right-frozen operation column or compensate in the shared table component; do not hide the gap by widening the action column.
 - If the row itself is clickable, the operation cell intercepts click and keydown for the whole cell.
 
+Loading and empty:
+
+- Loading renders **skeleton rows inside the real table** — same header, same columns, same widths — not a spinner in place of the table and not an empty body under a header. The column structure has to be final before the data lands, or the table visibly re-lays itself out the moment it arrives. Cap the skeletons at ~8 rows: a page size of 100 does not need 100 of them.
+- The empty state lives **inside the scroll frame, under a header that stays**. The table and its columns remain; the empty block sits below them behind a top divider. An empty state that replaces the whole table deletes the columns the user was just reading, and 「no results」 then looks indistinguishable from 「page broken」.
+- The pagination strip stays **mounted and disabled** during loading, never unmounted. Removing it changes the dock's height, so every fetch would shift the table's bottom edge.
+
+Scroll frame and sticky layering:
+
+- **One frame owns both axes.** The table's scrollport must be a single element that scrolls horizontally *and* vertically: the `ref`, the `overflow-auto`, and the `data-at-start` / `data-at-end` edge attributes all live on it, and any inner scroll wrapper the table primitive ships with is neutralized (for shadcn: `[&_[data-slot=table-container]]:overflow-visible`). Split the axes across two elements — vertical on the outer, horizontal on the inner — and the sticky header sticks to the wrong scrollport: it silently stops sticking, and the rows scroll under nothing.
+- A frozen column's sticky offset is the sum of the widths of the frozen columns before it (plus the selection column when present). So **a frozen column needs an explicit width** — one sized by its content cannot be positioned, and the frame has no way to tell you.
+- **z-index here is a contract, not a guess.** Three layers, and the crossing cell must outrank both: frozen body cells `z-20` < sticky header cells `z-30` < the cell that is *both* header and frozen — the selection/first-column corner — `z-50`. Leave the `<thead>` / `TableHeader` element itself neutral (`static z-auto`) and let the individual cells carry stickiness; a stacking context on the header row traps that corner cell underneath the body's frozen column, and the corner is exactly where the two overlaps meet.
+- `overscroll-behavior: none` on the frame. Without it, scrolling a wide table to its horizontal edge hands the momentum to the page and the whole workbench slides sideways.
+
 Frozen column background:
 
 - A frozen cell must be **opaque** (the columns scrolling underneath must not show through) **and** must follow its row's state. These two requirements fight each other, and the fight is silent: an opaque background painted once freezes the cell at its resting color, and every row highlight — zebra, hover, selected, row-menu-open — then visibly stops at the frozen edge while the rest of the row lights up.
@@ -407,7 +420,7 @@ Frozen column scroll shadow:
 - A frozen column's shadow is a scroll affordance, not decoration. Show it only while there is hidden content on that side: a left-frozen column casts a right-facing shadow only after the body is scrolled away from the start; a right-frozen column casts a left-facing shadow only while more columns remain to the right. When the table fits with no horizontal overflow, show no shadow at all.
 - Do not paint the shadow with `box-shadow` on the `<td>`/`<th>`. These tables use `border-collapse`, and browsers drop cell box-shadows under collapse, so the shadow silently never renders. Draw it with a gradient pseudo-element (`::after`) on the sticky cell instead, positioned just outside the frozen edge (`translateX(±100%)`), `~10px` wide, `pointer-events: none`, fading from `--shadow-sticky-edge` (warm: light `rgba(54,47,42,0.12)`) to transparent.
 - Toggle visibility, not size: keep the pseudo-element mounted at `opacity: 0` and transition opacity (~`200ms`) when the edge state flips. Never animate width or re-layout.
-- Detect scroll position on the element that actually scrolls horizontally. With the shadcn table wrapper the scrollport is the inner `[data-slot=table-container]`, not the outer bordered container; sticky cells stick to it, so read its `scrollLeft` / `scrollWidth` / `clientWidth` there. Write the resulting edge state as data attributes (e.g. `data-at-start` / `data-at-end`) on a shared ancestor imperatively, so the CSS does the toggling and no React re-render is needed per scroll frame.
+- Detect scroll position on **the frame that owns both axes** (see above) — the same element the sticky cells stick to. Read its `scrollLeft` / `scrollWidth` / `clientWidth` and write the edge state back onto it as data attributes (`data-at-start` / `data-at-end`) imperatively, so the CSS does the toggling and no React re-render happens per scroll frame. Do not measure one element and flag another: if the primitive still has a live inner scroll wrapper, the numbers you read and the cells you shadow belong to different scrollports.
 - Re-measure on scroll, on container resize (`ResizeObserver`), and whenever rows/columns/loading change, since content width can cross the overflow threshold without the container resizing.
 - Keep it subtle. The shadow should hint "you can still scroll" without pulling focus; if it reads as a heavy bar, narrow the width or lower `--shadow-sticky-edge` alpha before anything else.
 
@@ -416,14 +429,16 @@ Frozen column scroll shadow:
 Pagination is **one shared global component** — every data table consumes it; never rebuild a per-page variant.
 
 - Height: `--table-pagination-height` (40px). Anything that computes a table's fitted height (a dialog table sized to N rows, for instance) must consume that token rather than re-deriving the strip height from a control height — the two drift the moment the strip's padding changes.
+  - The fitted height is `--table-head-height + N × --table-row-height + --table-pagination-height + the dock's own gap`. Every term is a token. The moment a raw pixel or a control height enters that expression, the table is permanently a few pixels off and nobody can see why.
+- The 40px single-row strip is the **desktop** shape (total on the left, controls on the right). Below the `md` breakpoint the strip stacks — total on one line, controls on the next — and **drops the fixed height**. Forcing 40px on a narrow viewport either clips the controls or makes them scroll sideways.
 - Pagination sits directly on the canvas with the table — not inside a card. Its vertical insets are **symmetric**: distance from the divider line above the controls = distance from the controls to the work-area bottom (12px each); the shell's bottom gap uses the same value.
 - Pagination is fixed to the bottom of the visible screen/work area; it must not move based on row count, filter results, or form/table data volume. Overflowing rows scroll **inside the table viewport** above it.
-- Left side shows the total only: 「共 N 条」(tabular). Range strings like 「1–15 / 512」carry no decision value — do not render them.
+- Left side shows the total: 「共 N 条」(tabular). When the table is selectable, the selection count rides in the same line (「共 N 条，已选 M 条」) — that strip is the only place the running selection total is stated. Range strings like 「1–15 / 512」carry no decision value — do not render them.
 - Page navigation is minimal: a **3-number window centered on the current page** (`3 [4] 5`) plus the page-jump Select — no 上一页/下一页 buttons and no ellipsis. The neighbor numbers ARE prev/next (one click switches); long jumps go through the「第 x 页」Select. At the boundaries the window clamps to the edge (`[1] 2 3`, `33 34 [35]`); with ≤3 pages render them all.
 - Pagination is a tertiary strip — use the compact 32px tier: page-number buttons ~32px (12px tabular text), page-size and page-jump Selects `size="sm"` (32px, still ≥120px wide); the current page is a selected state → clay fill (`bg-primary text-primary-foreground`); other pages use the neutral outline surface. All controls in the strip share the same 32px outer height. Do not go below 32px — the Select trigger cannot render shorter.
   - Page jump is a Select (「第 x 页」options), not static text — it doubles as the current-page indicator.
 - Bulk action bar stays in the footer area.
-- Current-page selection scope must be explicit.
+- Selection scope must be explicit, and it has **two halves that do not match on purpose**: the header checkbox acts on **the current page only** (it selects or clears this page's rows), while the count in the strip is the **cross-page running total** — leaving a page does not drop what you picked there. Both behaviors are right; what breaks trust is showing one and meaning the other, so the count must be visible whenever selection is on.
 
 ## Summary / Filter Strip
 
