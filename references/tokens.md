@@ -85,6 +85,18 @@ Rules:
 | `--input` | `#DCD7D0` | Input border |
 | `--ring` | `#B6533C` | Focus ring |
 
+### Table Surface Tokens
+
+| Token | Light Value | Use |
+| --- | --- | --- |
+| `--table-header` | muted 94% + card | Quiet header surface |
+| `--table-header-border` | border 86% + card | Header bottom seam |
+| `--table-row-alt` | muted 24% + card | Zebra row (even) |
+| `--table-row-hover` | muted 72% + card | Row hover |
+| `--table-row-selected` | primary 10% + card | Row selected |
+
+The four row-state values are tokens for one reason beyond reuse: **a frozen column has to repaint them itself.** A sticky cell needs its own opaque background (otherwise the columns scrolling underneath show through), so it cannot inherit the row's. It must therefore consume the exact same values the row does, or the highlight visibly stops at the frozen edge. Every value here mixes into `--card` — never into `transparent` — for the same reason. See the frozen-column background rule in `components.md`.
+
 ### Sidebar Tokens
 
 | Token | Light Value | Use |
@@ -194,7 +206,7 @@ Values mirror `tokens/elevation.css`. Keep a check that fails when the two disag
 | `--shadow-topbar` | `0 1px 0 rgba(255,255,255,.72)` | Topbar top highlight (**not** an inset) |
 | `--shadow-sticky-edge` | light `rgba(54,47,42,.12)` · dark `rgba(0,0,0,.45)` | Frozen-column scroll shadow color (a single low-alpha edge color, not a full box-shadow) |
 
-`--shadow-sticky-edge` is a skill extension (not yet in the DS `tokens/elevation.css`; propose it upstream when implementing). It is a flat color consumed by a gradient, not a `box-shadow` list. Keep it quiet and **warm**: light `rgba(54, 47, 42, 0.12)`, dark `rgba(0, 0, 0, 0.45)`. It signals "more content this way," so it must read at a glance without competing with the data. See the frozen-column rule in `components.md`.
+`--shadow-sticky-edge` is a flat color consumed by a gradient, not a `box-shadow` list — a `box-shadow` on a `<td>` is dropped under `border-collapse` and would silently never render. Keep it quiet and **warm**: light `rgba(54, 47, 42, 0.12)`, dark `rgba(0, 0, 0, 0.45)`. It signals "more content this way," so it must read at a glance without competing with the data. See the frozen-column rules in `components.md`.
 
 ## Motion
 

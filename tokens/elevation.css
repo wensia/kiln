@@ -26,4 +26,8 @@
 
   /* 顶栏分隔高光 */
   --shadow-topbar: 0 1px 0 rgba(255, 255, 255, 0.72);
+
+  /* 冻结列滚动阴影：一个**扁平颜色**，不是 box-shadow 列表 —— 它被渐变伪元素消费
+     （border-collapse 下浏览器会丢弃单元格的 box-shadow，见 components.md）。 */
+  --shadow-sticky-edge: rgba(54, 47, 42, 0.12);
 }

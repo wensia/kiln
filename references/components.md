@@ -346,6 +346,23 @@ Operation column:
 - The right edge of a frozen operation column should sit flush with the table container edge. If `scrollbar-gutter: stable` creates a blank strip to the right of a right-sticky column, remove that gutter for tables with a right-frozen operation column or compensate in the shared table component; do not hide the gap by widening the action column.
 - If the row itself is clickable, the operation cell intercepts click and keydown for the whole cell.
 
+Frozen column background:
+
+- A frozen cell must be **opaque** (the columns scrolling underneath must not show through) **and** must follow its row's state. These two requirements fight each other, and the fight is silent: an opaque background painted once freezes the cell at its resting color, and every row highlight — zebra, hover, selected, row-menu-open — then visibly stops at the frozen edge while the rest of the row lights up.
+- So a sticky cell cannot inherit the row background; it has to repaint it. Drive it from **one** rule set keyed on the sticky cells, covering all four states, consuming the same `--table-row-*` tokens the row consumes:
+
+```css
+[data-slot="table-row"] > [data-sticky-cell]                          { background: var(--card); }
+[data-slot="table-row"]:nth-child(even) > [data-sticky-cell]          { background: var(--table-row-alt); }
+[data-slot="table-row"]:hover > [data-sticky-cell],
+[data-slot="table-row"]:has([aria-expanded="true"]) > [data-sticky-cell] { background: var(--table-row-hover); }
+[data-slot="table-row"][data-state="selected"] > [data-sticky-cell]   { background: var(--table-row-selected); }
+```
+
+- **Never put a `bg-*` utility class on a sticky body cell** (`bg-card`, `bg-background`, …). Under Tailwind v4 the utility lands in `@layer utilities`, the rules above live in `@layer base`, and **layer order beats specificity** — a single-class utility silently outranks a `(0,3,0)` `:hover` rule. The cell keeps a valid-looking token, the code review passes, and the row highlight dies at the frozen column. If the sticky background must be expressed in the component, put it in the same layer as the state rules or hoist both out of `@layer`.
+- Row-state tokens must mix into `--card`, never into `transparent`: a `color-mix(…, transparent)` row tint is fine on a normal cell (it composites over the table surface) but turns a frozen cell into a window.
+- Header sticky cells are the exception: they carry `--table-header` and have no row states, so a utility class there is harmless.
+
 Frozen column scroll shadow:
 
 - A frozen column's shadow is a scroll affordance, not decoration. Show it only while there is hidden content on that side: a left-frozen column casts a right-facing shadow only after the body is scrolled away from the start; a right-frozen column casts a left-facing shadow only while more columns remain to the right. When the table fits with no horizontal overflow, show no shadow at all.

@@ -75,6 +75,17 @@
   --chart-4: var(--palette-amber);
   --chart-5: color-mix(in srgb, var(--palette-ink) 62%, var(--palette-surface));
 
+  /* ---- Table surfaces（表头 + 行状态色阶） ----
+     表格是工作台的主表面，每张表都要区分「静息 / 斑马 / hover / 选中」四态。
+     这四态必须是 token：冻结列的背景要复用同一组值才能跟着行走（见
+     references/components.md 的 Frozen column background），下游各自发明一个 hover 色，
+     冻结列就必然对不上。全部从 --muted / --border / --primary 派生，换釉色自动跟随。 */
+  --table-header: color-mix(in srgb, var(--muted) 94%, var(--card));
+  --table-header-border: color-mix(in srgb, var(--border) 86%, var(--card));
+  --table-row-alt: color-mix(in srgb, var(--muted) 24%, var(--card));
+  --table-row-hover: color-mix(in srgb, var(--muted) 72%, var(--card));
+  --table-row-selected: color-mix(in srgb, var(--primary) 10%, var(--card));
+
   /* ---- Sidebar（纯白侧栏） ---- */
   --sidebar: var(--palette-white);
   --sidebar-foreground: var(--palette-ink);

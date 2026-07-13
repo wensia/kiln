@@ -177,6 +177,70 @@ const collect = () =>
 // kind="landing"  ：登录页 / 品牌门面 —— **不受工作台的标题上限约束**。
 //                   规范禁止的是「后台工作页面里的 hero」，不是产品门面本身。
 //                   但字号**下限**仍然适用：读不了的字，在哪儿都是读不了。
+/** rgba 的 alpha —— 没有第四个分量就是不透明 */
+const isOpaque = (color) => {
+  const n = (color.match(/[\d.]+/g) ?? []).map(Number);
+  return n.length < 4 || n[3] === 1;
+};
+
+/**
+ * 冻结列背景：必须不透明，且必须跟着行状态走。
+ *
+ * 为什么它单独跑一趟、而不是并进上面的 collect()：**这条规则只在行 hover 时才现形**。
+ * 冻结列涂死一个背景色（`bg-card`）的实现，静息态下和正确实现的像素一模一样 —— 静态
+ * 收集 computed style 永远抓不到它。只有鼠标压上去那一刻才看得见：整行亮了，冻结列没亮，
+ * 高亮在冻结边缘齐刷刷断掉。
+ *
+ * 而它偏偏又极容易写错：Tailwind v4 里 `bg-card` 落在 utilities 层，行状态规则通常在
+ * base 层，**层序压过特异性** —— utilities 里一个单类工具类，稳稳压死 base 里 (0,3,0) 的
+ * :hover 规则。token 全对、类名全对、代码审查挑不出毛病。
+ */
+const auditFrozenColumns = async (page, name) => {
+  const rows = page.locator("tbody tr");
+  if ((await rows.count()) === 0) return; // 本页没有数据表
+
+  const row = rows.first();
+  const cells = row.locator("td");
+  const cellCount = await cells.count();
+
+  // 冻结单元格 = 算出来 position:sticky —— 不认 class、不认 data 属性命名，只认浏览器的结论
+  const sticky = [];
+  for (let i = 0; i < cellCount; i += 1) {
+    if ((await cells.nth(i).evaluate((el) => getComputedStyle(el).position)) === "sticky") sticky.push(i);
+  }
+  if (!sticky.length) return; // 这张表没有冻结列
+
+  const bgOf = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  // ① 静息态：冻结单元格必须不透明，否则横向滚动时下层的列会从底下透出来
+  for (const i of sticky) {
+    const bg = await bgOf(cells.nth(i));
+    if (!isOpaque(bg)) fail(name, `冻结列第 ${i + 1} 格背景 ${bg} 半透明 —— 横向滚动时下层列会透出来`);
+  }
+
+  // ② hover 态：行亮起来，冻结列必须跟着亮（此时 <tr> 自己有非透明背景，可直接对拍）
+  await row.hover();
+  await page.waitForTimeout(250); // 等 transition-colors 走完
+  const rowBg = await bgOf(row);
+
+  if (!isOpaque(rowBg)) {
+    fail(name, `hover 数据行没有背景高亮（<tr> 仍是 ${rowBg}）—— 表格必须有行 hover 态`);
+    return;
+  }
+
+  for (const i of sticky) {
+    const bg = await bgOf(cells.nth(i));
+    if (bg !== rowBg) {
+      fail(
+        name,
+        `hover 时冻结列第 ${i + 1} 格是 ${bg}，同行是 ${rowBg} —— 行高亮走到冻结列就断了。` +
+          `多半是给 sticky cell 加了 bg-* 工具类：utilities 层压过了 base 层的行状态规则。`
+      );
+    }
+  }
+  pass(name, `冻结列 ${sticky.length} 格：不透明且跟随行 hover`);
+};
+
 async function audit(page, name, url, kind = "admin") {
   await page.goto(url, { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
@@ -277,6 +341,8 @@ async function audit(page, name, url, kind = "admin") {
     pass(name, `Noto Sans SC 已加载，无竞争 webfont`);
   }
 
+  // ── 冻结列：不透明 + 跟随行状态（需要交互，放在静态收集之后）──
+  await auditFrozenColumns(page, name);
 }
 
 const browser = await chromium.launch();
