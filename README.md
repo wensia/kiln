@@ -50,6 +50,10 @@
 
 ## 用法
 
+> **要在一个项目里落地？看 [ADOPTING.md](./ADOPTING.md)** —— 从一次真实迁移
+> （React + Vite + Tailwind v4 + shadcn，十几个页面、两万多行）反推出来的完整路径，
+> 含两个可直接复制的校验脚本，以及一张「哪些坑肉眼根本发现不了」的清单。
+
 ### 作为 skill（Claude Code 自动加载）
 
 ```bash

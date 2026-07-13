@@ -10,5 +10,13 @@
     "./tokens": "./tokens/index.css",
     "./tokens/*": "./tokens/*"
   },
-  "files": ["tokens", "references", "SKILL.md", "contract", "evals"]
+  "files": [
+    "tokens",
+    "references",
+    "SKILL.md",
+    "ADOPTING.md",
+    "contract",
+    "evals",
+    "scripts/templates"
+  ]
 }
