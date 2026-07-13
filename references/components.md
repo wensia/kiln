@@ -245,6 +245,19 @@ Interaction:
 - QA Select positioning in dense workbench headers, table toolbars, dialogs, and narrow viewports. Check placeholder state, selected first item, selected middle item, selected last item, hover/focus, and long labels; the dropdown should not jump horizontally or overlap the trigger.
 - If options exceed about 8 or need search, use a combobox/dialog instead of a long dropdown.
 
+Clearing a filter select — the X lives in the trigger:
+
+- A select that narrows a list must not use an "全部xxx / 所有xxx / 不限" **option** as its clearing device. The unfiltered state is the trigger's placeholder; the option list carries real values only. An "all" option costs a row in every dropdown, and it makes "nothing selected" and "a value that happens to mean everything" read identically in the trigger.
+- Once a value is chosen, the trigger's chevron is **replaced** by a 16px `X` (`text-muted-foreground`, hover `text-foreground`) that returns the select to its placeholder in one click. Chevron and X never coexist — the right slot holds exactly one icon, so the trigger does not change width when a filter becomes active.
+- The Radix/shadcn trigger is itself a `<button>`, so the clear affordance **cannot be a nested real button**. Use `<span role="button" aria-label="清空筛选">` and kill the event in `onPointerDown` (`preventDefault` + `stopPropagation`); without that, the same press that clears also opens the dropdown.
+- Map the "all" sentinel (`'all'`, `'__all__'`, `undefined` — whatever the page already uses) to an empty value inside the wrapper so the placeholder renders. Business code keeps passing its own sentinel.
+- Ship this once as a shared wrapper (`FilterSelect`, taking `value / onChange / options / placeholder / allValue`) rather than wiring a trigger and a clear button per page. Filter selects have no exemptions.
+
+Boundary — this rule is about **filters**, not forms:
+
+- In an edit/create form, an option like "暂不选择" / "保持原状态" / "使用默认校区" is a **real value with real semantics** — write nothing, keep the current value, inherit a default. It is not a cleared filter, and replacing it with an X would delete the meaning it carries. Those stay in the option list.
+- The test: if empty means "do not narrow the list", clearing belongs in the trigger. If empty means "do not change the data" — or the field is required — it belongs in the option list.
+
 ## Field Group
 
 - Use FieldGroup, Field, FieldLabel, and FieldDescription.

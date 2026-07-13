@@ -286,6 +286,7 @@ Avoid:
 - A 38px segmented/filter track (`32px` child controls plus `p-0.5` and a border) sitting beside a 32px or 36px sibling button. The track's visible outer box is the control, so set the track to the toolbar height and adjust padding before claiming sibling controls are aligned.
 - Duplicate refresh/sync/reload controls in the same viewport, especially a page-level text refresh plus a nested icon-only refresh whose scope is not obvious.
 - Transparent or hover-only `ghost` buttons for visible page/detail actions such as edit, follow-up, call, close, reset, or toolbar commands. Use a neutral soft/outline surface at rest instead.
+- An "全部xxx / 不限" option used as the way to clear a filter select. Clearing lives in the trigger: placeholder = unfiltered, and choosing a value swaps the chevron for an X (`span[role=button]`, not a nested `<button>`). An edit form's "暂不选择 / 保持原状态" is the opposite case — that is a real value, not a filter clear, and it stays an option.
 - Password fields without a show/hide button.
 - Date strings typed manually when a date picker is expected.
 - Huge explanatory copy that repeats visible controls; emoji or decorative Unicode as content.
