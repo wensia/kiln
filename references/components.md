@@ -355,6 +355,12 @@ Vertical grid lines:
 - Reference weights from a shipped implementation: row divider `--border` at 70% alpha, column line `--border` at 25% — a 1:2.8 ratio. Header column lines may sit slightly heavier than body ones (35%), since the header is already a distinct surface.
 - Structural edges are **not** grid lines and are exempt from the ratio: the frozen-column border, a split-pane seam, a pivot table's group boundary in the header. These are allowed to be as strong as the structure demands (see the frozen-column rules below).
 
+Surface:
+
+- **The row is the surface, not the container.** `--card` belongs on `[data-slot=table-row]`; the scroll frame carries no background at all. Paint the frame instead and a fitted dock's empty area — everything below the last row, where there is no data — is white as well: you removed the card and kept a card-shaped slab. With the surface on the row, rows are white and anything that is not a row is canvas.
+- It also keeps the four row states honest. Zebra, hover, selected, and every frozen cell's background all mix into `--card` and all paint per row; one surface, one owner. A container-level background is a second owner that nothing can override.
+- The frame's only edge is its `border-b` — the viewport's closing line, which doubles as the divider above the pagination strip. That is a structural edge, not card chrome.
+
 Specs:
 
 - Header height: 40px.
@@ -428,10 +434,14 @@ Frozen column scroll shadow:
 
 Pagination is **one shared global component** — every data table consumes it; never rebuild a per-page variant.
 
-- Height: `--table-pagination-height` (40px). Anything that computes a table's fitted height (a dialog table sized to N rows, for instance) must consume that token rather than re-deriving the strip height from a control height — the two drift the moment the strip's padding changes.
-  - The fitted height is `--table-head-height + N × --table-row-height + --table-pagination-height + the dock's own gap`. Every term is a token. The moment a raw pixel or a control height enters that expression, the table is permanently a few pixels off and nobody can see why.
+- Height: `--table-pagination-height` (40px), and **the strip's own vertical padding is zero**. The strip is an invisible 40px slot — no background, no border of its own — holding 32px controls centered in it, which leaves exactly 4px above and below. That 4px is arithmetic, not a design choice: 40 minus 32, halved.
+- **Spacing never lives on the strip.** The moment you pad the strip to make it breathe, its height stops being the token — a dialog table that sizes itself to N rows then computes one height while the strip renders another, and the table is permanently a few pixels short with nothing on screen to explain why. Put every gap *outside* the strip:
+  - The **divider above** is the table viewport's own `border-b`. One line does two jobs: it closes the viewport (including the empty area below the last row in a fitted dock) and separates the table from the pagination. No margin between them — the line sits directly on the strip.
+  - The **breathing room below** is the shell's bottom gap (12px), not the strip's padding. A page's bottom gap may be narrower than its top: the bottom of a work area usually holds nothing but this strip, and extra space there just pushes the last row of real content upward.
+  - The fitted height is `--table-head-height + N × --table-row-height + 1px viewport border + --table-pagination-height`. Every term is a token or a real border. A raw pixel or a control height in that expression means a permanently wrong table.
+- Horizontal insets align the strip with the table it belongs to: the total on the left sits on the same indent as the cells' horizontal padding, and the rightmost control's right edge lines up with the right edge of the last column's content. A strip whose text is flush against the canvas edge while the table is indented reads as two unrelated components.
 - The 40px single-row strip is the **desktop** shape (total on the left, controls on the right). Below the `md` breakpoint the strip stacks — total on one line, controls on the next — and **drops the fixed height**. Forcing 40px on a narrow viewport either clips the controls or makes them scroll sideways.
-- Pagination sits directly on the canvas with the table — not inside a card. Its vertical insets are **symmetric**: distance from the divider line above the controls = distance from the controls to the work-area bottom (12px each); the shell's bottom gap uses the same value.
+- Pagination sits directly on the canvas with the table — not inside a card, and with no surface of its own. The white plane ends at the last row; the strip is on the canvas.
 - Pagination is fixed to the bottom of the visible screen/work area; it must not move based on row count, filter results, or form/table data volume. Overflowing rows scroll **inside the table viewport** above it.
 - Left side shows the total: 「共 N 条」(tabular). When the table is selectable, the selection count rides in the same line (「共 N 条，已选 M 条」) — that strip is the only place the running selection total is stated. Range strings like 「1–15 / 512」carry no decision value — do not render them.
 - Page navigation is minimal: a **3-number window centered on the current page** (`3 [4] 5`) plus the page-jump Select — no 上一页/下一页 buttons and no ellipsis. The neighbor numbers ARE prev/next (one click switches); long jumps go through the「第 x 页」Select. At the boundaries the window clamps to the edge (`[1] 2 3`, `33 34 [35]`); with ≤3 pages render them all.

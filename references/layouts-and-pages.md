@@ -133,7 +133,7 @@ Use DataTableDock for desktop data pages.
 
 The dock is a **region on the canvas, not a card**: the table and its pagination sit directly on the page plane — never wrapped in card chrome, never nested in a second panel. The dock contributes the height/scroll contract; separation from surrounding content comes from spacing, the quiet header, and row dividers.
 
-**"Not a card" ≠ "not a surface."** The dock drops the card *chrome* — border, radius, shadow, padding shell — but the table surface itself is still `--card`, and it has to be: the zebra / hover / selected row tokens are all mixed **into** `--card`, and a frozen cell's resting background **is** `--card`. Strip the surface color along with the chrome and every frozen column becomes a white slab floating on the warm canvas — precisely the failure the frozen-column rules in `components.md` exist to prevent. Remove the shell, keep the plane.
+**"Not a card" ≠ "not a surface" — but the surface belongs to the rows.** The dock drops the card *chrome* (border, radius, shadow, padding shell) and keeps `--card`, because the zebra / hover / selected tokens all mix **into** `--card` and a frozen cell's resting background **is** `--card`. But put that `--card` on the scroll frame and you have simply rebuilt the card: in a fitted dock the area below the last row is white too, so the table still reads as a slab pasted onto the canvas — and the pagination strip below it has nothing to sit against. Put it on `[data-slot=table-row]` instead. Then rows are white, everything that is not a row is canvas, the empty area and the pagination strip share the same plane, and the viewport's `border-b` is the only line that has to explain the boundary. Remove the shell, keep the rows.
 
 Anatomy:
 
