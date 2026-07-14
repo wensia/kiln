@@ -267,6 +267,27 @@ Boundary — this rule is about **filters**, not forms:
 - Description must add decision value.
 - Error text stays below the field.
 
+## Mutually Exclusive Options
+
+Two options that cannot both be true (claim it / write it off, keep in pool / release to pool, schedule / mark unreachable) form **one relationship**. Both ends must express it **the same way**.
+
+- **Both ends stay visible and get disabled.** Never disable one end and *hide* the other. A hidden control cannot say why it left, and the user is not told the two things were ever related — they just see a gap where a choice used to be.
+- **A disabled control must say why it is disabled**, in the place the user is already looking (tooltip, description line, `aria-describedby`). "Disabled and silent" is a dead end: the user knows they cannot proceed and does not know what to undo. Swap the affordance's description for the reason while it is disabled — the reason is more useful than restating what the action does.
+- **Never let a control disappear as a side effect of another control's state.** Layout that reflows on every toggle costs the user their spatial memory of a form they use hundreds of times a day.
+
+Why this is a rule and not a preference — a real failure it caused:
+
+> A follow-up form had 「认领线索」and 「作废资源」as mutually exclusive checkboxes: ticking 作废 **disabled** 认领, ticking 认领 **hid** 作废. Later a refactor removed 认领 entirely for one channel. **Nobody noticed for two days** — because in that form, a checkbox that isn't there is *the normal state*. Advisors called leads they could no longer claim; the work was silently discarded 3 days later by an expiry job. Had both ends merely been disabled, "认领 is gone" would have been visible on day one.
+
+Hiding does not just hurt this interaction. **It destroys the signal that would have told you the feature broke.**
+
+The test: if a control can vanish because of another control, ask whether the user can tell the difference between *"it disappeared"* and *"it was never here"*. If they cannot — and they cannot — disable it instead.
+
+Boundary — this is about **mutually exclusive options within one decision**, not about conditional fields:
+
+- A field that only exists once a branch is chosen (「作废原因」under 作废, 「下次跟进时间」under 可持续跟进) **should** appear and disappear: it has no meaning in the other branch, and showing it disabled would imply the user could fill it in if they undid something else. Reveal those.
+- The line: if the option is a **peer choice** in the same decision, disable it. If it is a **dependent detail** of a choice already made, reveal it.
+
 ## Badge / Status
 
 - Height: about 20px.
