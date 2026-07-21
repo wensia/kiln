@@ -140,6 +140,8 @@ States:
 Rules:
 
 - Hover/focus must not change padding or height.
+- Focus rings are a composition contract, not only a component-state contract. An outward ring is clipped when the control is flush with an ancestor that uses `overflow-hidden`, `overflow-clip`, or a scrollport boundary. Give the control at least one ring-width of breathing room or switch that control to an inset ring (Tailwind: `focus-visible:ring-inset`); keep the primary focus signal intact.
+- Do not fix a clipped focus ring by removing the ring or by globally changing a structural overflow rule. Inspect the nearest clipping ancestor first, choose the smallest local remedy, then focus the real control and verify that all four edges remain visible. A lint/build pass or an unfocused screenshot does not prove this state.
 - Numeric inputs allow empty and intermediate values during typing.
 - Format numeric values on blur when possible.
 
