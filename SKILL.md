@@ -288,6 +288,7 @@ Avoid:
 - Duplicate refresh/sync/reload controls in the same viewport, especially a page-level text refresh plus a nested icon-only refresh whose scope is not obvious.
 - Transparent or hover-only `ghost` buttons for visible page/detail actions such as edit, follow-up, call, close, reset, or toolbar commands. Use a neutral soft/outline surface at rest instead.
 - An "全部xxx / 不限" option used as the way to clear a filter select. Clearing lives in the trigger: placeholder = unfiltered, and choosing a value swaps the chevron for an X (`span[role=button]`, not a nested `<button>`). An edit form's "暂不选择 / 保持原状态" is the opposite case — that is a real value, not a filter clear, and it stays an option.
+- Form fields that inherit their column's full width regardless of payload — a full-width numeric input, a settings toggle stretched edge to edge, a placeholder padded out to justify the box. A control's width is a claim about its content; size it to the longest legitimate value (see Field Width in `references/components.md`).
 - Password fields without a show/hide button.
 - Date strings typed manually when a date picker is expected.
 - Huge explanatory copy that repeats visible controls; emoji or decorative Unicode as content.

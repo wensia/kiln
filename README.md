@@ -21,7 +21,8 @@
 所以 **`git commit` 就是「改设计系统」**。没有额外的同步步骤，没有「记得也改一下那边」。
 
 ```
-~/.agents/skills/kiln  ──symlink──>  这个仓库
+~/.claude/skills/kiln  ──symlink──>  这个仓库   （Claude Code）
+~/.agents/skills/kiln  ──symlink──>  这个仓库   （Codex / Droid / opencode）
 ```
 
 ---
@@ -54,13 +55,21 @@
 > （React + Vite + Tailwind v4 + shadcn，十几个页面、两万多行）反推出来的完整路径，
 > 含两个可直接复制的校验脚本，以及一张「哪些坑肉眼根本发现不了」的清单。
 
-### 作为 skill（Claude Code 自动加载）
+### 作为 skill（agent 自动加载）
+
+**路径按 agent 区分，不是二选一** —— 同时用 Claude Code 和 Codex 就两个都要装：
 
 ```bash
-ln -s "$(pwd)" ~/.agents/skills/kiln     # 或 ~/.claude/skills/kiln
+mkdir -p ~/.claude/skills ~/.agents/skills
+ln -s "$(pwd)" ~/.claude/skills/kiln     # Claude Code
+ln -s "$(pwd)" ~/.agents/skills/kiln     # Codex / Droid / opencode
 ```
 
-之后 Claude 在做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
+之后 agent 在做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
+
+> **装错位置不会报错。** agent 不会说"找不到 kiln"，它只会按通用审美把页面写完。
+> 自检方式是问它"kiln 是什么"——答不上来就是没装上。细节见
+> [ADOPTING.md 第五节](./ADOPTING.md)。
 
 ### 作为 token 源（产品仓库消费）
 

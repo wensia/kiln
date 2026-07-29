@@ -269,6 +269,29 @@ Boundary — this rule is about **filters**, not forms:
 - Description must add decision value.
 - Error text stays below the field.
 
+## Field Width
+
+`Input` and `SelectTrigger` ship with `width: 100%`. That is an implementation default, **not a layout intent** — the mount decides the width, and a form column is not automatically the right width for every field inside it.
+
+Size the control by the payload it can hold, not by the space available:
+
+| Payload | Width (Tailwind) |
+| --- | --- |
+| Numeric, short code, duration, port, percentage — 2-4 chars | `max-w-28`–`max-w-32` |
+| Short text — slug, person name, phone | `max-w-xs`–`max-w-sm` |
+| Medium — title, email, a select over named records | `max-w-sm`–`max-w-md` |
+| Long free text — URL, path, description, search | full width |
+
+- Small fields sit **side by side in a grid**; they do not each claim a row.
+- A label-plus-Switch row is the same rule at its limit. A switch's payload is one bit, so the row caps its own width (`max-w-md`) and never stretches `justify-between` across the container. Uncapped on a wide screen, the label lands at the far left and the switch at the far right with hundreds of px of nothing between them — proximity is destroyed, and the eye must cross the viewport to learn which switch it is about to flip.
+- Do not lengthen a placeholder to justify a box the real values never fill. If the placeholder is the widest thing the field will ever hold, the field is too wide and the placeholder is probably restating the description.
+
+Why this misleads rather than merely looking loose: **a control's width is a claim about its content.** Users size their expectation by the box before they read the label, so a 1400px input that accepts three digits reads as a text area mysteriously refusing longer input — and it strands the caret and the spinner arrows hundreds of px apart.
+
+The test: type the longest legitimate value into the field. **If the box is still mostly empty, it is too wide.**
+
+Anti-pattern: every field in a form column inheriting that column's full width regardless of payload; a full-width numeric input; a settings toggle stretched edge to edge.
+
 ## Mutually Exclusive Options
 
 Two options that cannot both be true (claim it / write it off, keep in pool / release to pool, schedule / mark unreachable) form **one relationship**. Both ends must express it **the same way**.

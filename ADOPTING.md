@@ -243,14 +243,50 @@ export const Route = createFileRoute('/design-probe')({
 
 ---
 
-## 五、给 AI 用（Claude Code）
+## 五、给 AI 用（**两处，缺一不可**）
+
+### 5.1 软链 —— 让 kiln 出现在技能列表
+
+**路径按 agent 区分，装错等于没装**：
+
+| Agent | 读取位置 |
+| --- | --- |
+| Claude Code | `~/.claude/skills/kiln` |
+| Codex / Droid / opencode | `~/.agents/skills/kiln` |
 
 ```bash
-ln -s "$(pwd)/node_modules/kiln" ~/.agents/skills/kiln
-# 或 clone kiln 仓库后 ln -s 过去
+mkdir -p ~/.claude/skills ~/.agents/skills
+ln -s "$(pwd)/node_modules/kiln" ~/.claude/skills/kiln   # Claude Code
+ln -s "$(pwd)/node_modules/kiln" ~/.agents/skills/kiln   # 其它 agent
+# 或 clone kiln 仓库后把两个软链都指过去
 ```
 
-之后 Claude 做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
+装好后 agent 做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
+
+> **缺软链不会报错**，这是本节存在的全部理由。agent 不会说"我找不到 kiln"，
+> 它只会安然按通用审美把整个页面写完 —— token 用错、开关铺满通栏、装三位数的
+> 输入框横跨整屏。而你会以为它读过规范。
+>
+> 本文档此前只写了 `~/.agents/skills/`，标题却是「给 Claude Code 用」，于是
+> Claude Code 那一侧始终是空的。**已经有项目照着做，然后一整轮 UI 都是盲写的**，
+> 直到有人问"这开关为什么占一整行"才发现 agent 根本不知道 kiln 存在。
+
+自检：让 agent 回答"kiln 是什么"。答不上来就是软链没生效。
+
+### 5.2 项目规则 —— 让路径短到一跳
+
+软链负责自动触发，项目规则负责兜底：技能没被触发时，规则还在。
+
+在项目里**改前端必读的那份规则文件**（`FRONTEND_RULES.md` / `CONTRIBUTING.md` /
+`AGENTS.md` / `CLAUDE.md`，看项目用哪个），把 kiln 写成**第一条硬前置**：
+
+> 改 UI 前先加载 `kiln` skill。颜色、字号、圆角、阴影、间距、按钮语义、组件规格、
+> 页面布局全部以它为准；数值只认 `node_modules/kiln/tokens/*.css`，规则只认
+> `SKILL.md` + `references/*.md`。
+
+**别把它埋在第三跳。** 一条真实的失败链：`AGENTS.md` → `FRONTEND_RULES.md` →
+`DESIGN.md` → kiln。四份文档写得都对，但要连读三跳才知道 kiln 存在，而且没有
+任何一跳是强制的 —— 结果 agent 一跳都没走。
 
 ---
 
@@ -275,6 +311,7 @@ Dialog / Sheet / DataTableDock / 行操作菜单 / 资源卡 / 指标卡）。
 
 | 坑 | 肉眼能发现吗 |
 |---|---|
+| **软链装错位置，agent 全程不知道 kiln 存在** | **不能**（页面能跑、能看，只是全按通用审美写的） |
 | shadcn 8 个组件全带冷调阴影 | **不能** |
 | 半透明的 tab 轨道被塞进白卡，激活态糊掉 | 只能看出「不对劲」，看不出为什么 |
 | 从散文推导阴影数值，6 个全错 | **不能**（推错的值和查对的值长得一样） |
@@ -283,4 +320,6 @@ Dialog / Sheet / DataTableDock / 行操作菜单 / 资源卡 / 指标卡）。
 | 32px 的 hero 指标数字 | 能 |
 | 手搓的 PREV/NEXT 分页 | 能，但没人觉得是问题 |
 
-**前四项占了 bug 的绝大多数，而它们全都需要机器才能抓到。** 这就是第四节存在的理由。
+**前五项占了 bug 的绝大多数，而它们全都不是肉眼能抓的。** 后四项靠第四节的两道门，
+第一项靠第五节的自检（问 agent"kiln 是什么"）—— 它甚至更靠前，因为软链没装时，
+两道门拦下的是 agent 已经写错的代码，而不是让它一开始就写对。
