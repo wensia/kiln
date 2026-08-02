@@ -10,7 +10,7 @@
     {
       "id": 2,
       "prompt": "设计一个日期区间选择器，要求桌面弹窗、移动端贴底，能选开始日期和结束日期。",
-      "expected_output": "Output should use the Date / Time Picker reference: outline trigger, compact dialog, selection summary, month nav, 7-column calendar grid, selected/in-range/outside-month states, and automatic start/end normalization.",
+      "expected_output": "Output should use the Date / Time Picker reference: outline trigger, compact dialog, selection summary, an in-place day-to-month-to-year view stack whose day/month title buttons expose the current value while the year interval stays non-interactive, a stable content height across all three views, month and decade/year grids, selection-preserving browsing, PageUp/PageDown and Shift+PageUp/PageDown keyboard paging, min/max propagation across all views, a 7-column day grid with selected/in-range/outside-month states, automatic start/end normalization, and desktop/mobile interaction QA.",
       "files": []
     },
     {

@@ -211,12 +211,30 @@ Selection summary:
 - Label: 11px, leading 4, muted. Text switches between `选择开始日期` and `选择结束日期`.
 - Value: 14px, medium, tabular. Shows placeholder or selected range.
 
-Month navigation:
+Calendar navigation:
 
-- One row: previous button, month label, next button.
-- Arrow buttons: outline icon buttons with labels `上个月` and `下个月`.
-- Month label: `YYYY 年 M 月`, 14px / 500.
-- Month navigation does not mutate selected dates.
+- Use one in-place `day → month → year` view stack inside the existing dialog or sheet. Do not open a nested popover or Select for year/month navigation.
+- Keep the display cursor separate from the selected range. Header clicks, arrow buttons, keyboard paging, and choosing a year or month update only the visible calendar and its view; they never create, clear, reorder, or clamp a selected endpoint.
+- Every view keeps the same three-part header: previous button, center title slot, next button. Arrow buttons use the shared outline icon-button treatment. In day and month views the center title is a real neutral Button with a visible rest surface, not passive text or a hover-only affordance; in year view the ten-year interval is a non-interactive label because there is no higher-level view to open. That label keeps the same center-slot dimensions as the actionable titles so the header never jumps.
+- Day, month, and year bodies share one stable content-region height. Switching views must not resize the dialog or bottom sheet; sparse higher-level grids align inside the same footprint as the six-week day grid.
+
+Day view:
+
+- Arrow buttons move one month and are labelled `上个月` and `下个月`.
+- The title shows `YYYY 年 M 月`, uses tabular figures, and exposes the displayed value in its accessible name, such as `选择年月，当前 2026 年 8 月`; activating it opens the month view for that displayed year.
+
+Month view:
+
+- Arrow buttons move one year and are labelled `上一年` and `下一年`.
+- The title shows `YYYY 年` and exposes the displayed year in its accessible name, such as `选择年份，当前 2026 年`; activating it opens the year view containing that year.
+- Render all twelve months as a compact grid of real buttons. The displayed month carries the selected/current state; choosing an enabled month updates the display cursor and returns to day view without selecting a date.
+
+Year view:
+
+- The title shows the active ten-year interval, such as `2020–2029`. Arrow buttons move one decade and are labelled `上一个十年` and `下一个十年`.
+- Use a twelve-cell year grid: the ten years in the active interval plus one adjacent year at each edge. Adjacent-interval years stay visually secondary but remain selectable when within bounds.
+- The displayed year carries the selected/current state; choosing an enabled year updates the display cursor and returns to month view without selecting a date.
+- Month and year cells reuse the date button's radius, typography, hover, focus, disabled, and selected-state language. Do not invent a second control style for the higher-level views.
 
 Calendar grid:
 
@@ -235,6 +253,20 @@ Interaction:
 - If the second date is earlier than the start date, swap start/end automatically.
 - Close the dialog after a complete range is selected.
 - Do not ask users to type date strings manually.
+- In day view, `PageUp` / `PageDown` move one month; adding `Shift` moves one year. These shortcuts change only the display cursor, use the same bound checks as the header buttons, and must not scroll the page behind the picker.
+- Month and year grids use roving focus: arrow keys move between cells, and `Enter` / `Space` activates the focused cell. After a view transition, focus the displayed enabled month/year or the corresponding enabled date rather than resetting focus to the dialog frame.
+
+Bounds:
+
+- Propagate `minDate` / `maxDate` through every view. A date outside the range is disabled; a month is disabled when it contains no enabled date; a year is disabled when it contains no enabled month.
+- Disable a previous/next control when its destination month, year, or decade contains no enabled value. Do not allow navigation into an all-disabled view and do not silently change the selected range to satisfy a bound.
+
+QA:
+
+- Verify direct multi-year jumps, December/January rollover, both directions of decade paging, and selection of the adjacent-interval years.
+- Start with an existing complete range, browse through day/month/year views, then return; both endpoints and the selection summary must remain byte-for-byte unchanged until a date button is activated.
+- Exercise exact `minDate` / `maxDate` edges, entirely disabled months/years, disabled navigation controls, and a range whose endpoints lie in different years.
+- Run the same pointer and keyboard flows in the desktop dialog and mobile bottom sheet, including narrow-height composition. Check title/button accessible names, disabled semantics, roving focus, visible focus rings, and focus restoration after every view transition.
 
 ## Select
 
