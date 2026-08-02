@@ -60,6 +60,12 @@
       "prompt": "一个债务列表点击后进入独立 /debts/:id 详情页。全局 topbar 已显示“个人账本”，正文又有返回按钮、“个人往来 / 债务详情”两行标题和 divider；删掉标题后还留下额外 padding。请按 kiln 修正桌面与移动端结构。",
       "expected_output": "Output should move the sole visible return action to the detail route's leading slot in the global topbar without displacing a shell-owned menu/sidebar trigger, keep the existing shell context unless it has a separate product reason to change, and give the action an accessible destination label. It should resolve to a stable parent-list destination while preserving restorable list state, using either a canonical parent URL or history-back with a canonical parent fallback for direct entry/reload/no usable in-app history. It should remove the body header band, duplicate parent/generic-detail copy, divider, reserved height, and leftover padding; start at useful record identity/status/business content; keep one visible return authority and one shell/body top-gap owner on desktop and mobile; and preserve record-specific page naming through a visible entity h1, a route-specific topbar h1, or an sr-only fallback plus synchronized document title, without rebuilding a visible duplicate band.",
       "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "用户明确要求这个后台产品全局禁用 Tab 切换焦点，但点击输入框仍要能输入。请按 kiln 实现并给出验收。",
+      "expected_output": "Output should declare the explicit pointer-first focus policy rather than changing the keyboard default, install one capture-phase document keydown handler that prevents and stops Tab or Shift+Tab traversal, suppress shared root focus outline/ring styles without changing Kiln source tokens, preserve pointer typing plus Arrow/Enter/Space/PageUp/PageDown component protocols and selected/active/menu-highlight states, and verify that both Tab directions leave document.activeElement unchanged while clicked input remains editable.",
+      "files": []
     }
   ]
 }

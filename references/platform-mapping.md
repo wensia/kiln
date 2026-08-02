@@ -28,6 +28,36 @@ Rules:
 - Use DataTableDock for table scrolling, frozen columns, and pagination.
 - Use shared DropdownMenu for row action menus.
 
+### Focus policy mapping
+
+All focus mappings below assume the default `keyboard` policy. When a product explicitly chooses the `pointer-first` policy from `SKILL.md`, have the application root install one document capture-phase listener instead of adding per-control `tabIndex` patches or stripping selection state:
+
+```tsx
+useEffect(() => {
+  const preventTabTraversal = (event: KeyboardEvent) => {
+    if (event.key !== "Tab") return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  document.addEventListener("keydown", preventTabTraversal, true)
+  return () => document.removeEventListener("keydown", preventTabTraversal, true)
+}, [])
+```
+
+```css
+:root {
+  --ring: transparent;
+  --sidebar-ring: transparent;
+  --ring-focus: none;
+  --shadow-primary-focus: none;
+}
+
+*:focus,
+*:focus-visible { outline: none !important; }
+```
+
+Keep the source Kiln tokens unchanged; this is a consumer-root override of focus-only aliases. Do not suppress `aria-selected`, `aria-current`, `data-state="active"`, or menu highlight states: they communicate selection, current state, and pointer navigation rather than Tab focus. Verify that `Tab` and `Shift+Tab` leave `document.activeElement` unchanged, that programmatic focus has no ring, and that a clicked text input still accepts text.
+
 ### Existing shadcn / Tailwind Migration Checklist
 
 Use this checklist when a project already has many `rounded-*`, `variant="default"`, and local Tailwind utilities:
@@ -70,7 +100,7 @@ When composing DS bundle components inside a Design Component template:
   ```
 
   Scope by a wrapper class on the strip; never override globally (toolbar selects at the top should keep dropping down).
-- The compiled Select trigger **and Input/Textarea** write their hover border as **solid ink** via inline style (Select does not always reset it) — a direct violation of the no-pure-black-line rule. Neutralize globally per page:
+- In the `keyboard` focus policy, the compiled Select trigger **and Input/Textarea** write their hover border as **solid ink** via inline style (Select does not always reset it) — a direct violation of the no-pure-black-line rule. Neutralize globally per page:
 
   ```css
   .sc-host-x > div > div[role="button"],
@@ -85,6 +115,17 @@ When composing DS bundle components inside a Design Component template:
   ```
 
   (Select triggers are the only `div[role="button"]` inside DS mounts; real Buttons render `<button>` and are unaffected. Click-focus on inputs keeps the clay ring — that is a signal, not a black line.)
+- In the `pointer-first` policy, keep the hover and open-Select handling above, then append this **after** the keyboard focus rule so pointer-focused fields return to their quiet base surface rather than receiving its clay ring:
+
+  ```css
+  .sc-host-x input:focus,
+  .sc-host-x textarea:focus {
+    border-color: var(--input) !important;
+    box-shadow: var(--shadow-input) !important;
+  }
+  ```
+
+  The open Select trigger remains an open-state signal, not a Tab focus ring.
 - Array/object props (Tabs `items`, Select `options`, handlers) come from `renderVals()` holes; keep `hint-size` on every mount.
 
 ## Plain CSS / Other Web Projects

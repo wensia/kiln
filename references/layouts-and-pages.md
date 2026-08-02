@@ -75,7 +75,7 @@ Collapsed rail:
 
 A bare icon column is not navigable — a user cannot tell pages apart by icon alone. These are contract, not polish:
 
-- Tooltip on hover **and** on keyboard focus, in a fixed two-line shape: page name, then group name in low-noise small text. Not a one-line `分组 / 页面` prefix — one shape keeps the spec checkable.
+- In the default `keyboard` focus policy, tooltip on hover **and** on keyboard focus, in a fixed two-line shape: page name, then group name in low-noise small text. In the explicit `pointer-first` policy, keep the same tooltip on hover and retain the `aria-label`; Tab never reaches the rail. Not a one-line `分组 / 页面` prefix — one shape keeps the spec checkable.
 - `aria-label` is the **sole** accessible name, formatted `${分组}：${页面}` (degrades to the page name when there is no group). Do not also render an `sr-only` label — a screen reader would announce the item twice. The icon is `aria-hidden`.
 - The group boundary stays visible: a divider plus the group's **full** title. Never slice a short label out of it and never keep a second `shortLabel` field — `教管部→教务` invents a group that does not exist. The marker is `aria-hidden`; the group is already in every item's accessible name.
 - Active survives hover and focus: the current item stays clay under the pointer and does not fall back to the hover accent. Active items carry `aria-current="page"`.

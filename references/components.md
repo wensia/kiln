@@ -2,6 +2,8 @@
 
 Use these component rules with `references/tokens.md`. Keep controls compact, stable, and built for repeated operations. Components shipped in the DS bundle (`window.AIDesignSystem_4c1727`): Button, Input, Select, Checkbox, DateRangePicker, Card, Badge, Table, ResourceCard, MetricStat, SidebarNav, SegmentedControl, Tabs. Sections below without a DS component (password input, dialog, sheet, dropdown, toast…) are sanctioned patterns built from the same tokens.
 
+> **Focus policy:** Component focus states and focus-ring QA below assume the default `keyboard` policy from `SKILL.md`. If a product explicitly chooses `pointer-first`, apply its root-level Tab interception and focus-chrome override globally; retain the components' non-Tab keyboard protocols and their selected, active, and menu-highlight states.
+
 ## Button
 
 ### Variant decision (run this, don't taste it)
