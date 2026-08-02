@@ -1,7 +1,6 @@
 ---
 name: kiln
 description: Use this skill whenever the user asks to design, implement, review, port, or document a Chinese admin / workbench UI — SaaS backends, CRM, ERP, operations dashboards, data tables, sidebar navigation, form controls, date pickers — or when they mention kiln, clay-red workbench styling, or a reusable design spec. kiln turns a warm ceramic-glaze design language into concrete layout, token, component, and QA decisions. Do not use it for marketing pages unless the user explicitly wants the admin workbench visual language applied.
-version: 3.1.0
 allowed-tools: [Read, Write, Edit, Glob, Grep]
 ---
 
@@ -293,6 +292,7 @@ Avoid:
 - Date strings typed manually when a date picker is expected.
 - Huge explanatory copy that repeats visible controls; emoji or decorative Unicode as content.
 - Filler subtitles that describe implementation details, data source mechanics, or fetch limits instead of helping the user decide or act.
+- A standalone record-detail route with a second body header band that only repeats shell context — an eyebrow/breadcrumb plus a generic “详情” title — or owns a duplicate body back button. Put the single visible back action in the global topbar, let the primary record surface own the entity name/status/business metadata, and keep only one visible title/context authority plus one shell/body top-gap owner. See `references/layouts-and-pages.md`.
 - Table pages that resize with row count instead of using a stable scroll dock.
 - Page-level data-table or workbench roots that add ad hoc bottom padding, margins, or spacer divs instead of inheriting the shell's bottom gap token.
 - Pagination that moves up, down, or disappears based on table/form data count instead of staying fixed at the screen/workspace bottom. A hand-rolled PREV/NEXT pager anywhere in the app.

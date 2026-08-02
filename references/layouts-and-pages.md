@@ -218,7 +218,17 @@ Replace the blueprints when the domain differs; keep the token / component / lay
 - Frozen far-right operation column collapses every secondary row action into a single `...` menu, whatever their count — one included. A genuine row-level key action may sit beside it as the one ink-filled small button defined by the operation-column rule.
 - Multi-select defaults to current-page scope, and the scope must be stated.
 
-### Detail / Editor
+### Standalone Record Detail
+
+Use this for a drill-down route from a list, table, or card to one record. It is not the multi-pane editor shell below.
+
+- The shell topbar owns the detail route's single return action. Put it in the route-navigation leading slot — after any shell-owned menu/sidebar trigger and before the route title or context — and give it an accessible label that names the destination, such as `返回债务列表`. The action must resolve to a stable parent destination without losing restorable list state: use a canonical parent URL (including URL-backed filters/page when applicable), or history-back with a canonical parent fallback for direct entry, reload, or no usable in-app history. It must never send the user outside the app.
+- Do not add a body-level header band merely to hold that back action or repeat a parent/section eyebrow, breadcrumb, or generic “详情” label. Do not duplicate the back action inside the page body. The primary record surface owns the entity name, status, and business metadata.
+- Start the body at the first useful business surface. Removing a redundant header band means removing its wrapper, divider, reserved height, and padding too. The shell content container and route body share one top-gap budget; when the shell already supplies it, the body stays at `pt-0` or uses only an optical correction (see Page Header Rhythm). Apply the same ownership on desktop and mobile.
+- Keep a visible body title only when it adds record-specific information or anchors real actions that are not already carried by the topbar or primary record surface. Page naming still stays record-specific: prefer the visible entity name in the primary record surface as the page `h1`; if the topbar already carries a route-specific `h1`, do not duplicate it; otherwise use an `sr-only` `h1` fallback and synchronize the document/route title. Do not rebuild a second visible band for semantics alone. Keep helper copy only when it changes a decision or prevents a mistake.
+- On mobile, the back action stays in the sticky topbar rather than moving into the first card or content row. Each viewport has one visible back authority.
+
+### Complex Detail / Editor
 
 - Left outline or palette, center canvas as the primary scroll region, right inspector.
 - The editor topbar replaces the global navigation content.

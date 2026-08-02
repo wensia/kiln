@@ -54,6 +54,12 @@
       "prompt": "接口一次返回全部 50 条配置且没有 page/size；另一个固定 6 条的名单显式 showPagination=false，但支持多选且当前选中 0 条。可以改用裸 table，并一直显示禁用的批量操作栏和“已选 0 条”吗？",
       "expected_output": "Output should keep the shared DataTableDock instead of falling back to a bare table and slice the 50-row result client-side into the shared pagination contract. The fixed six-row table may hide page controls, but because it supports bulk actions it keeps the fixed footer slot for the total and later contextual actions. With zero selected rows, keep row/header selection controls but mount neither disabled bulk actions nor an '已选 0 条' placeholder; selection must not add footer height or shift the viewport.",
       "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "一个债务列表点击后进入独立 /debts/:id 详情页。全局 topbar 已显示“个人账本”，正文又有返回按钮、“个人往来 / 债务详情”两行标题和 divider；删掉标题后还留下额外 padding。请按 kiln 修正桌面与移动端结构。",
+      "expected_output": "Output should move the sole visible return action to the detail route's leading slot in the global topbar without displacing a shell-owned menu/sidebar trigger, keep the existing shell context unless it has a separate product reason to change, and give the action an accessible destination label. It should resolve to a stable parent-list destination while preserving restorable list state, using either a canonical parent URL or history-back with a canonical parent fallback for direct entry/reload/no usable in-app history. It should remove the body header band, duplicate parent/generic-detail copy, divider, reserved height, and leftover padding; start at useful record identity/status/business content; keep one visible return authority and one shell/body top-gap owner on desktop and mobile; and preserve record-specific page naming through a visible entity h1, a route-specific topbar h1, or an sr-only fallback plus synchronized document title, without rebuilding a visible duplicate band.",
+      "files": []
     }
   ]
 }
