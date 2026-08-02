@@ -140,7 +140,7 @@ Anatomy:
 1. Optional toolbar.
 2. Table viewport: `flex-1 overflow-auto`.
 3. Optional frozen action shadow.
-4. Footer pagination and bulk actions — always the shared global pagination component (see components.md), pinned to the work-area bottom.
+4. Footer region — shared pagination controls when enabled, with contextual bulk actions sharing the same fixed slot; pinned to the work-area bottom.
 
 Rules:
 
@@ -152,6 +152,7 @@ Rules:
 - Large tables have min-width and horizontal scroll.
 - Frozen action columns show left border and the scroll-affordance shadow (see `components.md`).
 - Empty state stays inside the table viewport.
+- **An endpoint that returns everything at once is not a reason to drop the dock.** When the API takes no `page`/`size` (aggregates, config lists, summaries), slice client-side and keep consuming the shared pagination component — `data` is the current page, `total` is the full row count. Falling back to a bare `<table>` because "there is no pagination anyway" breaks two contracts at once: the viewport starts resizing with row count, and the footer strip disappears, so the page silently stops looking like every other table in the product. If a table genuinely should not paginate (a short, fixed config set), keep the dock and turn page controls off explicitly — that is a deliberate table-level `showPagination={false}`, not a row-count heuristic or a different table implementation. A non-selectable table with no footer actions may omit the slot and its height token; a bulk-capable table retains the fixed slot for its total and contextual actions. Filters, loading, row-count changes, and selection never toggle the configured mode or resize the outer dock.
 
 React / Tailwind implementation shape:
 
@@ -214,7 +215,7 @@ Replace the blueprints when the domain differs; keep the token / component / lay
 
 - Desktop uses the DataTableDock; mobile recomposes into cards.
 - Toolbar: search, filters, refresh. Total counts live in the pagination, not duplicated above.
-- Frozen far-right operation column with a single `...` menu when a row has two or more actions.
+- Frozen far-right operation column collapses every secondary row action into a single `...` menu, whatever their count — one included. A genuine row-level key action may sit beside it as the one ink-filled small button defined by the operation-column rule.
 - Multi-select defaults to current-page scope, and the scope must be stated.
 
 ### Detail / Editor

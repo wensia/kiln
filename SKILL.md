@@ -160,7 +160,7 @@ When a visual decision appears more than once, turn it into one of these:
 
 Avoid one-page visual patches that cannot travel.
 
-Pagination is the canonical case: it is **one** shared global component that every data table consumes. A hand-rolled PREV/NEXT pair inside some panel is not a local convenience, it is a second source of truth that will drift.
+Pagination is the canonical case: it is **one** shared global component that every paginated data table consumes. A hand-rolled PREV/NEXT pair inside some panel is not a local convenience, it is a second source of truth that will drift. Every data table still uses DataTableDock; a genuinely short, fixed list may explicitly disable page controls without replacing the dock or inventing another footer.
 
 ## Craft Rules
 
@@ -282,7 +282,7 @@ Avoid:
 - **Any clay fill inside a table row**, or more than one filled button in a row. A row-level key action is ink, exactly one per row; clay repeated down twenty rows destroys the signal everywhere in the product. Conversely, a table page whose work is entirely per-row and which therefore has *no* clay is fine — do not invent a page-level clay button to fill the void.
 - Resource package selection cards with thick primary borders, clay-filled corners, CTA-style selected badges, heavy shadows, or strong tinted backgrounds. Selected package cards should stay quiet: one thin selected signal plus a small check indicator is enough.
 - Short field comparison or imported declaration values displayed as large grid cards with only a label, a few Chinese characters, and a status badge. Use compact inline field groups inside the relevant detail row instead.
-- Multiple icon buttons in a data table action column. Use one `...` dropdown trigger when there are two or more row actions.
+- Any **non-key** action rendered directly in a data table operation column — icon buttons side by side, or a bare text/outline button. Secondary row actions go in one `...` dropdown trigger **regardless of count, one included**; a label rendered in the cell makes the column's width depend on the longest Chinese action name, which either clips the button or bloats the column. The one sanctioned direct action is the ink-filled row-level key action defined in `references/components.md`; it sits beside, not inside, that menu.
 - A 32px icon-only button sitting beside 36px inputs, search boxes, selects, or date triggers in the same toolbar. Match the default control height, or make the entire group explicitly compact.
 - A 38px segmented/filter track (`32px` child controls plus `p-0.5` and a border) sitting beside a 32px or 36px sibling button. The track's visible outer box is the control, so set the track to the toolbar height and adjust padding before claiming sibling controls are aligned.
 - Duplicate refresh/sync/reload controls in the same viewport, especially a page-level text refresh plus a nested icon-only refresh whose scope is not obvious.

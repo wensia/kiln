@@ -458,13 +458,14 @@ Operation column:
 
 - Default language: **low-weight actions**. **Clay never enters the operation column** — twenty rows would mean twenty clay fills, and clay would stop being a signal anywhere in the product.
 - **At most one filled button per row**, and only for the **row-level key action** — the thing the page exists to do (认领 on a claim queue, 拨打 on a call list). It is **ink `default`**, `sm` size (decision table row 5). A table where no single action is *the* action gets no fill at all.
-- Everything else in the row stays low-weight: exactly one remaining action → a low-weight text/outline action; **two or more → collapse to a single `MoreHorizontalIcon` / `...` dropdown trigger** — never a row of text links or icon buttons. The row-level key action sits outside that count: the canonical shape is **`[ 主动作 ]` (ink) + `[...]`**.
+- Everything else in the row collapses into a single `MoreHorizontalIcon` / `...` dropdown trigger — **whatever the count, including exactly one**. Never a text link, an outline button, or a row of icon buttons in the operation column. The row-level key action sits outside that count: the canonical shape is **`[ 主动作 ]` (ink) + `[...]`**.
+  > **One action is not an exception.** This rule used to read "one → a low-weight text/outline action; two or more → `...`", and the single-action branch is what broke pages: a text button carries its label's width into a column sized for a 32px trigger, so a frozen operation column clips it (`编辑调用目…`) while every token and class name still looks correct. A column whose width depends on the longest Chinese action label has no stable width at all. Sizing the column to the label instead is the other half of the trap — that is the oversized operation column this file already forbids. The trigger is fixed-width; the label lives in the menu, where it can be as long as it needs to be.
 - Header and body content are horizontally centered by default. If a product has a deliberate frozen far-right operation column, the header and trigger may be right-aligned, but they must still share the same alignment.
 - The dropdown trigger uses ghost icon-sm, 32px box, 4px radius, muted text, muted hover background.
 - A frozen far-right operation column with only the `...` dropdown trigger should normally be 56px wide: 32px trigger plus symmetric cell padding. Keep width, min-width, and max-width aligned so the table does not distribute spare width into the operation column.
 - Menu items are text actions.
 - Dangerous actions use destructive menu variant.
-- Never show multiple icon buttons side by side in a data table operation column.
+- Never show icon buttons side by side in a data table operation column, and never show a bare text/outline action there even when the row has only one — it goes in the `...` menu.
 - Frozen operation columns need a left border, and a frozen scroll shadow per the rule below.
 - The right edge of a frozen operation column should sit flush with the table container edge. If `scrollbar-gutter: stable` creates a blank strip to the right of a right-sticky column, remove that gutter for tables with a right-frozen operation column or compensate in the shared table component; do not hide the gap by widening the action column.
 - If the row itself is clickable, the operation cell intercepts click and keydown for the whole cell.
@@ -473,7 +474,7 @@ Loading and empty:
 
 - Loading renders **skeleton rows inside the real table** — same header, same columns, same widths — not a spinner in place of the table and not an empty body under a header. The column structure has to be final before the data lands, or the table visibly re-lays itself out the moment it arrives. Cap the skeletons at ~8 rows: a page size of 100 does not need 100 of them.
 - The empty state lives **inside the scroll frame, under a header that stays**. The table and its columns remain; the empty block sits below them behind a top divider. An empty state that replaces the whole table deletes the columns the user was just reading, and 「no results」 then looks indistinguishable from 「page broken」.
-- The pagination strip stays **mounted and disabled** during loading, never unmounted. Removing it changes the dock's height, so every fetch would shift the table's bottom edge.
+- When pagination is enabled, its strip stays **mounted and disabled** during loading, never unmounted. Removing it changes the dock's height, so every fetch would shift the table's bottom edge.
 
 Scroll frame and sticky layering:
 
@@ -510,7 +511,7 @@ Frozen column scroll shadow:
 
 ## DataTable Pagination
 
-Pagination is **one shared global component** — every data table consumes it; never rebuild a per-page variant.
+Pagination is **one shared global component** — every paginated data table consumes it; never rebuild a per-page variant. Every table still uses DataTableDock. A genuinely short, fixed list may opt into `showPagination={false}`; that configuration is fixed for the table, never inferred from current row count, loading, or filters. For a non-selectable table with no footer actions, this mode omits the footer strip and `--table-pagination-height` from fitted-height calculations, keeps the viewport's closing border, and lets the viewport consume the freed space without changing the dock's outer height. A table that supports bulk actions keeps the fixed footer slot even when page controls are off: the slot shows the total at rest and hosts the contextual bulk group after selection, so selection never adds height or shifts the viewport.
 
 - Height: `--table-pagination-height` (40px), and **the strip's own vertical padding is zero**. The strip is an invisible 40px slot — no background, no border of its own — holding 32px controls centered in it, which leaves exactly 4px above and below. That 4px is arithmetic, not a design choice: 40 minus 32, halved.
 - **Spacing never lives on the strip.** The moment you pad the strip to make it breathe, its height stops being the token — a dialog table that sizes itself to N rows then computes one height while the strip renders another, and the table is permanently a few pixels short with nothing on screen to explain why. Put every gap *outside* the strip:
@@ -521,12 +522,13 @@ Pagination is **one shared global component** — every data table consumes it; 
 - The 40px single-row strip is the **desktop** shape (total on the left, controls on the right). Below the `md` breakpoint the strip stacks — total on one line, controls on the next — and **drops the fixed height**. Forcing 40px on a narrow viewport either clips the controls or makes them scroll sideways.
 - Pagination sits directly on the canvas with the table — not inside a card, and with no surface of its own. The white plane ends at the last row; the strip is on the canvas.
 - Pagination is fixed to the bottom of the visible screen/work area; it must not move based on row count, filter results, or form/table data volume. Overflowing rows scroll **inside the table viewport** above it.
-- Left side shows the total: 「共 N 条」(tabular). When the table is selectable, the selection count rides in the same line (「共 N 条，已选 M 条」) — that strip is the only place the running selection total is stated. Range strings like 「1–15 / 512」carry no decision value — do not render them.
+- Left side shows the total: 「共 N 条」(tabular). When the table is selectable **and M > 0**, the selection count rides in the same line (「共 N 条，已选 M 条」) — that strip is the only place the running selection total is stated. At M = 0 render only 「共 N 条」. Range strings like 「1–15 / 512」carry no decision value — do not render them.
 - Page navigation is minimal: a **3-number window centered on the current page** (`3 [4] 5`) plus the page-jump Select — no 上一页/下一页 buttons and no ellipsis. The neighbor numbers ARE prev/next (one click switches); long jumps go through the「第 x 页」Select. At the boundaries the window clamps to the edge (`[1] 2 3`, `33 34 [35]`); with ≤3 pages render them all.
 - Pagination is a tertiary strip — use the compact 32px tier: page-number buttons ~32px (12px tabular text), page-size and page-jump Selects `size="sm"` (32px, still ≥120px wide); the current page is a selected state → clay fill (`bg-primary text-primary-foreground`); other pages use the neutral outline surface. All controls in the strip share the same 32px outer height. Do not go below 32px — the Select trigger cannot render shorter.
   - Page jump is a Select (「第 x 页」options), not static text — it doubles as the current-page indicator.
-- Bulk action bar stays in the footer area.
-- Selection scope must be explicit, and it has **two halves that do not match on purpose**: the header checkbox acts on **the current page only** (it selects or clears this page's rows), while the count in the strip is the **cross-page running total** — leaving a page does not drop what you picked there. Both behaviors are right; what breaks trust is showing one and meaning the other, so the count must be visible whenever selection is on.
+- Bulk actions stay inside the existing footer strip; a bulk-capable table always reserves that fixed slot, even with `showPagination={false}`. They do not create a second row or change the footer/dock height. On desktop they sit before the pagination controls when those controls exist. On narrow layouts collapse them into one compact bulk-action menu if both groups cannot fit, rather than stacking a new bar and shifting the viewport.
+- The bulk action group is contextual: mount it only when at least one item is selected. With zero selected items, show neither disabled bulk actions nor an `已选 0 条` placeholder; the ordinary pagination/footer remains in place. Keep row and header selection controls available so users can enter the bulk-selection state.
+- Selection scope must be explicit, and it has **two halves that do not match on purpose**: the header checkbox acts on **the current page only** (it selects or clears this page's rows), while the count in the strip is the **cross-page running total** — leaving a page does not drop what you picked there. Both behaviors are right; what breaks trust is showing one and meaning the other, so the count must be visible whenever at least one selection exists.
 
 ## Summary / Filter Strip
 

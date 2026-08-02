@@ -42,6 +42,18 @@
       "prompt": "规范说白卡靠阴影分层，但我把 button-tab 放进白卡后选中态就看不出来了。为什么？",
       "expected_output": "Output should identify that the tab track uses a semi-transparent muted mix, so its contrast depends on what sits underneath: on the canvas the track and the active plate differ clearly, but inside a white card they collapse to ~2 tonal steps. The fix is to put the tabs on the canvas (or give the active plate the white --card surface), and the general lesson is that semi-transparent surfaces are context-dependent and only computed-style assertions catch this.",
       "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "两个冻结操作列表格怎么处理：配置表每行只有一个普通的“编辑”操作；认领队列每行有一个主动作“认领”和一个普通操作“查看”？",
+      "expected_output": "Output should put even the single ordinary Edit action inside one fixed-width MoreHorizontal / ... menu, never render it as a bare text or outline button, and keep the operation column content-sized. In the claim queue, the one true row-level key action may remain outside as an ink-filled small button, while the ordinary View action still lives in the adjacent ... menu; clay never enters either row.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "接口一次返回全部 50 条配置且没有 page/size；另一个固定 6 条的名单显式 showPagination=false，但支持多选且当前选中 0 条。可以改用裸 table，并一直显示禁用的批量操作栏和“已选 0 条”吗？",
+      "expected_output": "Output should keep the shared DataTableDock instead of falling back to a bare table and slice the 50-row result client-side into the shared pagination contract. The fixed six-row table may hide page controls, but because it supports bulk actions it keeps the fixed footer slot for the total and later contextual actions. With zero selected rows, keep row/header selection controls but mount neither disabled bulk actions nor an '已选 0 条' placeholder; selection must not add footer height or shift the viewport.",
+      "files": []
     }
   ]
 }
