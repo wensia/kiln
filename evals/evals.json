@@ -66,6 +66,12 @@
       "prompt": "用户明确要求这个后台产品全局禁用 Tab 切换焦点，但点击输入框仍要能输入。请按 kiln 实现并给出验收。",
       "expected_output": "Output should declare the explicit pointer-first focus policy rather than changing the keyboard default, install one capture-phase document keydown handler that prevents and stops Tab or Shift+Tab traversal, suppress shared root focus outline/ring styles without changing Kiln source tokens, preserve pointer typing plus Arrow/Enter/Space/PageUp/PageDown component protocols and selected/active/menu-highlight states, and verify that both Tab directions leave document.activeElement unchanged while clicked input remains editable.",
       "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "资源包表格的行操作菜单里，“编辑资源包”有铅笔图标，“停用资源包”只有文字；启用状态下又会把文案切成“启用资源包”。请按 kiln 修正并给出防回归规则。",
+      "expected_output": "Output should choose one menu-wide icon grammar: either add meaningful leading icons to every rendered action, including both conditional Enable and Disable branches, or remove all leading icons from that menu. It should reject mixed icon/text-only rows, including destructive or conditional exceptions, preserve shared DropdownMenu spacing, and recommend a static guard over DataTable action definitions and direct DropdownMenu items so future menus cannot mix the two grammars.",
+      "files": []
     }
   ]
 }

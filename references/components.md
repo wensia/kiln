@@ -628,13 +628,14 @@ Header stays fixed, content scrolls independently, footer is fixed or clearly at
 - Item height: 32-36px.
 - Dangerous items use destructive text, not a red-filled row.
 - Main workflows should not be hidden in More.
+- Leading icons are optional, but their grammar is **menu-wide**: every actionable item in one opened menu has a leading icon, or none of them do. Never mix an icon-bearing Edit row with a text-only Enable/Disable row; the missing icon reads as accidental indentation, not lower priority. Conditional labels and branches still count as the same item, so every rendered branch must preserve the chosen icon grammar. Destructive items are not an exception.
 
 ### Item Spacing and Menu Width
 
-- Menu item layout is `icon + label` on one row: icon-to-label gap is 8px (`gap-2`), horizontal item padding is 8px (`px-2`), vertical item padding is 6px (`py-1.5`). With the menu's own 4px content padding (`p-1`) this yields a balanced ~12px inset from the icon/label to the menu edge on both sides.
+- Choose either `icon + label` or label-only for the whole menu. When icons are present, keep icon and label on one row: icon-to-label gap is 8px (`gap-2`), horizontal item padding is 8px (`px-2`), vertical item padding is 6px (`py-1.5`). With the menu's own 4px content padding (`p-1`) this yields a balanced ~12px inset from the icon/label to the menu edge on both sides.
 - Keep leading icons at 16px (`size-4`) and let them inherit item text color; destructive items tint the icon with the row.
 - Size the menu to its content with a small floor (`min-w-28`, ~112px). Do not pin the menu to the trigger width (`w-(--radix-dropdown-menu-trigger-width)`): a row-action menu is opened from a 32px `...` icon trigger, so binding to the trigger width then forcing a larger fixed `min-w` strands short labels (e.g. `编辑配置`/`删除配置`) against a wide empty right margin. Content-driven width keeps the left and right insets symmetric.
-- Anti-pattern: dropdown items where the icon-to-text gap, the left icon inset, and the right label inset visibly disagree, or where the menu is much wider than its longest label. Fix in the shared `DropdownMenu` component, not per page.
+- Anti-pattern: mixed icon and text-only items in the same menu; dropdown items where the icon-to-text gap, the left icon inset, and the right label inset visibly disagree; or a menu much wider than its longest label. Fix shared spacing in the `DropdownMenu` component, and fix icon completeness in the menu's action definitions rather than hiding the mismatch with per-item padding.
 
 ## Toast / Feedback
 
