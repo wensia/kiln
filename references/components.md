@@ -596,6 +596,7 @@ Resource package selectors, such as quota or package pickers, are compact choice
 - Viewport breathing space is part of the shared component, not page code. The frame width should be constrained to `calc(100vw - 2rem)` on mobile and `calc(100vw - 3rem)` on desktop, split-screen, and DevTools-narrow viewports. The same safe gap applies vertically through `max-height`: `calc(100svh - 2rem)` on mobile and `calc(100svh - 3rem)` on desktop.
 - Business code may set the semantic maximum width such as `sm:max-w-lg`, `sm:max-w-4xl`, or `sm:max-w-6xl`, but it must not cancel the shared safe width with `w-screen`, `sm:w-full`, or a larger viewport width. True fullscreen workflows should use Sheet or a clearly marked fullscreen exception.
 - Header includes title and only useful description.
+- The header close control is window chrome, not a page action. Render it as a quiet `icon-sm` button: transparent at rest with no border or resting background, a muted surface on hover, and the product's focus ring on keyboard focus. The visible-at-rest rule for `ghost`/close actions applies to page, toolbar, and detail surfaces, not to dialog/sheet header chrome.
 - Footer buttons align right on desktop.
 - Mobile may use bottom sheet posture.
 - Data-heavy dialogs such as details, configuration, employee selection, and import previews use a fixed content height. Keep header/footer fixed inside the dialog and scroll the body viewport; tabs, empty/loading states, and data volume must not change the outer dialog height.
