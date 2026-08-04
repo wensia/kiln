@@ -295,6 +295,15 @@ Boundary — this rule is about **filters**, not forms:
 - In an edit/create form, an option like "暂不选择" / "保持原状态" / "使用默认校区" is a **real value with real semantics** — write nothing, keep the current value, inherit a default. It is not a cleared filter, and replacing it with an X would delete the meaning it carries. Those stay in the option list.
 - The test: if empty means "do not narrow the list", clearing belongs in the trigger. If empty means "do not change the data" — or the field is required — it belongs in the option list.
 
+Creating a new record from a select — one combobox, not two fields:
+
+- When a form field means "pick an existing record or create one on the spot" (contact, customer, tag), use a single **creatable select**: a text input combobox whose dropdown both filters existing options and offers creation. Do not split it into a select holding a "新建…" sentinel option plus a conditional name input below — that is two controls for one decision, the sentinel costs a row in every dropdown, and the pair forces a second label ("联系人名称") for what is the same value.
+- The input shows the selected option's label, or the free text when creating. Typing filters options by case-insensitive substring and appends one create row (`新建"<text>"`, muted with a small plus icon) whenever the trimmed text has no exact label match; an exact match suppresses the create row so the existing record is chosen instead of duplicated.
+- Picking an option fills the input with its label and clears the free text; typing after a selection switches back to create mode (the selection clears, the edited text becomes the pending new name). Validation treats "selected id" and "trimmed non-empty text" as the two valid states of the same field.
+- Keyboard: ArrowUp/ArrowDown open the popup and move the highlight, Enter chooses the highlighted row, Escape closes the popup only — never the surrounding dialog. Radix layers dismiss on a **document capture-phase** Escape listener, so a React `onKeyDown` + `stopPropagation` on the input is too late; register the popup's own Escape handler on `document` with `{ capture: true }` from the component's effect (child effects register before the layer's) and `preventDefault()` there.
+- The popup reuses the select dropdown's visual language exactly — card radius, popover shadow, item padding/highlight, check indicator on the selected option — anchored to the input's left edge at full trigger width. With zero options and no query, still render the listbox with a muted hint row so the control never looks broken.
+- Ship this once as a shared component (e.g. `CreatableSelect`, taking `value / text / onSelect / onTextChange / options`) rather than per-page wiring. Where the backend cannot create from that flow (an edit form that only accepts an existing id), keep the plain Select — do not offer creation the submit path would silently drop.
+
 ## Field Group
 
 - Use FieldGroup, Field, FieldLabel, and FieldDescription.
