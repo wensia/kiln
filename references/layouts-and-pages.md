@@ -53,15 +53,18 @@ Brand row:
 - Logo mark: 32px — the clay rounded square (9px radius) with the canvas-colored clipboard-list glyph (`assets/logo-mark.svg`). Never the source repo's purple favicon.
 - Title: 13px / 600.
 - Subtitle: 11px, muted sidebar foreground.
-- Collapsed state hides brand text and logo container.
+- Collapsed state hides only the brand text. Keep the 32px logo mark in the same header slot and at the same vertical coordinate as the expanded state.
+- In collapsed state, the logo mark owns the expand trigger. At rest it renders the unchanged product mark; on pointer hover, swap only the glyph and surface in place to `PanelLeftIcon`. Under the `keyboard` focus policy, keyboard focus performs the same swap. The 32px box, header height, top inset, rail width, and main-content geometry must not change.
 
 Collapse trigger:
 
-- Use SidebarTrigger.
+- In expanded state, use SidebarTrigger at the trailing edge of the brand row.
+- In collapsed state, reuse the logo box as SidebarTrigger instead of adding a second top-row control.
 - Visual: ghost icon-sm, 32px box, 4px radius.
 - Icon: `PanelLeftIcon`, 16px.
 - Expanded label: `折叠侧边栏`.
 - Collapsed label: `展开侧边栏`.
+- Hover or focus only reveals the expand icon; click or the shell shortcut expands the rail. Do not auto-expand on hover.
 - Toggle only changes sidebar state. It does not change route, current nav, or scroll.
 
 Collapse behaviour (shell-owned):
