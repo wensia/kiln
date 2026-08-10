@@ -72,6 +72,12 @@
       "prompt": "资源包表格的行操作菜单里，“编辑资源包”有铅笔图标，“停用资源包”只有文字；启用状态下又会把文案切成“启用资源包”。请按 kiln 修正并给出防回归规则。",
       "expected_output": "Output should choose one menu-wide icon grammar: either add meaningful leading icons to every rendered action, including both conditional Enable and Disable branches, or remove all leading icons from that menu. It should reject mixed icon/text-only rows, including destructive or conditional exceptions, preserve shared DropdownMenu spacing, and recommend a static guard over DataTable action definitions and direct DropdownMenu items so future menus cannot mix the two grammars.",
       "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "密码输入框右侧的显示密码眼睛按钮继承了全局 ghost 的浅灰底和边框，看起来像输入框里又嵌了一个按钮框。请按 kiln 修正并说明它与页面 ghost 按钮的边界。",
+      "expected_output": "Output should classify the password visibility button as an embedded input adornment and a scoped quiet exception: transparent background and border at rest, muted surface on hover, stable icon box and input padding, show/hide aria-label semantics, and focus behavior matching the product policy. It should keep the visible-rest neutral surface requirement for standalone page, toolbar, detail, and other ordinary ghost commands rather than making ghost globally transparent.",
+      "files": []
     }
   ]
 }

@@ -52,8 +52,8 @@ Rules:
 - Clay `primary` fills are reserved for **the single key action of a flow** (e.g. the "新建…" entry on a resource-management page) and for buttons that themselves represent an active state or stateful filter — an advanced-filter trigger with active hidden conditions, a selected date endpoint, or a nav/tab active state defined by that component. At most one clay-filled action per viewport.
 - In shadcn-style button variants, the `default` filled variant should resolve to solid/ink, with an explicit `primary` variant for the key action and stateful filled controls. Do not leave `default` mapped to `bg-primary`.
 - Destructive actions use the destructive token, which currently maps to clay red, but they still need destructive labeling, confirmation, or menu placement. Do not use clay red alone to imply danger.
-- Outline, ghost, and text-like actions stay neutral by default. Page, toolbar, detail, edit, follow-up, call, close, and reset actions must still be discoverable before hover; `ghost` should resolve to a neutral soft button with a weak visible surface such as `border-border/70 bg-muted/40 text-foreground`, or the action should use `outline`. Hover may raise contrast with `text-foreground`, a stronger muted background, or a border change; it should not jump to clay red unless the action is truly selected, active, focused, or destructive.
-- Do not use transparent `ghost`, `border-transparent`, or primary-colored text to demote a visible action. If the action is too minor for a button, render it as a real inline text link in surrounding copy; if it remains in a toolbar or detail header, give it a stable neutral button surface.
+- Outline, ghost, and text-like actions stay neutral by default. Page, toolbar, detail, edit, follow-up, call, close, and reset actions must still be discoverable before hover; `ghost` should resolve to a neutral soft button with a weak visible surface such as `border-border/70 bg-muted/40 text-foreground`, or the action should use `outline`. Hover may raise contrast with `text-foreground`, a stronger muted background, or a border change; it should not jump to clay red unless the action is truly selected, active, focused, or destructive. This visible-rest rule governs standalone commands, not the contextual quiet controls explicitly defined by Password Input, table operation menus, and Dialog chrome.
+- Do not use transparent `ghost`, `border-transparent`, or primary-colored text to demote a visible standalone action. If the action is too minor for a button, render it as a real inline text link in surrounding copy; if it remains in a toolbar or detail header, give it a stable neutral button surface. Transparent rest styling is allowed only where the containing component already supplies the boundary and the component spec explicitly defines a quiet control.
 - Text buttons such as Save, Create, Cancel, Generate, and Confirm do not need decorative icons.
 - Press feedback: 1px downward shift (`active:translate-y-px`); selection is expressed by color, never scale.
 - Pure icon buttons need `aria-label` or `title`.
@@ -160,7 +160,7 @@ Structure:
     type="button"
     variant="ghost"
     size="icon-sm"
-    className="absolute right-1 top-1/2 size-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+    className="button-quiet absolute right-1 top-1/2 size-8 -translate-y-1/2 text-muted-foreground hover:bg-muted hover:text-foreground"
     aria-label={visible ? "隐藏密码" : "显示密码"}
   >
     {visible ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
@@ -178,6 +178,15 @@ Specs:
 - Icon size: 16px.
 - Button type is `button`.
 - Click toggles visibility only, not form submission.
+- This is an embedded adornment, not a standalone command: at rest the button is transparent and borderless. The input border is the containing affordance; adding a second resting rectangle inside it creates competing control chrome.
+- Hover may add only a muted surface and foreground contrast. It must not change the button box, input padding, or input border.
+- Under the default keyboard focus policy, keep a visible focus indicator that fits inside the input composition; under an explicit pointer-first policy, follow the product-level focus override without removing the show/hide semantics.
+
+QA:
+
+- Check both show and hide icons in default, hover, active, and applicable focus states.
+- In computed styles, default `background-color` and `border-color` are transparent; hover uses the shared muted surface. Toggling visibility must not move the icon, text, or input edge.
+- Verify the same rule on every password flow that consumes the shared component, including invalid inputs; an error border belongs to the input, never to the embedded icon button.
 
 ## SMS Code Input
 
