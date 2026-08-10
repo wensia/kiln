@@ -41,7 +41,7 @@ Declare this font decision before starting UI work:
 
 ## Reference Files
 
-Read this file first for intent and workflow, then load the reference whose job matches the task. Do not preload all references.
+Read this file first for intent and workflow, then load only what your mode requires (see Request Modes below). Do not preload all references.
 
 | File | Read it when | What's inside |
 | --- | --- | --- |
@@ -49,6 +49,51 @@ Read this file first for intent and workflow, then load the reference whose job 
 | `references/components.md` | Building buttons, inputs, password fields, date/time pickers, selects, badges, tabs, tables, pagination, resource cards, dialogs, sheets, dropdowns, feedback, or empty/loading states | Per-component specs, states, and QA |
 | `references/layouts-and-pages.md` | Designing shells, sidebar (including the collapsed rail), toolbar, data table docks, editor layouts, overlays, or specific page types | Desktop/mobile shell, navigation, DataTableDock, editor shell, overlays, page blueprints |
 | `references/platform-mapping.md` | Porting to React/Tailwind, plain CSS, design tools, dark mode, mini programs, or another project | Implementation and cross-project reuse mapping |
+
+## Request Modes
+
+Route the request before reading anything else. These four modes take different inputs, load different references, and end on different definitions of done. Running the design workflow against an audit request is the most common way this skill produces confident, useless output.
+
+| Mode | Trigger | Load | Deliverable |
+| --- | --- | --- | --- |
+| **Design** | A new page, flow, or component with no existing implementation | `tokens.md`, `components.md`, `layouts-and-pages.md` | Blueprint: shell, density, hierarchy, tokens, components, states, QA list |
+| **Migrate** | An existing shadcn / Tailwind / admin project adopting kiln globally | All four references, then the Migration Gate below | Ordered migration steps, acceptance criteria, and both contract gates wired |
+| **Audit** | A surface that already claims to be kiln, or a "this looks off, why" request | `components.md` plus the reference owning that surface | Evidence-based, ranked violation list, each finding citing the rule it breaks |
+| **Port** | Deriving another product, brand, or platform from kiln | `platform-mapping.md`, `tokens.md` | Fixed / variable / residue split, then the mapped implementation |
+
+When a request spans modes — "switch us to kiln and redesign the records page" — run them in sequence and say which one you are in. Do not fold audit findings into a redesign: the user loses the ability to tell what was broken from what was merely changed.
+
+### Design
+
+1. Identify the page type and the primary user job.
+2. Choose density before composing controls.
+3. Apply the three-layer hierarchy.
+4. Pick tokens from `references/tokens.md`.
+5. Build with components from `references/components.md`.
+6. Use shell and page structure from `references/layouts-and-pages.md`.
+7. Check Anti-Patterns before finishing.
+8. Verify text fit, table scrolling, focus states, action grouping, mobile recomposition, and computed token/radius/color output when relevant.
+
+### Migrate
+
+Run the Existing shadcn / Tailwind Migration Gate below, map implementation through `references/platform-mapping.md`, and finish by wiring both gates from Make the spec machine-checkable. A migration that cannot fail has not been verified, only asserted.
+
+### Audit
+
+1. **Collect evidence before judging.** Read what is actually rendered — the live page, a screenshot, or the component source — and record control heights, radii, fill colors, border usage, and copy. An audit that opens with a verdict is a preference, not a finding.
+2. **Sort what you found into three piles.** Only the first is yours to report:
+   - **Violation** — it breaks a rule this skill owns.
+   - **Local decision** — the host product's own brand, domain, or business choice that kiln does not govern. Leave it alone; adopting kiln is not surrendering every decision to it.
+   - **Residue** — an artifact of this one screen (placeholder copy, seeded data, a half-built feature) that must not be generalized into a rule for the product.
+3. **Rank by blast radius, not by how much it bothers the eye.** A shared component variant outranks a page blueprint, which outranks one screen. A wrong shared `ghost` mapping is worth more than five drifting content insets.
+4. **Cite the rule.** Every finding names the file and rule it breaks, so the fix is checkable and the finding is arguable. An uncited finding is taste.
+5. Do not claim visual QA passed from lint or build alone.
+
+### Port
+
+1. Split the system before copying it — see Fixed / Variable / Residue in `references/platform-mapping.md`. Skipping the split produces one of two failures: a clone that cannot carry the target's own brand, or a dilution that keeps kiln's colors and loses its structure.
+2. Map implementation through `references/platform-mapping.md`.
+3. Re-run both contract gates inside the target project, against the target's own token file.
 
 ## Existing shadcn / Tailwind Migration Gate
 
@@ -242,7 +287,7 @@ Metric and summary strips should earn every visible glyph. If an icon only repea
 
 ## Output Contract
 
-When using this skill, make concrete decisions:
+In Design and Migrate modes, make these decisions concrete (Audit and Port have their own deliverable shapes — see Request Modes):
 
 - Shell: desktop workbench, mobile shell, editor shell, dialog, sheet, or connection panel.
 - Page pattern: overview, resource management, data table, editor, payroll, external integration, or mobile card list.
@@ -252,19 +297,9 @@ When using this skill, make concrete decisions:
 - States: default, hover, focus, disabled, loading, empty, error, mobile, and narrow-height.
 - QA: which viewports and interactions must be checked.
 
-## Workflow
-
-1. Identify the page type and primary user job.
-2. Choose density before composing controls.
-3. Apply the three-layer hierarchy.
-4. Pick tokens from `references/tokens.md`.
-5. Build with components from `references/components.md`.
-6. Use shell/page structure from `references/layouts-and-pages.md`.
-7. If porting or editing an existing Tailwind/shadcn project, run the Existing shadcn / Tailwind Migration Gate and map implementation through `references/platform-mapping.md`.
-8. Check anti-patterns before finishing.
-9. Verify text fit, table scrolling, focus states, action grouping, mobile recomposition, and computed token/radius/color output when relevant.
-
 ## Anti-Patterns
+
+This list is also the Audit mode checklist: each entry is a finding you can cite.
 
 Avoid:
 

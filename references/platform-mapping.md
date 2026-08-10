@@ -206,6 +206,36 @@ When porting to mobile apps or mini programs:
 
 ## Reuse Guide
 
+### Fixed / Variable / Residue
+
+Split kiln into three layers before copying any of it. A port that skips the split fails in one of two directions: it clones kiln so literally that the target cannot carry its own brand, or it keeps the colors, drops the structure, and ends up warm-tinted but shapeless.
+
+**Fixed — the system itself. Change any of these and the result is no longer kiln:**
+
+- The radius ladder and its role mapping (control / card / panel).
+- Separation order: whitespace and soft warm shadow first, border last; white surfaces borderless by default.
+- One filled key action per viewport, and no clay fill inside a table row.
+- The three-layer hierarchy and the typography budget.
+- A type scale with both a floor and a ceiling, with hero type banned from workbench pages.
+- Structure carried by layout, grid, and spacing rather than by heavier shadow, larger cards, or more color.
+- Both contract gates. A port without them is a screenshot of a design system.
+
+**Variable — the target owns these, and kiln expects them to change:**
+
+- The primary hue. Clay red is kiln's anchor, not the rule; the rule is that there is exactly **one** anchor. Replace it and recalculate primary subtle, ring, sidebar active, and destructive **together** — a brand color swapped into one token and not the other four is the most common way a port starts drifting on its first day.
+- Status hue assignments, as long as they stay semantic and stay distinguishable from the anchor.
+- The font family, provided the CJK family loads as a webfont on every platform.
+- The default density, when the target's job is genuinely lighter or denser than an operations workbench.
+- Page blueprints and status vocabulary, which follow the target's domain.
+
+**Residue — kiln's own product history. Do not port these as rules:**
+
+- Blueprints for domains the target does not have: payroll batches, external integration panels, resource packages.
+- The specific Chinese labels, example copy, and seeded data used in this skill's examples.
+- Component specs for primitives the target does not ship.
+
+Carrying residue across is what turns a design system into a copy of someone else's product. When unsure which pile a rule belongs to, ask whether it would still make sense if the target sold something completely different.
+
 Minimum portable package:
 
 1. Color tokens.
@@ -226,10 +256,8 @@ Porting steps:
 6. Add Dialog, Sheet, form flows, and mobile cards.
 7. Add target-project page blueprints and status language.
 
-Adaptation:
+Domain adaptation, after the Fixed / Variable / Residue split:
 
-- Replace page blueprints when the target domain differs, but keep token/component/layout rules.
-- Brand color can replace clay, but recalculate primary subtle, ring, sidebar active, and destructive.
 - CRM/ERP projects should preserve table and sidebar rules.
 - Content-production projects should preserve resource cards and editor rules.
 - Mobile-first projects should prioritize card and bottom sheet patterns.
