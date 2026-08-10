@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kiln — 工作台示范页</title>
+
+<!-- 字体是**部署决策**，所以 tokens/index.css 不 import 它（见该文件顶部注释）。
+     示范页选 CDN 这条路；离线场景改用 @fontsource，见 tokens/fonts.css。 -->
+<style>@import url("../tokens/fonts.css");</style>
+<style>@import url("../tokens/index.css");</style>
+
+<style>
+/* ============================================================
+   示范页自己的实现层。
+
+   这里是「消费方」——它可以有实现值（侧栏宽度、列宽），但**不许有裸色值**：
+   每一个颜色、圆角、阴影、字号、间距都必须 var() 回 tokens/*.css。
+   这一条正是 scripts/verify.mjs 对散文的要求，在实现层的对应物。
+   ============================================================ */
+
+/* ---- shell ---- */
+.shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 248px;                       /* 规范：展开 248-288px */
+  flex: none;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: 56px; padding: 0 var(--space-3);
+}
+.brand-mark {
+  width: 32px; height: 32px; flex: none;
+  border-radius: 9px;                 /* 规范：logo 方章 9px，是品牌形状，不是控件圆角 */
+  background: var(--primary);
+  display: grid; place-items: center;
+  color: var(--primary-foreground);
+}
+.brand-text { min-width: 0; }
+.brand-title {
+  font-size: var(--text-body); font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.brand-sub {
+  font-size: var(--text-tiny); color: var(--muted-foreground);
+  line-height: var(--leading-tight);
+}
+
+.nav { padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-0\.5); }
+.nav-group {
+  font-size: var(--text-tiny); color: var(--muted-foreground);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: var(--nav-item-height);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
+  color: var(--sidebar-foreground);
+  text-decoration: none;
+  transition: background 140ms ease, color 140ms ease;
+}
+.nav-item:hover { background: var(--sidebar-accent); }
+/* active 是**状态**填充，不是动作 —— 它不计入「每视口一个 clay」的预算，
+   前提是它带 aria-current（运行时契约据此豁免）。 */
+.nav-item[aria-current="page"] {
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  font-weight: var(--weight-medium);
+}
+
+/* ---- main ---- */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.topbar {
+  height: 56px; flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--topbar);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-topbar);
+  border-bottom: 1px solid var(--border);
+}
+/* 顶栏**就是**路由标题权威。body 里再放一个「工单」标题就是第二个权威，
+   规范明确禁止（layouts-and-pages.md：topbar already carries a route-specific h1）。 */
+h1.topbar-title {
+  margin: 0;
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-page-title);   /* 上限 —— 工作台没有 hero 标题 */
+  font-weight: var(--weight-semibold);
+}
+h1.topbar-title::before {              /* 短 clay tick：状态标记，不是又一个动作 */
+  content: ""; width: 3px; height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+}
+.topbar-user { font-size: var(--text-meta); color: var(--muted-foreground); }
+
+.content {
+  flex: 1;
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+
+/* ---- 白卡：无边框，靠暖黑阴影浮在近白画布上 ---- */
+.panel {
+  background: var(--card);
+  color: var(--card-foreground);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+/* ---- 指标条：不加装饰图标，靠字号/颜色/对齐建立层级 ---- */
+.metrics { display: flex; }
+.metric {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border-left: 1px solid var(--border);
+}
+.metric:first-child { border-left: 0; }
+.metric-label { font-size: var(--text-meta); color: var(--muted-foreground); }
+.metric-value {
+  display: block;
+  font-size: var(--text-data);         /* 字号阶梯的天花板，只有真实看板数字够得着 */
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  margin-top: var(--space-1);
+}
+.metric-delta { font-size: var(--text-tiny); color: var(--muted-foreground); }
+
+/* ---- 控件基座 ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: var(--text-body);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.btn:active { transform: translateY(1px); }   /* 按压是 1px 下沉，不是缩放 */
+.btn-sm { height: var(--control-height-sm); }
+.btn-icon { width: var(--control-height); padding: 0; }
+.btn-icon.btn-sm { width: var(--control-height-sm); }
+
+/* 关键动作：每视口**唯一**一个 clay 填充 */
+.btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.btn-primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--solid)); }
+
+/* 普通实心命令：ink，不是 clay */
+.btn-solid { background: var(--solid); color: var(--solid-foreground); }
+.btn-solid:hover { background: var(--solid-hover); }
+
+.btn-outline { background: var(--card); border-color: var(--input); }
+.btn-outline:hover { border-color: var(--border-visible); background: var(--accent); }
+
+/* ghost 在后台里**静止可见** —— 弱边框 + 淡底，不是纯透明 */
+.btn-ghost {
+  background: color-mix(in srgb, var(--muted) 40%, var(--card));
+  border-color: color-mix(in srgb, var(--border-visible) 70%, transparent);
+  color: var(--foreground);
+}
+.btn-ghost:hover { background: var(--muted); }
+
+/* quiet 例外：仅限弹层 chrome 与**嵌在输入框边界内**的图标控件。
+   容器边框已经提供了可发现性，再套一个静止矩形就是两层控件外框。 */
+.btn-quiet { background: transparent; border-color: transparent; color: var(--muted-foreground); }
+.btn-quiet:hover { background: var(--muted); color: var(--foreground); }
+
+/* ---- 输入 ---- */
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field-label { font-size: var(--text-meta); color: var(--muted-foreground); }
+.input {
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  box-shadow: var(--shadow-input);
+  font-family: inherit;
+  font-size: var(--text-body);
+  color: var(--foreground);
+  width: 100%;
+}
+.input::placeholder { color: var(--muted-foreground); }
+.input:focus { outline: none; border-color: var(--ring); box-shadow: var(--ring-focus); }
+
+.input-wrap { position: relative; }
+.input-wrap .input { padding-right: var(--space-8); }
+.input-affix {                       /* 嵌入式装饰件的定位槽 */
+  position: absolute; right: var(--space-1); top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ---- 工具栏：同一行控件外框高度必须一致 ---- */
+.toolbar { display: flex; align-items: center; gap: var(--space-2); }
+.toolbar .search { width: 320px; }
+.toolbar-spacer { flex: 1; }
+
+.segmented {
+  display: inline-flex; align-items: center;
+  height: var(--control-height);      /* 外框 36 = 1px 边框 + 2px 内衬 + 32px 触发器 */
+  padding: var(--space-0\.5);
+  gap: var(--space-0\.5);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+.segmented .btn { height: var(--control-height-sm); }
+.segmented .btn[aria-pressed="true"] {
+  background: var(--primary); color: var(--primary-foreground);
+}
+
+/* ---- 表格 ---- */
+.table-scroll { overflow-x: auto; position: relative; }
+table.data { border-collapse: collapse; width: 100%; min-width: 980px; font-size: var(--text-body); }
+
+table.data thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--table-header);
+  border-bottom: 1px solid var(--table-header-border);
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  text-align: left;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-medium);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* 行的四态全部是 token —— 冻结列靠 `background: inherit` 复用同一组值，
+   所以行高亮走到冻结列不会断。下游各自发明一个 hover 色，冻结列就必然对不上。 */
+table.data tbody tr {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);   /* 结构：行分隔线；末行同样保留 */
+  transition: background 140ms ease;
+}
+table.data tbody tr:nth-child(even) { background: var(--table-row-alt); }
+table.data tbody tr:hover { background: var(--table-row-hover); }
+table.data tbody tr[aria-selected="true"] { background: var(--table-row-selected); }
+
+table.data td {
+  height: var(--table-row-height);
+  padding: 0 var(--space-3);
+  white-space: nowrap;
+}
+.cell-muted { color: var(--muted-foreground); }
+.cell-num { font-variant-numeric: tabular-nums lining-nums; }
+
+/* 冻结操作列：内容尺寸（32px 触发器 + 对称留白 = 56px），不是留白槽 */
+th.op, td.op {
+  position: sticky; right: 0; z-index: 1;
+  width: 96px; min-width: 96px;
+  background: inherit;                 /* ← 跟着行状态走的关键 */
+  text-align: right;
+}
+th.op { background: var(--table-header); }
+td.op::after {                         /* 滚动阴影用渐变伪元素：border-collapse 会丢弃单元格 box-shadow */
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px;
+  transform: translateX(-100%);
+  background: linear-gradient(to left, var(--shadow-sticky-edge), transparent);
+  opacity: 0; transition: opacity 140ms ease; pointer-events: none;
+}
+.table-scroll[data-at-right="false"] td.op::after { opacity: 1; }
+.op-group { display: inline-flex; align-items: center; gap: var(--space-1); justify-content: flex-end; }
+
+/* ---- 分页坞：高度只能来自 token，不许用 padding 拼 ---- */
+.dock {
+  display: flex; align-items: center; gap: var(--space-3);
+  height: var(--table-pagination-height);
+  padding: 0 var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-meta);
+  color: var(--muted-foreground);
+}
+.dock-spacer { flex: 1; }
+.pager { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pager .btn {
+  height: var(--control-height-sm); min-width: var(--control-height-sm); padding: 0 var(--space-2);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.pager .btn[aria-current="page"] { background: var(--primary); color: var(--primary-foreground); }
+
+/* ---- badge：默认 4px，不是到处胶囊 ---- */
+.badge {
+  display: inline-flex; align-items: center;
+  height: 20px; padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: var(--text-tiny);
+  line-height: 1;
+}
+.badge-success { background: var(--success-bg); color: var(--success); }
+.badge-info { background: var(--info-bg); color: var(--info); }
+.badge-warning { background: var(--warning-bg); color: var(--warning); }
+.badge-danger { background: var(--destructive-bg); color: var(--destructive); }
+
+/* ---- 表单示范区 ---- */
+.form-panel { padding: var(--space-4); }
+h2.section-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-section-title);
+  font-weight: var(--weight-semibold);
+}
+.form-row { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
+/* 控件宽度是对内容的声明 —— 数字字段不该继承整列宽度 */
+.w-name { width: 200px; }
+.w-pass { width: 240px; }
+.w-num { width: 96px; }
+.swatches { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+
+.icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.icon-18 { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg class="icon-18 icon" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3.5h6M9 9h6M9 13h6M9 17h4"/></svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">窑务工作台</div>
+        <div class="brand-sub">运营中心</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-group">运营</div>
+      <a class="nav-item" href="#" aria-current="page">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>工单
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.3 3.1-5.5 7-5.5s7 2.2 7 5.5"/></svg>客户
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>结算
+      </a>
+      <div class="nav-group">系统</div>
+      <a class="nav-item" href="#">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg>设置
+      </a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar-title">工单</h1>
+      <div class="topbar-user">张岚 · 运营</div>
+    </header>
+
+    <div class="content">
+      <!-- 总数只有一个权威，它在分页坞里（规范：Total counts live in pagination）。 -->
+      <section class="panel metrics">
+        <div class="metric">
+          <span class="metric-label">待接单</span>
+          <span class="metric-value tabular">23</span>
+          <span class="metric-delta">较昨日 +4</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">处理中</span>
+          <span class="metric-value tabular">61</span>
+          <span class="metric-delta">较昨日 -2</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">今日完成</span>
+          <span class="metric-value tabular">44</span>
+          <span class="metric-delta">较昨日 +11</span>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <div class="input-wrap search">
+          <input class="input" type="search" placeholder="搜索工单号、客户或负责人">
+        </div>
+
+        <button class="btn btn-outline" type="button">
+          全部状态
+          <svg class="icon" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+
+        <div class="segmented" role="group" aria-label="时间范围">
+          <button class="btn" type="button" aria-pressed="true">今日</button>
+          <button class="btn btn-quiet" type="button" aria-pressed="false">本周</button>
+          <button class="btn btn-quiet" type="button" aria-pressed="false">本月</button>
+        </div>
+
+        <button class="btn btn-ghost btn-icon" type="button" aria-label="刷新">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
+        </button>
+
+        <div class="toolbar-spacer"></div>
+
+        <!-- 全页**唯一**的 clay 填充动作 -->
+        <button class="btn btn-primary" type="button">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          新建工单
+        </button>
+      </div>
+
+      <section class="panel">
+        <div class="table-scroll" data-at-right="true">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>工单号</th><th>客户</th><th>类型</th><th>负责人</th>
+                <th>状态</th><th>创建时间</th><th class="op">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="cell-num">WO-20260810-014</td><td>青野陶坊</td><td>返修</td><td>陈默</td>
+                <td><span class="badge badge-warning">待接单</span></td>
+                <td class="cell-muted cell-num">08-10 09:12</td>
+                <td class="op"><div class="op-group">
+                  <button class="btn btn-solid btn-sm" type="button">接单</button>
+                  <button class="btn btn-quiet btn-icon btn-sm" type="button" aria-label="更多操作">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+                  </button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="cell-num">WO-20260810-013</td><td>南山工坊</td><td>安装</td><td>李行</td>
+                <td><span class="badge badge-info">处理中</span></td>
+                <td class="cell-muted cell-num">08-10 08:47</td>
+                <td class="op"><div class="op-group">
+                  <button class="btn btn-quiet btn-icon btn-sm" type="button" aria-label="更多操作">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+                  </button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="cell-num">WO-20260809-208</td><td>拾器生活</td><td>退货</td><td>周砚</td>
+                <td><span class="badge badge-success">已完成</span></td>
+                <td class="cell-muted cell-num">08-09 17:30</td>
+                <td class="op"><div class="op-group">
+                  <button class="btn btn-quiet btn-icon btn-sm" type="button" aria-label="更多操作">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+                  </button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="cell-num">WO-20260809-197</td><td>白露器物</td><td>返修</td><td>陈默</td>
+                <td><span class="badge badge-danger">已超时</span></td>
+                <td class="cell-muted cell-num">08-09 14:05</td>
+                <td class="op"><div class="op-group">
+                  <button class="btn btn-solid btn-sm" type="button">接单</button>
+                  <button class="btn btn-quiet btn-icon btn-sm" type="button" aria-label="更多操作">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+                  </button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="cell-num">WO-20260809-186</td><td>青野陶坊</td><td>安装</td><td>李行</td>
+                <td><span class="badge badge-success">已完成</span></td>
+                <td class="cell-muted cell-num">08-09 11:22</td>
+                <td class="op"><div class="op-group">
+                  <button class="btn btn-quiet btn-icon btn-sm" type="button" aria-label="更多操作">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+                  </button>
+                </div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dock">
+          共 128 条
+          <span class="dock-spacer"></span>
+          <nav class="pager" aria-label="分页">
+            <button class="btn btn-outline" type="button">上一页</button>
+            <button class="btn btn-outline" type="button" aria-current="page">1</button>
+            <button class="btn btn-quiet" type="button">2</button>
+            <button class="btn btn-quiet" type="button">3</button>
+            <button class="btn btn-outline" type="button">下一页</button>
+          </nav>
+        </div>
+      </section>
+
+      <section class="panel form-panel">
+        <h2 class="section-title">控件</h2>
+        <div class="form-row">
+          <div class="field w-name">
+            <label class="field-label" for="f-name">负责人</label>
+            <input class="input" id="f-name" type="text" value="陈默">
+          </div>
+
+          <div class="field w-pass">
+            <label class="field-label" for="f-pass">登录密码</label>
+            <div class="input-wrap">
+              <input class="input" id="f-pass" type="password" value="kiln-demo-pass">
+              <!-- 嵌入式装饰件：静止透明无边框，输入框的边框就是容器 -->
+              <button class="btn btn-quiet btn-icon btn-sm input-affix" type="button"
+                      id="pass-toggle" aria-label="显示密码">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field w-num">
+            <label class="field-label" for="f-num">时长（小时）</label>
+            <input class="input cell-num" id="f-num" type="text" value="4">
+          </div>
+
+          <button class="btn btn-solid" type="button">保存</button>
+          <button class="btn btn-outline" type="button">取消</button>
+          <button class="btn btn-ghost" type="button">重置</button>
+        </div>
+
+        <div class="swatches">
+          <span class="badge badge-success">已完成</span>
+          <span class="badge badge-info">处理中</span>
+          <span class="badge badge-warning">待接单</span>
+          <span class="badge badge-danger">已超时</span>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+// 冻结列滚动阴影：只在**该侧确实还有被遮住的内容**时出现，不是常驻装饰。
+const scroller = document.querySelector(".table-scroll");
+const syncEdge = () => {
+  const atRight = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 1;
+  scroller.dataset.atRight = String(atRight);
+};
+scroller.addEventListener("scroll", syncEdge, { passive: true });
+window.addEventListener("resize", syncEdge);
+syncEdge();
+
+// 密码显隐：只切换可见性与 aria-label，不改按钮盒子、不改输入框内边距。
+const pass = document.getElementById("f-pass");
+const toggle = document.getElementById("pass-toggle");
+toggle.addEventListener("click", () => {
+  const shown = pass.type === "text";
+  pass.type = shown ? "password" : "text";
+  toggle.setAttribute("aria-label", shown ? "显示密码" : "隐藏密码");
+});
+</script>
+</body>
+</html>

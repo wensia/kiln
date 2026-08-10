@@ -83,8 +83,15 @@ ln -s "$(pwd)" ~/.agents/skills/kiln     # Codex / Droid / opencode
 ### 自检
 
 ```bash
-node scripts/verify.mjs
+npm run verify           # 静态：token 契约 + 规格表镜像 + 散文不含数值（零依赖）
+npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契约（需 playwright）
 ```
+
+第二条是 kiln 自己吃自己的狗粮。在它出现之前，仓库里只有一份**给别人复制**的运行时模板，
+自己从来没有可供断言的渲染目标——一套要求别人验证渲染结果的规范，自己没验证过。
+`examples/workbench.html` 只消费 `tokens/*.css`、不含裸色值，把工作台的主要表面摆齐
+（侧栏、顶栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件），规则改了而示范页
+没跟上，这条命令会直接失败。
 
 ---
 
@@ -126,5 +133,10 @@ kiln/
 │   ├── radius.css  elevation.css   fonts.css  base.css
 ├── contract/tokens.json        # 合法 token 全集（机器契约）
 ├── evals/evals.json            # skill 冒烟测试
-└── scripts/verify.mjs          # 自检：契约 + 镜像一致 + 散文不含数值
+├── examples/workbench.html     # 示范页：只消费 token，渲染契约的自测目标
+└── scripts/
+    ├── verify.mjs              # 静态自检：契约 + 镜像一致 + 散文不含数值
+    ├── verify-examples.mjs     # 对示范页跑渲染契约
+    ├── lib/runtime-contract.mjs # ★ 渲染断言的唯一来源（示范页与宿主模板共用）
+    └── templates/              # 宿主项目模板：只写「跑哪些页面」，规则从 lib 来
 ```
