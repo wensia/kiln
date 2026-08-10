@@ -85,6 +85,7 @@ ln -s "$(pwd)" ~/.agents/skills/kiln     # Codex / Droid / opencode
 ```bash
 npm run verify           # 静态：token 契约 + 规格表镜像 + 散文不含数值（零依赖）
 npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契约（需 playwright）
+npm run verify:paper     # 版面：对 examples/paper-login.html 数真实像素（需 playwright）
 ```
 
 第二条是 kiln 自己吃自己的狗粮。在它出现之前，仓库里只有一份**给别人复制**的运行时模板，
@@ -92,6 +93,11 @@ npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契�
 `examples/workbench.html` 只消费 `tokens/*.css`、不含裸色值，把工作台的主要表面摆齐
 （侧栏、顶栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件），规则改了而示范页
 没跟上，这条命令会直接失败。
+
+第三条量的是**版面**而不是结构：截图之后逐像素数墨占比、数高饱和色相簇。
+纸面层的规矩（留白必须够、锚点只能有一个、纸不能浮在纸上面）没法从 computed style 问出来，
+只能看真实像素。区间是量出来的：工作台示范页在 1440 和 390 下分别是 8.11% 和 7.92% 墨，
+纸面层必须显著低于同视口的工作台。
 
 ---
 
@@ -121,22 +127,27 @@ kiln **不依赖**任何托管项目。数值的真相源就是这个仓库的 `
 
 ```
 kiln/
-├── SKILL.md                    # skill 入口：意图、工艺规则、工作流、反模式
+├── SKILL.md                    # skill 入口：请求路由、意图、工艺规则、反模式
 ├── references/
 │   ├── tokens.md               # 规格表（CSS 的镜像，机器校验一致）
 │   ├── components.md           # 组件规格、状态、QA
 │   ├── layouts-and-pages.md    # shell、侧栏（含折叠 rail）、DataTableDock、页面蓝图
-│   └── platform-mapping.md     # React/Tailwind、纯 CSS、暗色、小程序、跨项目复用
+│   ├── platform-mapping.md     # React/Tailwind、纯 CSS、暗色、小程序、跨项目复用
+│   └── paper.md                # ★ 纸面层：登录/空状态/404/封面/发布说明/邮件
 ├── tokens/                     # ★ 数值的唯一真相源
-│   ├── index.css               #   单一入口，消费方只 import 这个
+│   ├── index.css               #   工作台入口，消费方只 import 这个
 │   ├── colors.css  typography.css  spacing.css
 │   ├── radius.css  elevation.css   fonts.css  base.css
-├── contract/tokens.json        # 合法 token 全集（机器契约）
+│   └── paper.css               #   纸面层：**不**被 index.css 引入，纸面页面显式加载
+├── contract/tokens.json        # 合法 token 全集（机器契约，工作台层与纸面层分开列）
 ├── evals/evals.json            # skill 冒烟测试
-├── examples/workbench.html     # 示范页：只消费 token，渲染契约的自测目标
+├── examples/
+│   ├── workbench.html          #   工作台示范页：渲染契约的自测目标
+│   └── paper-login.html        #   纸面层示范页：版面契约的自测目标
 └── scripts/
     ├── verify.mjs              # 静态自检：契约 + 镜像一致 + 散文不含数值
-    ├── verify-examples.mjs     # 对示范页跑渲染契约
+    ├── verify-examples.mjs     # 工作台：结构断言（computed style）
+    ├── verify-paper.mjs        # 纸面层：版面断言（逐像素数墨占比与色相簇）
     ├── lib/runtime-contract.mjs # ★ 渲染断言的唯一来源（示范页与宿主模板共用）
     └── templates/              # 宿主项目模板：只写「跑哪些页面」，规则从 lib 来
 ```

@@ -78,6 +78,18 @@
       "prompt": "密码输入框右侧的显示密码眼睛按钮继承了全局 ghost 的浅灰底和边框，看起来像输入框里又嵌了一个按钮框。请按 kiln 修正并说明它与页面 ghost 按钮的边界。",
       "expected_output": "Output should classify the password visibility button as an embedded input adornment and a scoped quiet exception: transparent background and border at rest, muted surface on hover, stable icon box and input padding, show/hide aria-label semantics, and focus behavior matching the product policy. It should keep the visible-rest neutral surface requirement for standalone page, toolbar, detail, and other ordinary ghost commands rather than making ghost globally transparent.",
       "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "给这个后台产品做登录页，要和工作台是同一套视觉，但别做成一个缩水的表格页。再给个空状态和 404。",
+      "expected_output": "Output should route to the paper layer (references/paper.md) rather than reusing workbench density: same glaze palette and single-anchor rule inherited unchanged, but inverted density (large continuous whitespace, not loosened line-height), print material instead of soft shadow (no box-shadow at all — paper does not float on paper), the workbench type ceiling lifted to --text-display/--text-title, and paper tokens loaded as an explicit second layer (tokens/paper.css alongside tokens/index.css). It should place exactly one high-saturation anchor across the sheet, keep the type-size floor, and cite the paper-layer contract (ink-coverage band per viewport, zero box-shadow, one hue cluster) as the acceptance criteria.",
+      "files": []
+    },
+    {
+      "id": 15,
+      "prompt": "我们的登录页现在是一张白卡片浮在灰底上，卡片里字很密，右上角还有个绿色的「新版本」角标。请按 kiln 判断问题。",
+      "expected_output": "Output should identify three paper-layer violations: the floating white card with soft shadow (paper does not float on paper — layer via --paper/--paper-deep, rules and creases instead), workbench density applied to a sheet (should be large continuous whitespace with one subject), and a second high-saturation anchor competing with the submit button (only one anchor per sheet, form may change but count may not). It should separate these from any legitimate host-product decision, and should not prescribe workbench component specs for this surface.",
+      "files": []
     }
   ]
 }

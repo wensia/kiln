@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kiln — 纸面层示范：登录</title>
+
+<!-- 纸面层可以引入 Noto Serif SC，条件是同族同源、只用于 display/title、正文仍走 sans。
+     这是 platform-mapping.md 里「字体家族属于可变层」的一次合法使用，不是新开一套字体系统。 -->
+<style>@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600&display=swap");</style>
+<style>@import url("../tokens/fonts.css");</style>
+<style>@import url("../tokens/index.css");</style>
+<!-- 纸面 token 是显式加载的第二层 —— 工作台页面拿不到它，两层的契约才各自锋利。 -->
+<style>@import url("../tokens/paper.css");</style>
+
+<style>
+/* ============================================================
+   纸面层示范：登录页。
+
+   这一层的三条硬规矩，在这份 CSS 里都能指出来：
+     ① 没有一个 box-shadow —— 纸不会浮在纸上面。
+     ② 只有一个高饱和锚点 —— 提交按钮。
+     ③ 留白是连续的大块，不是摊薄的行距。
+   ============================================================ */
+
+body {
+  background: var(--paper);
+  color: var(--paper-foreground);
+  font-size: var(--text-paper-body);
+}
+
+/* 颗粒：**看不见但感觉得到**的量。
+   能一眼看出网点图案就已经过了 —— verify-paper.mjs 的墨占比阈值正是这句话的量化：
+   颗粒重到被算成墨，页面就会因为「墨太多」而失败。 */
+.sheet {
+  min-height: 100vh;
+  background-image: radial-gradient(var(--paper-grain) 0.5px, transparent 0.5px);
+  background-size: 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) var(--space-6);
+  position: relative;
+}
+
+/* 主体：一张纸上只有一个视觉事件。其余都是它的注脚。 */
+.block { width: 320px; }
+
+.eyebrow {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-meta);
+  color: var(--paper-muted);
+  letter-spacing: 0.08em;
+}
+
+h1.title {
+  margin: 0 0 var(--space-8);
+  font-family: "Noto Serif SC", var(--font-sans);   /* 衬线只出现在 title 上 */
+  font-size: var(--text-title);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.form { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field-label { font-size: var(--text-meta); color: var(--paper-muted); }
+
+/* 输入框：印刷的线，不是屏幕的内高光 —— --shadow-input 在这一层用不得。 */
+.input {
+  height: var(--paper-control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--text-paper-body);
+  color: var(--paper-foreground);
+  width: 100%;
+}
+.input::placeholder { color: var(--paper-muted); }
+/* 焦点用 outline，不用 box-shadow —— 这一层禁用一切柔光阴影，焦点环也不例外。 */
+.input:focus { outline: 2px solid var(--primary); outline-offset: 2px; border-color: transparent; }
+
+.input-wrap { position: relative; }
+.input-wrap .input { padding-right: var(--space-8); }
+
+/* 嵌在输入框边界内的图标控件：静止透明无边框（工作台层同款 quiet 例外）。 */
+.eye {
+  position: absolute; right: var(--space-2); top: 50%;
+  transform: translateY(-50%);
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--paper-muted);
+  cursor: pointer;
+}
+.eye:hover { color: var(--paper-foreground); }
+.eye:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* 唯一的锚点。页面里没有第二个高饱和面。 */
+.submit {
+  height: var(--paper-control-height);
+  margin-top: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-family: inherit;
+  font-size: var(--text-paper-body);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.submit:active { transform: translateY(1px); }
+.submit:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.aux {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-meta);
+}
+.aux a { color: var(--paper-muted); text-decoration: none; }
+.aux a:hover { color: var(--paper-foreground); text-decoration: underline; }
+
+/* 版权：贴底、极淡，是注脚的注脚。 */
+.colophon {
+  position: absolute;
+  bottom: var(--space-6);
+  font-size: var(--text-tiny);
+  color: var(--paper-muted);
+}
+/* 一条印刷细线，压在版权上方 —— 纸面的分隔靠线，不靠投影。 */
+.colophon::before {
+  content: "";
+  display: block;
+  width: 24px; height: 1px;
+  margin: 0 auto var(--space-2);
+  background: var(--paper-edge);
+}
+
+.icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <div class="block">
+    <p class="eyebrow">窑务工作台</p>
+    <h1 class="title">登录</h1>
+
+    <form class="form" onsubmit="return false">
+      <div class="field">
+        <label class="field-label" for="acct">账号</label>
+        <input class="input" id="acct" type="text" autocomplete="username" placeholder="手机号或邮箱">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="pw">密码</label>
+        <div class="input-wrap">
+          <input class="input" id="pw" type="password" autocomplete="current-password" placeholder="请输入密码">
+          <button class="eye" id="eye" type="button" aria-label="显示密码">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="submit" type="submit">登录</button>
+    </form>
+
+    <p class="aux"><a href="#">忘记密码</a></p>
+  </div>
+
+  <div class="colophon">窑务工作台 · 运营中心</div>
+</main>
+
+<script>
+const pw = document.getElementById("pw");
+const eye = document.getElementById("eye");
+eye.addEventListener("click", () => {
+  const shown = pw.type === "text";
+  pw.type = shown ? "password" : "text";
+  eye.setAttribute("aria-label", shown ? "显示密码" : "隐藏密码");
+});
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 ---
 name: kiln
-description: Use this skill whenever the user asks to design, implement, review, port, or document a Chinese admin / workbench UI — SaaS backends, CRM, ERP, operations dashboards, data tables, sidebar navigation, form controls, date pickers — or when they mention kiln, clay-red workbench styling, or a reusable design spec. kiln turns a warm ceramic-glaze design language into concrete layout, token, component, and QA decisions. Do not use it for marketing pages unless the user explicitly wants the admin workbench visual language applied.
+description: Use this skill whenever the user asks to design, implement, review, port, or document a Chinese admin / workbench UI — SaaS backends, CRM, ERP, operations dashboards, data tables, sidebar navigation, form controls, date pickers — or the non-workbench surfaces of the same product: login, empty states, 404, report covers, release notes, system email, the product's front door. Also use it when they mention kiln, clay-red workbench styling, a paper/zine-like admin front page, or a reusable design spec. kiln turns a warm ceramic-glaze design language into concrete layout, token, component, and QA decisions across two layers, workbench and paper. Do not use it for selling/marketing composition unless the user explicitly wants this visual language applied.
 allowed-tools: [Read, Write, Edit, Glob, Grep]
 ---
 
@@ -49,6 +49,7 @@ Read this file first for intent and workflow, then load only what your mode requ
 | `references/components.md` | Building buttons, inputs, password fields, date/time pickers, selects, badges, tabs, tables, pagination, resource cards, dialogs, sheets, dropdowns, feedback, or empty/loading states | Per-component specs, states, and QA |
 | `references/layouts-and-pages.md` | Designing shells, sidebar (including the collapsed rail), toolbar, data table docks, editor layouts, overlays, or specific page types | Desktop/mobile shell, navigation, DataTableDock, editor shell, overlays, page blueprints |
 | `references/platform-mapping.md` | Porting to React/Tailwind, plain CSS, design tools, dark mode, mini programs, or another project | Implementation and cross-project reuse mapping |
+| `references/paper.md` | Designing login, empty states, 404, report covers, release notes, system email, or the product's front door | The paper layer: what it inherits, what it inverts, page blueprints, and its own contract |
 
 ## Request Modes
 
@@ -60,6 +61,7 @@ Route the request before reading anything else. These four modes take different 
 | **Migrate** | An existing shadcn / Tailwind / admin project adopting kiln globally | All four references, then the Migration Gate below | Ordered migration steps, acceptance criteria, and both contract gates wired |
 | **Audit** | A surface that already claims to be kiln, or a "this looks off, why" request | `components.md` plus the reference owning that surface | Evidence-based, ranked violation list, each finding citing the rule it breaks |
 | **Port** | Deriving another product, brand, or platform from kiln | `platform-mapping.md`, `tokens.md` | Fixed / variable / residue split, then the mapped implementation |
+| **Paper** | A surface in the product that carries no repeated work: login, empty state, 404, report cover, release notes, system email, front door | `paper.md`, `tokens.md` | Sheet composition: one subject, the whitespace budget, the single anchor, print material |
 
 When a request spans modes — "switch us to kiln and redesign the records page" — run them in sequence and say which one you are in. Do not fold audit findings into a redesign: the user loses the ability to tell what was broken from what was merely changed.
 
@@ -95,6 +97,16 @@ Run the Existing shadcn / Tailwind Migration Gate below, map implementation thro
 2. Map implementation through `references/platform-mapping.md`.
 3. Re-run both contract gates inside the target project, against the target's own token file.
 
+### Paper
+
+1. Confirm the surface really carries no repeated work. A login page with a live data table on it is a workbench page wearing paper clothes — split it before styling it.
+2. Load `references/paper.md`, and load `tokens/paper.css` **in addition to** `tokens/index.css`. Paper tokens are a second, explicit layer; a workbench page must not have them.
+3. Decide the one subject before anything else. Everything else on the sheet is its footnote.
+4. Spend the whitespace budget as continuous blocks, not as loosened line-height.
+5. Place exactly one high-saturation anchor. It may change form — a block, a rule, a stamp, one red character — but never change count.
+6. Use print material only: grain, rule, crease. No soft shadow — paper does not float on paper.
+7. Verify with `npm run verify:paper` at both a desktop and a mobile viewport. The mobile band is the tight one, and that is not an artifact of the measurement: a narrow viewport is where a sheet quietly turns back into a shrunken workbench.
+
 ## Existing shadcn / Tailwind Migration Gate
 
 When applying this design system to an existing shadcn, Tailwind, SaaS admin, CRM, ERP, or operations workbench project, do not stop at copying colors or setting `--radius`.
@@ -126,7 +138,9 @@ The second gate is not optional polish — it is the **only** thing that catches
 
 ## Product Position
 
-kiln is for **production tools, not landing pages**. Whatever product adopts it, the UI should feel like a work surface:
+kiln has two layers, and every rule in this file belongs to one of them.
+
+**Workbench layer** — production tools. Whatever product adopts it, the UI should feel like a work surface:
 
 - Compact, readable, and built for repeated operational use.
 - Strong at scanning, comparing, filtering, editing, and auditing data.
@@ -134,6 +148,12 @@ kiln is for **production tools, not landing pages**. Whatever product adopts it,
 - Reusable design decisions captured as tokens, components, and page blueprints.
 
 Avoid marketing composition, oversized hero sections, decorative illustration, gratuitous gradients, and card-heavy section stacking.
+
+**Paper layer** (`references/paper.md`) — everything in the same product that is *not* a workbench: login, empty states, 404, report covers, release notes, system email, the product's own front door. These surfaces used to be out of scope, so every product sourced them from somewhere else, and the style broke at the door between the login page and the first data table.
+
+The paper layer inherits the glaze palette, the single-anchor rule, and the anti-decoration list unchanged. It inverts density, material, and the type ceiling: the ban is on **selling composition**, not on the product having a front door. Which layer a surface belongs to has one test — does it carry work the user repeats? Yes is workbench, no is paper.
+
+The two layers load separately (`tokens/index.css` vs `tokens/paper.css`) so that their contracts stay sharp. Merge them and the workbench inherits a display type scale while paper inherits a 22px ceiling, which disarms both.
 
 ## Design Philosophy
 
