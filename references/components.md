@@ -4,6 +4,34 @@ Use these component rules with `references/tokens.md`. Keep controls compact, st
 
 > **Focus policy:** Component focus states and focus-ring QA below assume the default `keyboard` policy from `SKILL.md`. If a product explicitly chooses `pointer-first`, apply its root-level Tab interception and focus-chrome override globally; retain the components' non-Tab keyboard protocols and their selected, active, and menu-highlight states.
 
+## Centered Content Contract
+
+Content centering is a reusable rendered-geometry contract, not a rule owned by a calendar, badge, or any other one component. Apply it whenever the design intent is that visible content sits at the center of an external container: centered text buttons, pure icon buttons, compact page/date/count markers, and centered status markers. Left-aligned triggers and controls whose content is deliberately distributed are outside this contract.
+
+Declare the intent on the rendered elements:
+
+```html
+<!-- Pure icon button: discovered automatically. -->
+<button aria-label="刷新">
+  <svg aria-hidden="true">...</svg>
+</button>
+
+<!-- Text, mixed content, and compact markers declare their visible group. -->
+<span data-center-content>
+  <span data-center-ink>10</span>
+</span>
+```
+
+- A semantic pure icon `button` or `[role="button"]` is automatically audited when it has no visible text and contains a visible SVG, image, canvas, embedded graphic, or descendant carrying CSS background/mask artwork. Forgetting data attributes must not let an icon button bypass centering QA.
+- For centered text buttons, icon-and-label buttons, compact numeric/status markers, and other non-pure-icon shapes, `data-center-content` belongs to the external visual container whose border box supplies the center.
+- Mark every visible member of the centered group with `data-center-ink`; multiple targets are measured as one union, so an icon-and-label button can mark both pieces without adding a component-specific rule.
+- The mathematical check centers the union of the targets' rendered layout boxes inside the container border box.
+- The visible-geometry check uses the actual internal graphic bounds for SVG and the loaded font's rendered text metrics for compact text. A centered SVG viewport with an off-center path, or a centered line box with an off-center glyph, still fails.
+- `display:flex`, `place-items:center`, `line-height`, and similar declarations are implementation tools, not proof. Do not claim compliance until the runtime contract measures the rendered page after the primary Noto Sans SC webfont is ready.
+- Do not repair a shared failure with a calendar-only selector, a one-off class-name exception, or an unexplained glyph-specific offset. Fix the reusable primitive or its typography, keep the declaration on the real outer/inner elements, and let the same contract cover every consumer.
+
+`kiln/contract/runtime` discovers semantic pure icon buttons and explicit data-attribute declarations without knowing component class names. Missing `data-center-ink` on an explicit declaration, unmeasurable content, a displaced layout box, or displaced visible geometry fails `auditPage` with the measured axis deltas.
+
 ## Button
 
 ### Variant decision (run this, don't taste it)

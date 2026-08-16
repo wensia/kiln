@@ -403,6 +403,7 @@ h2.section-title {
           <button class="btn btn-quiet" type="button" aria-pressed="false">本月</button>
         </div>
 
+        <!-- 语义纯图标按钮无需声明 data 属性；运行时契约自动发现并量取 SVG 内部图形。 -->
         <button class="btn btn-ghost btn-icon" type="button" aria-label="刷新">
           <svg class="icon" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
         </button>
@@ -428,7 +429,7 @@ h2.section-title {
             <tbody>
               <tr>
                 <td class="cell-num">WO-20260810-014</td><td>青野陶坊</td><td>返修</td><td>陈默</td>
-                <td><span class="badge badge-warning">待接单</span></td>
+                <td><span class="badge badge-warning" data-center-content><span data-center-ink>待接单</span></span></td>
                 <td class="cell-muted cell-num">08-10 09:12</td>
                 <td class="op"><div class="op-group">
                   <button class="btn btn-solid btn-sm" type="button">接单</button>
@@ -497,7 +498,7 @@ h2.section-title {
             <button class="btn btn-quiet btn-sm" type="button">1</button>
             <span class="pager-gap" aria-hidden="true">…</span>
             <button class="btn btn-quiet btn-sm" type="button">4</button>
-            <button class="btn btn-sm" type="button" aria-current="page">5</button>
+            <button class="btn btn-sm" type="button" aria-current="page" data-center-content><span data-center-ink>5</span></button>
             <button class="btn btn-quiet btn-sm" type="button">6</button>
             <span class="pager-gap" aria-hidden="true">…</span>
             <button class="btn btn-quiet btn-sm" type="button">65</button>
@@ -533,7 +534,7 @@ h2.section-title {
             <input class="input cell-num" id="f-num" type="text" value="4">
           </div>
 
-          <button class="btn btn-solid" type="button">保存</button>
+          <button class="btn btn-solid" type="button" data-center-content><span data-center-ink>保存</span></button>
           <button class="btn btn-outline" type="button">取消</button>
           <button class="btn btn-ghost" type="button">重置</button>
         </div>

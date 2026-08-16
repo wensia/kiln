@@ -23,6 +23,15 @@ export const KILN_PALETTE = {
   ink: "rgb(47, 47, 47)",   // --solid：普通实心动作的重量，不是信号
 };
 
+/**
+ * 居中契约的误差是运行时实现值，只在这里定义。
+ * 布局盒应当更严；可见墨迹需容纳字体 hinting 和小数像素。
+ */
+export const CENTER_CONTRACT = Object.freeze({
+  layoutTolerance: 0.5,
+  inkTolerance: 0.75,
+});
+
 export const px = (v) => Math.round(parseFloat(v) || 0);
 
 /** Tailwind 会给元素挂 `rgba(0,0,0,0) 0px 0px` 这种全透明的 shadow 占位，alpha=0，不是真实阴影 */
@@ -69,6 +78,7 @@ export const collect = (palette) =>
     const out = {
       buttons: [], cards: [], shadows: [], verticalGrids: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
+      centeredContent: [],
     };
     const CLAY = palette.clay;
     const INK = palette.ink;
@@ -239,6 +249,231 @@ export const collect = (palette) =>
     // 没有 @font-face（例如没装 @fontsource），中文会静默回退到系统字体
     // （macOS 苹方 / Windows 微软雅黑）—— 各平台渲染不一致，而字体栈看起来完全正常。
     out.notoLoaded = [...document.fonts].some((f) => /Noto Sans SC/i.test(f.family));
+
+    // ── 容器内容居中：布局盒 + 可见墨迹 ───────────────────────
+    //
+    // 这条故意不认 .btn / .icon / .badge 等 class：只要一个外容器的
+    // 设计意图是「内容居中」，就在容器上声明 data-center-content，并把
+    // 一个或多个真正可见的目标标为 data-center-ink。文字按字体实际上/下
+    // 界量，SVG 按内部图形 bbox 量；所以「写了 align-items:center」不能代替这一关。
+    const unionRects = (rects) => {
+      const visible = rects.filter(
+        (r) => r && Number.isFinite(r.left) && Number.isFinite(r.top) && r.right > r.left && r.bottom > r.top
+      );
+      if (!visible.length) return null;
+      return {
+        left: Math.min(...visible.map((r) => r.left)),
+        right: Math.max(...visible.map((r) => r.right)),
+        top: Math.min(...visible.map((r) => r.top)),
+        bottom: Math.max(...visible.map((r) => r.bottom)),
+      };
+    };
+
+    const rectOf = (r) => ({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+
+    const svgInkRect = (svg) => {
+      try {
+        const box = svg.getBBox();
+        const matrix = svg.getScreenCTM();
+        if (!matrix || box.width <= 0 || box.height <= 0) return null;
+        const points = [
+          [box.x, box.y],
+          [box.x + box.width, box.y],
+          [box.x, box.y + box.height],
+          [box.x + box.width, box.y + box.height],
+        ].map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
+        return {
+          left: Math.min(...points.map((p) => p.x)),
+          right: Math.max(...points.map((p) => p.x)),
+          top: Math.min(...points.map((p) => p.y)),
+          bottom: Math.max(...points.map((p) => p.y)),
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    const textInkRects = (target) => {
+      const rects = [];
+      const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const raw = node.data || "";
+        const start = raw.search(/\S/);
+        if (start < 0) continue;
+        const end = raw.search(/\s*$/);
+        if (end <= start) continue;
+
+        // 嵌套的 ink 目标由它自己统计，不在父目标里重复计算。
+        const owner = node.parentElement?.closest("[data-center-ink]");
+        if (owner !== target || node.parentElement?.closest("svg")) continue;
+
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        const lineRects = [...range.getClientRects()];
+        if (!lineRects.length) continue;
+
+        // 紧凑控件不应换行。真换行时保留浏览器给出的可见行盒；单行时再用
+        // Canvas 字体度量收紧垂直墨迹，抓住 line-height 造成的偏移。
+        if (!context || lineRects.length !== 1) {
+          rects.push(...lineRects.map(rectOf));
+          continue;
+        }
+
+        const rangeRect = lineRects[0];
+        const style = getComputedStyle(node.parentElement);
+        context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        context.direction = style.direction;
+        context.textAlign = "start";
+        const metrics = context.measureText(raw.slice(start, end));
+        const fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+        if (!fontHeight || !metrics.actualBoundingBoxAscent) {
+          rects.push(rectOf(rangeRect));
+          continue;
+        }
+
+        const scaleY = rangeRect.height / fontHeight;
+        const baseline = rangeRect.top + metrics.fontBoundingBoxAscent * scaleY;
+        rects.push({
+          // 水平使用排版 advance box；单字 bearing 是字体设计，不应驱动逐字 translateX。
+          left: rangeRect.left,
+          right: rangeRect.right,
+          top: baseline - metrics.actualBoundingBoxAscent * scaleY,
+          bottom: baseline + metrics.actualBoundingBoxDescent * scaleY,
+        });
+      }
+      return rects;
+    };
+
+    const isRendered = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        parseFloat(style.opacity) > 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+
+    const isVisuallyHiddenText = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const clipped =
+        style.overflow === "hidden" ||
+        style.overflow === "clip" ||
+        style.clip !== "auto" ||
+        style.clipPath !== "none";
+      return clipped && rect.width <= 1 && rect.height <= 1;
+    };
+
+    const hasVisibleText = (host) => {
+      const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (!(node.data || "").trim() || node.parentElement?.closest("svg")) continue;
+        const parent = node.parentElement;
+        if (!parent || !isRendered(parent) || isVisuallyHiddenText(parent)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        if ([...range.getClientRects()].some((rect) => rect.width > 0 && rect.height > 0)) return true;
+      }
+      return false;
+    };
+
+    const graphicTargets = (host) =>
+      [...host.querySelectorAll("*")].filter((element) => {
+        if (element.closest('button,[role="button"]') !== host || !isRendered(element)) return false;
+        const tag = element.tagName.toLowerCase();
+        if (["svg", "img", "canvas", "video", "object", "embed"].includes(tag)) return true;
+        const style = getComputedStyle(element);
+        const hasImage = (value) => Boolean(value && value !== "none");
+        return (
+          hasImage(style.backgroundImage) ||
+          hasImage(style.maskImage) ||
+          hasImage(style.webkitMaskImage)
+        );
+      });
+
+    const explicitHosts = [...document.querySelectorAll("[data-center-content]")].map((host) => ({
+      host,
+      autoDetected: false,
+      targets: [...host.querySelectorAll("[data-center-ink]")].filter(
+        (target) =>
+          target.closest("[data-center-content]") === host &&
+          !target.parentElement?.closest("[data-center-ink]")
+      ),
+    }));
+    const explicitSet = new Set(explicitHosts.map(({ host }) => host));
+
+    const autoHosts = [...document.querySelectorAll('button,[role="button"]')]
+      .filter((host) => {
+        if (explicitSet.has(host)) return false;
+        const role = host.getAttribute("role");
+        const semanticButton = role === "button" || (host.tagName === "BUTTON" && !role);
+        return semanticButton && isRendered(host) && !hasVisibleText(host);
+      })
+      .map((host) => ({ host, autoDetected: true, targets: graphicTargets(host) }))
+      .filter(({ targets }) => targets.length > 0);
+
+    for (const { host, autoDetected, targets } of [...explicitHosts, ...autoHosts]) {
+      const hostRect = host.getBoundingClientRect();
+      if (hostRect.width <= 0 || hostRect.height <= 0) continue;
+
+      const label =
+        host.getAttribute("aria-label") ||
+        host.getAttribute("title") ||
+        (host.textContent || "").trim().replace(/\s+/g, " ").slice(0, 18) ||
+        host.tagName.toLowerCase();
+
+      if (!targets.length) {
+        out.centeredContent.push({ label, tag: host.tagName.toLowerCase(), missingInk: true, autoDetected });
+        continue;
+      }
+
+      const layoutRect = unionRects(targets.map((target) => rectOf(target.getBoundingClientRect())));
+      const inkRects = [];
+      for (const target of targets) {
+        const svgs = target.matches("svg")
+          ? [target]
+          : [...target.querySelectorAll("svg")].filter((svg) => !svg.parentElement?.closest("svg"));
+        inkRects.push(...svgs.map(svgInkRect).filter(Boolean));
+        inkRects.push(...textInkRects(target));
+
+        if (!svgs.length && !(target.textContent || "").trim()) {
+          // CSS 画出的点/块、img/canvas 等无文字目标，其元素盒就是可见几何。
+          inkRects.push(rectOf(target.getBoundingClientRect()));
+        }
+      }
+      const inkRect = unionRects(inkRects);
+
+      if (!layoutRect || !inkRect) {
+        out.centeredContent.push({
+          label,
+          tag: host.tagName.toLowerCase(),
+          missingGeometry: true,
+          autoDetected,
+        });
+        continue;
+      }
+
+      const hostX = (hostRect.left + hostRect.right) / 2;
+      const hostY = (hostRect.top + hostRect.bottom) / 2;
+      out.centeredContent.push({
+        label,
+        tag: host.tagName.toLowerCase(),
+        layoutDx: (layoutRect.left + layoutRect.right) / 2 - hostX,
+        layoutDy: (layoutRect.top + layoutRect.bottom) / 2 - hostY,
+        inkDx: (inkRect.left + inkRect.right) / 2 - hostX,
+        inkDy: (inkRect.top + inkRect.bottom) / 2 - hostY,
+        autoDetected,
+      });
+    }
     return out;
   })();
 
@@ -342,6 +577,55 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
     if (h > 0 && h < floor) fail(name, `按钮「${b.text}」高 ${h}px，下限 ${floor}px`);
   }
   if (d.buttons.length) pass(name, `${d.buttons.length} 个按钮圆角/高度已检查`);
+
+  // ── 声明式内容居中：数学布局盒 + 可见墨迹 ────────────────
+  let centeredBroken = false;
+  for (const c of d.centeredContent) {
+    if (c.missingInk) {
+      centeredBroken = true;
+      fail(
+        name,
+        `<${c.tag}>「${c.label}」声明了 data-center-content，但没有 data-center-ink 目标`
+      );
+      continue;
+    }
+    if (c.missingGeometry) {
+      centeredBroken = true;
+      fail(
+        name,
+        `<${c.tag}>「${c.label}」的${
+          c.autoDetected ? "自动发现图形" : " data-center-ink"
+        }不可见或无法测量`
+      );
+      continue;
+    }
+
+    const layoutOff =
+      Math.abs(c.layoutDx) > CENTER_CONTRACT.layoutTolerance ||
+      Math.abs(c.layoutDy) > CENTER_CONTRACT.layoutTolerance;
+    const inkOff =
+      Math.abs(c.inkDx) > CENTER_CONTRACT.inkTolerance ||
+      Math.abs(c.inkDy) > CENTER_CONTRACT.inkTolerance;
+
+    if (layoutOff || inkOff) {
+      centeredBroken = true;
+      fail(
+        name,
+        `<${c.tag}>「${c.label}」内容未居中：` +
+          `布局盒 Δx ${c.layoutDx.toFixed(2)}px / Δy ${c.layoutDy.toFixed(2)}px，` +
+          `可见墨迹 Δx ${c.inkDx.toFixed(2)}px / Δy ${c.inkDy.toFixed(2)}px。` +
+          `不要用 align-items/place-items 的声明代替渲染几何验收。`
+      );
+    }
+  }
+  if (d.centeredContent.length && !centeredBroken) {
+    const autoCount = d.centeredContent.filter((c) => c.autoDetected).length;
+    pass(
+      name,
+      `${d.centeredContent.length} 个居中容器：布局盒与可见墨迹已检查` +
+        (autoCount ? `（${autoCount} 个纯图标按钮自动发现）` : "")
+    );
+  }
 
   // ── 每视口至多一个 clay 填充 ───────────────────────
   if (d.clayFills > 1) {
