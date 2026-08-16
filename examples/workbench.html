@@ -174,8 +174,9 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 }
 .btn-ghost:hover { background: var(--muted); }
 
-/* quiet 例外：仅限弹层 chrome 与**嵌在输入框边界内**的图标控件。
-   容器边框已经提供了可发现性，再套一个静止矩形就是两层控件外框。 */
+/* quiet 例外只有三处：弹层 chrome、**嵌在输入框边界内**的图标控件、分页的非当前页码。
+   前两者靠容器边框提供可发现性，再套一个静止矩形就是两层控件外框；
+   页码靠数字本身 —— 七个方框并排会读成工具栏，而不是页码索引。 */
 .btn-quiet { background: transparent; border-color: transparent; color: var(--muted-foreground); }
 .btn-quiet:hover { background: var(--muted); color: var(--foreground); }
 
@@ -285,13 +286,17 @@ td.op::after {                         /* 滚动阴影用渐变伪元素：borde
   font-size: var(--text-meta);
   color: var(--muted-foreground);
 }
+.dock-total { flex: 0 0 auto; white-space: nowrap; }  /* 挤窄时不许折成三行，那会顶破条带高度 */
 .dock-spacer { flex: 1; }
 .pager { display: inline-flex; align-items: center; gap: var(--space-1); }
 .pager .btn {
-  height: var(--control-height-sm); min-width: var(--control-height-sm); padding: 0 var(--space-2);
+  height: var(--control-height-sm); min-width: var(--control-height-sm); padding: 0 var(--space-1);
   font-variant-numeric: tabular-nums lining-nums;
 }
+/* 页码静止无框：数字自证可点，七个方框并排会读成工具栏。箭头是图标，仍要 outline */
+.pager .btn-quiet { color: var(--foreground); }
 .pager .btn[aria-current="page"] { background: var(--primary); color: var(--primary-foreground); }
+.pager-gap { width: var(--control-height-sm); text-align: center; color: var(--muted-foreground); }
 
 /* ---- badge：默认 4px，不是到处胶囊 ---- */
 .badge {
@@ -478,14 +483,27 @@ h2.section-title {
         </div>
 
         <div class="dock">
-          共 128 条
+          <span class="dock-total">共 1,284 条</span>
           <span class="dock-spacer"></span>
+          <button class="btn btn-outline btn-sm" type="button">
+            每页 20 条
+            <svg class="icon" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <!-- 七个槽位是定值：首页 · 省略 · 当前页±1 · 省略 · 末页。条带宽度因此不随页码变化 -->
           <nav class="pager" aria-label="分页">
-            <button class="btn btn-outline" type="button">上一页</button>
-            <button class="btn btn-outline" type="button" aria-current="page">1</button>
-            <button class="btn btn-quiet" type="button">2</button>
-            <button class="btn btn-quiet" type="button">3</button>
-            <button class="btn btn-outline" type="button">下一页</button>
+            <button class="btn btn-outline btn-icon btn-sm" type="button" aria-label="上一页">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button class="btn btn-quiet btn-sm" type="button">1</button>
+            <span class="pager-gap" aria-hidden="true">…</span>
+            <button class="btn btn-quiet btn-sm" type="button">4</button>
+            <button class="btn btn-sm" type="button" aria-current="page">5</button>
+            <button class="btn btn-quiet btn-sm" type="button">6</button>
+            <span class="pager-gap" aria-hidden="true">…</span>
+            <button class="btn btn-quiet btn-sm" type="button">65</button>
+            <button class="btn btn-outline btn-icon btn-sm" type="button" aria-label="下一页">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
           </nav>
         </div>
       </section>

@@ -487,6 +487,75 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
     }
   }
 
+  // ── 分页导航的形状：箭头钉两端 + 七槽上限 + 页码 quiet ──
+  // 真实踩过：曾经的规范砍掉了上一页/下一页，理由是「相邻数字就是上下页」。
+  // 但窗口是跟着当前页滚的 —— 你刚点过的那个位置，下一秒换成了别的数字，
+  // 于是全组控件里唯一高频的动作，成了唯一落点会动的动作。
+  // 实测连点五次「下一页」：三格窗口的落点横跨 40px，钉住的箭头横跨 0。
+  const pagerShape = await page.evaluate(() => {
+    const nav = [...document.querySelectorAll("nav")].find((n) =>
+      /分页|pagination/i.test(n.getAttribute("aria-label") || "")
+    );
+    if (!nav) return null;
+    const visible = (el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    };
+    const label = (el) => (el.getAttribute("aria-label") || el.textContent || "").trim();
+    // 页码可能被一层 span 包着（窄屏要整体隐藏），所以按后代找页码，按 children 判两端
+    const kids = [...nav.children].filter(visible);
+    const numbers = [...nav.querySelectorAll("button")].filter(
+      (b) => visible(b) && /^\d+$/.test((b.textContent || "").trim())
+    );
+    const gaps = [...nav.querySelectorAll("*")].filter(
+      (el) => !el.children.length && /^…+$/.test((el.textContent || "").trim()) && visible(el)
+    ).length;
+    const current = numbers.find((b) => b.getAttribute("aria-current") === "page");
+    const transparent = (c) => c === "transparent" || /^rgba\(0, 0, 0, 0\)$/.test(c);
+    return {
+      headIsPrev: Boolean(kids[0] && kids[0].tagName === "BUTTON" && /上一页|prev/i.test(label(kids[0]))),
+      tailIsNext: Boolean(
+        kids.at(-1) && kids.at(-1).tagName === "BUTTON" && /下一页|next/i.test(label(kids.at(-1)))
+      ),
+      head: kids[0] ? label(kids[0]).slice(0, 12) : "(空)",
+      tail: kids.at(-1) ? label(kids.at(-1)).slice(0, 12) : "(空)",
+      slots: numbers.length + gaps,
+      hasCurrent: Boolean(current),
+      loud: numbers
+        .filter((b) => b !== current)
+        .map((b) => {
+          const s = getComputedStyle(b);
+          return { text: (b.textContent || "").trim(), bg: s.backgroundColor, bw: s.borderTopWidth, bc: s.borderTopColor };
+        })
+        .filter((n) => !transparent(n.bg) || (parseFloat(n.bw) > 0 && !transparent(n.bc))),
+    };
+  });
+  if (pagerShape) {
+    if (!pagerShape.headIsPrev || !pagerShape.tailIsNext) {
+      fail(
+        name,
+        `分页导航两端是「${pagerShape.head}」/「${pagerShape.tail}」，不是钉住的上一页/下一页箭头 —— ` +
+          `页码窗口会跟着当前页滚动，没有箭头就没有任何一个落点是稳定的，连续翻页每次都要重新瞄准。`
+      );
+    } else if (pagerShape.slots > 7) {
+      fail(
+        name,
+        `分页窗口 ${pagerShape.slots} 个槽位 —— 上限 7（首页 · 省略 · 当前页±1 · 省略 · 末页）。` +
+          `槽位是定值，条带宽度才不会随页码变化，它左边的控件才不会左右晃。`
+      );
+    } else if (!pagerShape.hasCurrent) {
+      fail(name, `分页窗口没有 aria-current="page" —— 当前页既是选中态信号，也是无障碍的落脚点。`);
+    } else if (pagerShape.loud.length) {
+      fail(
+        name,
+        `分页页码「${pagerShape.loud.map((n) => n.text).join("、")}」静止时有底色或边框 —— ` +
+          `非当前页码用 quiet：数字自证可点，七个方框并排会读成工具栏。箭头是图标，才留 outline。`
+      );
+    } else {
+      pass(name, `分页导航：箭头钉两端，${pagerShape.slots} 槽位（上限 7），非当前页码 quiet`);
+    }
+  }
+
   // ── 冻结列：不透明 + 跟随行状态（需要交互，放在静态收集之后）──
   await auditFrozenColumns(page, name, report);
 }
