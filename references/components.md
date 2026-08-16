@@ -226,6 +226,105 @@ The 发送验证码 action lives **inside the SMS-code input**, right-aligned, a
 - Cooldown state: the same slot shows `Ns` in muted foreground (tabular), non-interactive; width is reserved so the swap never shifts the input text.
 - Disabled (phone empty/invalid): muted color, no pointer.
 
+## File Input
+
+A bare `<input type="file">` is rendered by the browser, not by the design system. Its button, its
+未选择任何文件 filler text, its height, radius, border and focus ring all come from the UA stylesheet,
+so none of the Input rules above can reach it. **Never expose the native rendering.** Keep the native
+element in the DOM for label association and programmatic file setting, hide it visually, and draw the
+control yourself.
+
+This control has **two states with different jobs, and therefore two different shapes**. Do not try to
+serve both from one 36px row — that is what produces the classic broken file field where a long
+filename shoves the browse button out of its own border.
+
+- **Empty — a drop zone.** Its job is to catch a dragged file and offer a click target. It needs a
+  landing area, so it is a panel (`--radius-card`), not a control.
+- **Selected — a file chip.** Its job is to confirm what was chosen and offer removal. The filename is
+  now content, so the shape collapses back to control height and control radius.
+
+Structure:
+
+```tsx
+{file ? (
+  <div className="file-chip">
+    <div className="file-chip-text">
+      <span className="file-chip-name">{file.name}</span>
+      <span className="file-chip-meta">{kind} · {size}</span>
+    </div>
+    <Button variant="ghost" size="icon-sm" aria-label="移除已选文件" onClick={clear}><XIcon /></Button>
+  </div>
+) : (
+  <button
+    type="button"
+    className="file-dropzone"
+    aria-label="添加账单文件，可拖放到此处"
+    data-dragging={dragging ? "true" : undefined}
+    onClick={() => inputRef.current?.click()}
+    onDragOver={…} onDragLeave={…} onDrop={…}
+  >
+    <span className="file-dropzone-main">把账单文件拖到这里，或点击选择</span>
+    <span className="file-dropzone-hint">支付宝 .csv / 微信支付 .xlsx</span>
+  </button>
+)}
+<input ref={inputRef} id="…" type="file" className="file-picker-native" tabIndex={-1} … />
+```
+
+Specs — drop zone:
+
+- Minimum height ~88px. A drag target smaller than that is hard to hit; this is one of the few places
+  where usability outranks workbench density. Dialogs sit at Focused density, which affords it.
+- `1px dashed var(--input)` at `--radius-card`. The dashed edge is the conventional "drop here" signal
+  and reads as a temporary boundary rather than a permanent structural one.
+- Two lines only: the action line at `--text-body`, and the accepted formats at `--text-meta` in
+  `--muted-foreground`. **No upload icon, no cloud glyph, no illustration.** Run the counterfactual
+  deletion test: remove the icon and the zone still reads as a drop target, so the icon has not earned
+  its place.
+- Drag-over is a *state*, not an action: switch the border to solid `--primary` and the fill to
+  `--primary-subtle`. Solid-on-hover reads as "let go and it lands here". This is the sanctioned use of
+  clay under the active/selected semantics, and it does not count against the one-clay-action budget.
+- The whole zone is the click target and is a real `<button>`, so keyboard users get it for free.
+
+Specs — file chip:
+
+- **Lay it out as `grid-template-columns: 1fr auto`, never as a flex row.** The remove button's column
+  is sized first and the name column takes what is left, so a long filename can only truncate — it can
+  never push the button outside the border. A flex row with `flex: 1` on the name relies on
+  `min-width: 0` being right everywhere and fails the moment anything reintroduces intrinsic width.
+  Long CJK filenames with timestamps are the normal case here, not the edge case.
+- Name column carries `min-width: 0` plus `overflow:hidden; white-space:nowrap; text-overflow:ellipsis`.
+- Second line shows file kind and size at `--text-tiny` / `--muted-foreground`, tabular figures. It
+  answers "did I pick the right export?" — which is exactly the question a truncated filename raises.
+- Height returns to the control ladder: `--radius-control`, `1px solid var(--input)`, `--shadow-input`.
+- Remove is an icon-only `ghost` `icon-sm` button with a real `aria-label`. It sits inside a control
+  boundary, so it is covered by the quiet-at-rest exception (see Dialog / Password Input).
+
+Specs — the hidden native input (both states):
+
+- Hide it with the clip technique (`position:absolute; width:1px; height:1px; clip:rect(0 0 0 0)`),
+  **not** `display:none` or `visibility:hidden`. Those remove it from the accessibility tree and stop
+  test runners from calling `setInputFiles` on it.
+- Give it `tabIndex={-1}`. It stays reachable through the label and the visible trigger; leaving it
+  tabbable creates two stops for one control.
+- **Do not add `aria-label` to it** when a `<label htmlFor>` already names it. Two names on one control
+  make `getByLabel` resolve to multiple nodes and break every query that targets it.
+- **The visible trigger's accessible name must not collide with any other control on the page.** A
+  toolbar 「选择文件」 plus an in-dialog 「选择文件」 is a strict-mode violation in tests and an ambiguous
+  target for screen-reader users. Name the in-dialog trigger for the act (「添加账单文件」), not the outcome.
+- Clear `input.value` when the user removes the file, or re-picking the same file fires no `change`.
+
+QA:
+
+- Check empty, drag-over, selected, long-filename, and disabled states.
+- **The long-filename case is the regression test.** Load a real export name (CJK + date range +
+  timestamp + extension) and confirm the remove button is fully inside the border and the chip height
+  is unchanged. If it was built as a flex row, this is where it fails.
+- Drag a file over the zone and confirm the border goes solid clay and the fill goes `--primary-subtle`;
+  drag out and confirm it reverts. A drop zone that never changes on drag-over is indistinguishable
+  from a dead area.
+- Confirm automated tests can still select a file through the label, and that querying the field by its
+  label returns exactly one node.
+
 ## Date / Time Picker
 
 Use the DS `DateRangePicker` as the core pattern for overview, analytics, payroll, and questionnaire date/time fields.
