@@ -32,6 +32,26 @@ Declare the intent on the rendered elements:
 
 `kiln/contract/runtime` discovers semantic pure icon buttons and explicit data-attribute declarations without knowing component class names. Missing `data-center-ink` on an explicit declaration, unmeasurable content, a displaced layout box, or displaced visible geometry fails `auditPage` with the measured axis deltas.
 
+## Tooltip / Hover Disclosure
+
+A tooltip is a short, non-interactive recovery or explanation layer. It must add information that the persistent surface cannot currently show; it is not a hover decoration, a navigation preview card, or a second rendering of nearby context.
+
+Allowed uses are deliberately narrow:
+
+- Restore a name removed by compaction, such as a pure icon button or a truly icon-only collapsed rail item. Keep the accessible name even when the tooltip is closed.
+- Explain why a disabled control is unavailable and, when useful, what the user must change before it becomes available. The reason belongs in the tooltip, description, or `aria-describedby`; never merely repeat the disabled action's label.
+- Reveal the complete value of text that is actually truncated at the current viewport. If the value fits, do not mount or open the tooltip.
+
+Restraint rules:
+
+- If the page name, control label, group, subtitle, badge, status, or value is already persistently visible, do not repeat it in a tooltip or hover popover. A compact rail with labels beneath its icons is label-bearing, not icon-only.
+- Do not combine already visible page and group names into a richer-looking hover card. More chrome does not create more information.
+- Essential instructions, consequences, and primary state do not belong behind hover. Keep them visible; hover has no reliable equivalent on touch.
+- If the floating layer contains actions or interactive detail, it is a popover and must independently pass the element-qualification rule in `SKILL.md`. Do not promote a redundant tooltip into a popover to evade this contract.
+- Opening or closing the layer must not resize its trigger, the sidebar, or the surrounding layout.
+
+QA: inspect the default surface first, then hover and keyboard focus where the product focus policy permits. State which of the three allowed purposes the layer serves, verify that the information is absent from the persistent surface, and run the counterfactual deletion test. “The component library provides Tooltip” is not a purpose.
+
 ## Button
 
 ### Variant decision (run this, don't taste it)

@@ -90,6 +90,12 @@
       "prompt": "我们的登录页现在是一张白卡片浮在灰底上，卡片里字很密，右上角还有个绿色的「新版本」角标。请按 kiln 判断问题。",
       "expected_output": "Output should identify three paper-layer violations: the floating white card with soft shadow (paper does not float on paper — layer via --paper/--paper-deep, rules and creases instead), workbench density applied to a sheet (should be large continuous whitespace with one subject), and a second high-saturation anchor competing with the submit button (only one anchor per sheet, form may change but count may not). It should separate these from any legitimate host-product decision, and should not prescribe workbench component specs for this surface.",
       "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "审查一个紧凑后台：侧栏图标下已经显示“日历”，鼠标悬浮又弹出“日历 / 个人账本”；指标卡为了不显得空，每个数字都配了重复含义的图标、徽标、分隔线和副标题；一个禁用按钮没有解释，长编号被截断。请按 kiln 给出保留、删除或降级结论和验收方法。",
+      "expected_output": "Output should apply the general Every Element Must Earn Its Place rule across components, copy, icons, badges, cards, dividers, and hover layers, not treat this as a tooltip-only cleanup. It should run the counterfactual deletion test and remove or demote anything whose removal leaves task capability, state visibility, decisions, consequence understanding, and error prevention unchanged, including filler-slot and decorative elements. It should remove the sidebar hover card because the label is already visible, while preserving tooltips for a truly icon-only rail, a useful disabled reason, and the complete value of text that is actually truncated. It should reject 'the component library provides it' as justification and require default-surface plus hover/focus QA.",
+      "files": []
     }
   ]
 }

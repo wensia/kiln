@@ -195,9 +195,21 @@ Chinese admin UI should stay compact and precise:
 
 The type scale has both a floor and a ceiling. Nothing goes below `--text-tiny`; nothing goes above `--text-data`, and that ceiling belongs to real dashboard numbers only. A 32px metric or a 40px page title is a hero, and this is not a landing page.
 
-### Copy Must Earn Its Place
+### Every Element Must Earn Its Place
 
-Workbench copy should help the user decide, act, or understand a state. Do not add filler text just because a component has a subtitle slot.
+Every visible element in a workbench needs a task reason. This applies equally to components, copy, icons, badges, cards, dividers, decorative marks, and hover layers. An element qualifies only when it helps the user:
+
+- identify or scan the object they are working with;
+- make a decision or perform an action;
+- understand a state, consequence, or next step;
+- recover information deliberately hidden by a compact layout; or
+- prevent a likely error.
+
+Run the **counterfactual deletion test** before adding or approving it: remove the element and repeat the task. If task capability, state visibility, decision quality, consequence understanding, and error prevention are all unchanged, the element has not earned a place. Delete it; if it carries real but tertiary value, demote it into existing nearby context instead of creating another component or layer to host it.
+
+An empty component slot, spare whitespace, a component-library default, or the fact that an element is easy to render is never a qualification. Do not add a subtitle because the card API accepts one, an icon because the metric looks bare, a badge because a status variant exists, a divider because two blocks happen to be adjacent, or a tooltip because a trigger already has hover state.
+
+Workbench copy follows the same gate: it should help the user decide, act, or understand a state. Do not add filler text just because a component has a subtitle slot.
 
 No emoji, and no decorative Unicode glyphs as content.
 
@@ -327,6 +339,7 @@ This list is also the Audit mode checklist: each entry is a finding you can cite
 
 Avoid:
 
+- Components, copy, icons, badges, cards, dividers, decorative marks, or hover layers that fail the counterfactual deletion test — especially elements added only to fill a slot or blank area, repeat nearby information, or expose a component-library feature. If removing it changes no task capability, state visibility, decision, consequence understanding, or error prevention, remove or demote it.
 - Purple-dominant themes, decorative gradients, floating blobs, or arbitrary stock backgrounds.
 - Cards inside cards, especially around data tables; data tables and their pagination wrapped in card chrome.
 - Heavy or cold (slate/blue-tinted) shadows; shadow color stays warm black `rgba(54,47,42,·)`. **Never hard-code a shadow inside a component — always consume an elevation token.**
