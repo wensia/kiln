@@ -104,6 +104,8 @@ export const collect = (palette) =>
         radius: s.borderRadius,
         height: s.height,
         bg: s.backgroundColor,
+        // 圆角要不要查，取决于它看不看得见 —— 见 auditPage 里的 surfaced 判定
+        borderWidth: s.borderTopWidth,
         // tab trigger 比普通控件矮一档（components.md：Tabs button 变体 = --control-height-sm，
         // line 变体另有高度），不受 32px 控件下限约束
         isTab: b.getAttribute("role") === "tab" || !!b.closest('[role="tablist"]'),
@@ -619,8 +621,15 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
     const r = px(b.radius);
     const h = px(b.height);
 
-    // 圆角：普通控件 4px；tab 两种变体都合法 —— button 变体 4px，line 变体 0（下划线式，无底板）
-    if (b.isTab) {
+    // 圆角只在**看得见**的时候才是一条规则。既没有背景也没有边框的按钮 —— 移动底栏
+    // 的分栏、纯文字动作 —— 圆角写 0 还是 4，渲染出来一模一样，查它等于查一个不存在
+    // 的属性，只会给每个带底栏的页面记一笔假账。（真正的 ghost 控件按规范 rest 态就得
+    // 有可见表面，所以这条豁免不会放过它们。）
+    const surfaced = !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(b.bg) || px(b.borderWidth) > 0;
+    if (!surfaced) {
+      // 圆角不查，高度照查：触摸目标和有没有表面无关。
+    } else if (b.isTab) {
+      // tab 两种变体都合法 —— button 变体 4px，line 变体 0（下划线式，无底板）
       if (r !== 0 && r !== 4)
         fail(name, `tab「${b.text}」圆角 ${r}px —— button 变体应 4px，line 变体应 0px`);
     } else if (r !== 4) {

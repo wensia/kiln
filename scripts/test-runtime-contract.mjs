@@ -88,6 +88,30 @@ try {
   await page.evaluate(() => document.getElementById("grid-probe")?.remove());
 
   console.log("✓ runtime grid-cell exemption: cells exempt, controls inside cells still checked");
+
+  // 圆角只在看得见的时候才查：无背景无边框的按钮（移动底栏分栏、纯文字动作）豁免，
+  // 一旦它有了表面（哪怕只有 1px 边框），圆角就重新成为一条规则。
+  await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.id = "surface-probe";
+    probe.innerHTML =
+      '<button type="button" style="border:0;background:transparent;border-radius:0;height:56px">无表面</button>' +
+      '<button type="button" style="border:1px solid #888;background:transparent;border-radius:0;height:36px">有边框</button>';
+    document.body.appendChild(probe);
+  });
+  const surface = createReport();
+  await auditPage(page, "surfaced-radius", { kind: "admin", report: surface, skipFont: true });
+  assert.ok(
+    !surface.failures.some((failure) => failure.includes("无表面")),
+    `既无背景也无边框时圆角不可见，不该记账：\n${surface.failures.join("\n")}`
+  );
+  assert.ok(
+    surface.failures.some((failure) => failure.includes("有边框") && failure.includes("圆角")),
+    `有边框就有可见圆角，必须照查：\n${surface.failures.join("\n")}`
+  );
+  await page.evaluate(() => document.getElementById("surface-probe")?.remove());
+
+  console.log("✓ runtime radius scope: only checked where the corner is actually visible");
 } finally {
   await browser.close();
 }
