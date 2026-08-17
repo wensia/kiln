@@ -93,6 +93,12 @@ export const collect = (palette) =>
       // 按 tagName 收集就会把它们一起吃进来 —— 只认标签、不认角色，是这个断言的洞。
       const role = b.getAttribute("role");
       if (role === "checkbox" || role === "radio" || role === "switch") continue;
+      // 网格的格子是同一个洞的另一半：可点的日历格子、月份格、年份格都渲染成 <button>，
+      // 但它铺满一格、与邻格共享网格线，圆角 4px 会把整张网格切成碎片 —— 控件圆角这条
+      // 规则本来就不是给它写的。判据取「谁是格子」而不是「谁在网格里」：格子是 grid/row
+      // 的直接子元素，或自报 gridcell；表格操作列里的按钮嵌在单元格内部，不受影响。
+      const parentRole = b.parentElement?.getAttribute("role");
+      if (role === "gridcell" || parentRole === "grid" || parentRole === "row") continue;
       out.buttons.push({
         text: (b.textContent || "").trim().slice(0, 14),
         radius: s.borderRadius,

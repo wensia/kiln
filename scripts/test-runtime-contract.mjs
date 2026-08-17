@@ -62,6 +62,32 @@ try {
   );
 
   console.log("✓ runtime center contract: positive, displaced-ink, and incomplete declarations");
+
+  // 网格格子的豁免：既要豁免得到，也要豁免不过界。两个样本形状只差一层包装 ——
+  // 一个 button 是 role=grid 的直接子元素（它就是格子），另一个嵌在格子内部
+  // （它是格子里的控件，仍按控件查）。
+  await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.id = "grid-probe";
+    probe.setAttribute("role", "grid");
+    probe.innerHTML =
+      '<button type="button" style="border-radius:0;height:72px">格子</button>' +
+      '<div role="gridcell"><button type="button" style="border-radius:0;height:32px">格内控件</button></div>';
+    document.body.appendChild(probe);
+  });
+  const grid = createReport();
+  await auditPage(page, "grid-cells", { kind: "admin", report: grid, skipFont: true });
+  assert.ok(
+    !grid.failures.some((failure) => failure.includes("格子」")),
+    `网格的直接子按钮就是格子，不受控件圆角约束：\n${grid.failures.join("\n")}`
+  );
+  assert.ok(
+    grid.failures.some((failure) => failure.includes("格内控件") && failure.includes("圆角")),
+    `格子内部的按钮仍是控件，圆角 0 必须被拒绝：\n${grid.failures.join("\n")}`
+  );
+  await page.evaluate(() => document.getElementById("grid-probe")?.remove());
+
+  console.log("✓ runtime grid-cell exemption: cells exempt, controls inside cells still checked");
 } finally {
   await browser.close();
 }
