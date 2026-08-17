@@ -78,7 +78,7 @@ export const collect = (palette) =>
     const out = {
       buttons: [], cards: [], shadows: [], verticalGrids: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
-      centeredContent: [],
+      centeredContent: [], segmentedTracks: [],
     };
     const CLAY = palette.clay;
     const INK = palette.ink;
@@ -97,7 +97,8 @@ export const collect = (palette) =>
         radius: s.borderRadius,
         height: s.height,
         bg: s.backgroundColor,
-        // tab trigger 是 28px（DS Tabs button 变体规格），不受 32px 控件下限约束
+        // tab trigger 比普通控件矮一档（components.md：Tabs button 变体 = --control-height-sm，
+        // line 变体另有高度），不受 32px 控件下限约束
         isTab: b.getAttribute("role") === "tab" || !!b.closest('[role="tablist"]'),
       });
       // clay 有两种合法用途：「流程唯一的关键动作」和「状态/选中/焦点」（判定表第 1、3 行）。
@@ -231,6 +232,32 @@ export const collect = (palette) =>
       if (size > 16 && size <= 22) {
         out.heroHeadings.push({ t: (h.textContent || "").trim().slice(0, 12), size, isHeading: true });
       }
+    }
+
+    // 分段轨道（components.md：Tabs button 变体）：可见外框就是控件本身，只比触发器
+    // 高 4px（1px 边框 + 1px 内衬，上下各一）。内衬给到 4px 就撑出 38px 的轨道，而
+    // 38px 挨着 36px 的按钮正是 SKILL.md 点名的反模式 —— 差 2px，肉眼只看得出这排
+    // 没对齐，看不出错在哪一边。这条断言与产品选哪一档控件高无关，查的是差值。
+    //
+    // 同一条规格有两种写法：Tabs 的 tablist/tab，和 SegmentedControl 的 group + aria-pressed。
+    // 只查前者，后者就是规范里没被访问过的那一半 —— 也就是实际上没被规定。
+    for (const list of document.querySelectorAll('[role="tablist"], [role="group"]')) {
+      const listRect = list.getBoundingClientRect();
+      if (!(listRect.height > 0)) continue;
+      const style = getComputedStyle(list);
+      // line 变体没有底板（无背景无边框），它不是"轨道"，不受这条约束
+      const plated =
+        style.borderBottomWidth !== style.borderTopWidth ? false : parseFloat(style.borderTopWidth) > 0;
+      if (!plated) continue;
+      const triggers = [...list.querySelectorAll('[role="tab"], [aria-pressed]')]
+        .map((t) => t.getBoundingClientRect().height)
+        .filter((h) => h > 0);
+      if (!triggers.length) continue;
+      out.segmentedTracks.push({
+        track: listRect.height,
+        trigger: Math.max(...triggers),
+        label: (list.getAttribute("aria-label") || list.textContent || "").trim().slice(0, 12),
+      });
     }
 
     // 字号下限：`--text-tiny` = 11px。更小的字在后台里读不了。
@@ -691,6 +718,21 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
     }
   }
   if (!d.verticalGrids.length) pass(name, "表格无竖向网格线（默认档）");
+
+  // ── 分段轨道：外框只比触发器高 4px ──────────────────
+  for (const track of d.segmentedTracks || []) {
+    const gap = px(track.track) - px(track.trigger);
+    if (gap !== 4) {
+      fail(
+        name,
+        `分段轨道「${track.label}」外框 ${px(track.track)}px、触发器 ${px(track.trigger)}px，` +
+          `差 ${gap}px —— 只能差 4px（1px 边框 + 1px 内衬，上下各一），否则轨道对不上同排控件`
+      );
+    }
+  }
+  if (d.segmentedTracks?.length) {
+    pass(name, `${d.segmentedTracks.length} 条分段轨道外框已检查`);
+  }
 
   // ── 字号阶梯上限 ───────────────────────────────────
   // 标题：后台 16px（--text-page-title 15），顾客端 24px（移动蓝图 22-24）。

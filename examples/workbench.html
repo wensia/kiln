@@ -212,8 +212,10 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 
 .segmented {
   display: inline-flex; align-items: center;
-  height: var(--control-height);      /* 外框 36 = 1px 边框 + 2px 内衬 + 32px 触发器 */
-  padding: var(--space-0\.5);
+  /* 外框 = 控件高：1px 边框 + 1px 内衬 + --control-height-sm 触发器 + 1px + 1px。
+     内衬给过 2px，外框就得是 38 才装得下 —— 那正是 SKILL.md 点名的反模式尺寸。 */
+  height: var(--control-height);
+  padding: 1px;
   gap: var(--space-0\.5);
   border: 1px solid var(--input);
   border-radius: var(--radius-control);

@@ -564,8 +564,9 @@ One global low-noise language: no hover lift, no oversized 700 labels. Two varia
 Button tabs (`variant="button"`) — a **raised segment in a quiet track**, same language as `SegmentedControl`:
 
 - Use for page-level work areas.
-- Track: `inline-flex`, 4px gap, 4px padding, control radius, `border-border-visible/50`, background `color-mix(muted 40%, transparent)`.
-- List height around 36-40px, trigger height 28px.
+- Track: `inline-flex`, 4px gap, **1px** padding, control radius, `border-border-visible/50`, background `color-mix(muted 40%, transparent)`.
+- **The track's visible outer box is the control, and it is `--control-height` — the same as the button, input, select, and search box beside it.** Triggers are `--control-height-sm`, so the track is exactly 4px taller than its trigger (1px border + 1px padding, top and bottom). This spec used to read "4px padding, trigger 28px", which computes to a 38px track — the exact measurement `SKILL.md` lists as an anti-pattern for sitting next to a 36px sibling. Two ways to write one component, one of them producing a banned result, is how a whole product ends up with a toolbar row that nobody can align: the 4px gap between the track and its neighbour is too small to read as an error and too large to read as intentional.
+- A compact toolbar may run the whole row one rung down (`--control-height-sm` track, smaller triggers). What is not allowed is one rung for the track and another for its neighbours.
 - Active state: **white surface** (`--card`) + **`--shadow-card`** + **clay text** (`--primary`), weight at most 500.
 - Inactive: muted text, quiet `foreground/3%` hover.
 
