@@ -15,16 +15,61 @@ Specs:
 - Root fills `100svh`.
 - Main content uses `min-h-0 min-w-0 overflow-hidden`.
 - Real scrolling belongs to page work areas or table viewports.
-- Topbar is 48-56px tall (the DS template uses 56px): translucent white (`--topbar`) + backdrop blur + 1px bottom border + white top highlight (`--shadow-topbar`). Title 15px / 600 with a short clay tick mark.
+- Topbar is 48-56px tall (the DS template uses 56px): translucent white (`--topbar`) + backdrop blur + 1px bottom border + white top highlight (`--shadow-topbar`). Title 15px / 600 with a short clay tick mark — that title slot is the default route `h1`, so read Title Authority below before putting a page name anywhere else.
 - The canvas is a single warm near-white plane (`--background`) — no gradients, textures, or decorative backgrounds. White surfaces float on it via shadow, not borders.
 - Normal content padding is 16-24px.
 - Business pages should not patch layout with one-off large margins.
 - The app shell owns the page bottom breathing gap. In React/Tailwind implementations, expose it as a shell token such as `--app-content-bottom-gap` and apply it on the shell content container, not on every route root.
 - Page-level data-table/workbench roots inside a padded shell should not add `pb-*`, ad hoc margins, or spacer divs to tune the final card's distance from the browser bottom. The final primary card or panel should inherit the same bottom distance from the shell across pages.
 
+## Title Authority
+
+A route has exactly one title authority, and by default it is the shell topbar's route `h1` — the topbar
+spec above already gives it a size, a weight, and a clay tick, and `examples/workbench.html` implements it.
+Every other title-shaped thing on the route (body header band, eyebrow, section title) is a footnote to it.
+
+Choose the owner **once per product**, not once per route:
+
+| Owner | Topbar carries | Route body carries |
+| --- | --- | --- |
+| Topbar (default) | the route name as the page `h1` | no title band; the body starts at its first working surface |
+| Route body | a product or workspace constant, or nothing | the route name as the page `h1`, following Page Header Rhythm |
+
+Rules that hold under either choice:
+
+- **One `h1` per route, and it is visible unless the owner genuinely cannot render one.** A route with no
+  `h1` has no title authority — a bolded `span` in the topbar is decoration, not a heading, and a screen
+  reader lands on a page that never says where it is. When the owning band truly cannot show text
+  (icon-only chrome, a full-bleed canvas route), use an `sr-only h1` and synchronize the document title.
+- **The non-owner does not repeat the route name** — not as a heading, not as an eyebrow, not as a label.
+  A product constant in the topbar (the workspace or ledger name) is not a route title and may stay.
+- **Routes of one product must not disagree about the owner.** This is the failure the section exists to
+  prevent, and it is invisible from inside any single route: each page looks defensible alone, while the
+  product ends up with some routes naming themselves in the topbar and others naming themselves in the
+  body. On the second kind, the topbar's title slot silently degrades into a constant, and the user reads
+  the page name three times — sidebar current item, topbar, body — because the sidebar already marks the
+  current page in clay.
+- **The route's single clay key action follows the same discipline.** Pick topbar actions or the toolbar
+  for the whole product (the Toolbar and Resource Management blueprints assume the toolbar) and keep it
+  there. Two routes of one product must not put the same kind of key action in different bands.
+- **Accessibility never justifies a second visible band.** If semantics are the only reason a band exists,
+  delete the band and move the `h1` to the owner, or fall back to `sr-only`.
+- **Record routes are the one sanctioned exception, and they are consistent too.** On a drill-down route the
+  page name is the record, so the primary record surface holds the `h1` (see Standalone Record Detail) and
+  the topbar drops back to a product constant plus the return action — never a generic "详情" route title,
+  which names a template instead of a record. So a product has two settled answers, not per-route
+  improvisation: collection routes name themselves in the owning band, record routes name themselves in the
+  record. A shell that renders its title slot as a heading unconditionally will produce two `h1`s on exactly
+  these routes; render the constant as plain text and let the heading appear only when a route claims the slot.
+- Helper copy under a title faces the counterfactual deletion test like anything else. Copy that narrates
+  what the screen obviously is ("configure the accounts that money moves through") changes no decision;
+  copy that states a consequence ("nothing is written to the ledger until you confirm") earns its place.
+
 ## Page Header Rhythm
 
-Use this when placing a page title directly under the shell topbar or breadcrumb bar.
+Use this when the route body owns the title (see Title Authority) and it sits directly under the shell
+topbar or breadcrumb bar. When the topbar owns the title, the body has no header band to rhythm — it
+starts at its first working surface.
 
 - The visual gap from the bottom of the topbar/breadcrumb bar to the page title should be about 16-24px total.
 - If the shell content container already provides top padding, the page body must not add a second full top padding layer.

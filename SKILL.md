@@ -367,6 +367,7 @@ Avoid:
 - Date strings typed manually when a date picker is expected.
 - Huge explanatory copy that repeats visible controls; emoji or decorative Unicode as content.
 - Filler subtitles that describe implementation details, data source mechanics, or fetch limits instead of helping the user decide or act.
+- A route with no `h1` at all — a bolded `span` in the topbar title slot is decoration, not a title authority — or a route that names itself twice, once in the shell topbar and again in a body header band or eyebrow. Equally: one product whose routes disagree about which band owns the page name (or the key action), so the topbar title slot is a route name on some pages and a leftover constant on others. See Title Authority in `references/layouts-and-pages.md`.
 - A standalone record-detail route with a second body header band that only repeats shell context — an eyebrow/breadcrumb plus a generic “详情” title — or owns a duplicate body back button. Put the single visible back action in the global topbar, let the primary record surface own the entity name/status/business metadata, and keep only one visible title/context authority plus one shell/body top-gap owner. See `references/layouts-and-pages.md`.
 - Table pages that resize with row count instead of using a stable scroll dock.
 - Page-level data-table or workbench roots that add ad hoc bottom padding, margins, or spacer divs instead of inheriting the shell's bottom gap token.

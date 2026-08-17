@@ -1,6 +1,6 @@
 {
   "name": "kiln",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "description": "kiln — 窑。中文后台设计系统，两层：工作台（紧凑、暖黑阴影分层）与纸面（大留白、印刷质感），同一套陶土釉色。",
   "type": "module",
   "scripts": {

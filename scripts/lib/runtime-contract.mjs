@@ -79,6 +79,7 @@ export const collect = (palette) =>
       buttons: [], cards: [], shadows: [], verticalGrids: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [],
+      titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
     };
     const CLAY = palette.clay;
     const INK = palette.ink;
@@ -238,7 +239,6 @@ export const collect = (palette) =>
     // 高 4px（1px 边框 + 1px 内衬，上下各一）。内衬给到 4px 就撑出 38px 的轨道，而
     // 38px 挨着 36px 的按钮正是 SKILL.md 点名的反模式 —— 差 2px，肉眼只看得出这排
     // 没对齐，看不出错在哪一边。这条断言与产品选哪一档控件高无关，查的是差值。
-    //
     // 同一条规格有两种写法：Tabs 的 tablist/tab，和 SegmentedControl 的 group + aria-pressed。
     // 只查前者，后者就是规范里没被访问过的那一半 —— 也就是实际上没被规定。
     for (const list of document.querySelectorAll('[role="tablist"], [role="group"]')) {
@@ -259,6 +259,28 @@ export const collect = (palette) =>
         label: (list.getAttribute("aria-label") || list.textContent || "").trim().slice(0, 12),
       });
     }
+
+    // 标题权威（layouts-and-pages.md：Title Authority）：一条路由恰好一个 h1。
+    // 0 个 = 没有权威 —— 顶栏标题槽里放个加粗 <span> 看起来没差，读屏软件却落进一个
+    // 永不自报门户的页面；≥2 个 = 顶栏和 body 各拿一个，用户连着读到两遍页面名。
+    // 同名的 h2/h3 是同一个病的换装版本：标题带删了，eyebrow 留着。
+    const headings = [...document.querySelectorAll("h1")].map((h) => {
+      const r = h.getBoundingClientRect();
+      return { t: (h.textContent || "").trim().slice(0, 24), visible: r.width > 1 && r.height > 1 };
+    });
+    out.titleAuthority = {
+      total: headings.length,
+      visible: headings.filter((h) => h.visible).map((h) => h.t),
+      texts: headings.map((h) => h.t),
+      echoes: [...document.querySelectorAll("h2,h3")]
+        .filter((h) => {
+          const r = h.getBoundingClientRect();
+          if (!(r.width > 1 && r.height > 1)) return false;
+          const text = (h.textContent || "").trim();
+          return text.length > 0 && headings.some((h1) => h1.t === text.slice(0, 24));
+        })
+        .map((h) => (h.textContent || "").trim().slice(0, 24)),
+    };
 
     // 字号下限：`--text-tiny` = 11px。更小的字在后台里读不了。
     for (const el of document.querySelectorAll("*")) {
@@ -732,6 +754,24 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
   }
   if (d.segmentedTracks?.length) {
     pass(name, `${d.segmentedTracks.length} 条分段轨道外框已检查`);
+  }
+
+  // ── 标题权威唯一 ───────────────────────────────────
+  const authority = d.titleAuthority || { total: 0, visible: [], texts: [], echoes: [] };
+  if (authority.total === 0) {
+    fail(name, "整页没有 h1 —— 路由没有标题权威（顶栏那行加粗文本不是标题）");
+  } else if (authority.total > 1) {
+    fail(
+      name,
+      `${authority.total} 个 h1（${authority.texts.join(" / ")}）—— 一条路由只能有一个标题权威`
+    );
+  } else if (authority.visible.length > 1) {
+    fail(name, `${authority.visible.length} 个可见 h1 —— 顶栏与 body 同时在报页面名`);
+  } else {
+    pass(name, `标题权威唯一${authority.visible.length ? `：${authority.visible[0]}` : "（sr-only 兜底）"}`);
+  }
+  for (const echo of authority.echoes) {
+    fail(name, `「${echo}」既是 h1 又作为 h2/h3 重复出现 —— 第二个标题带换了个标签`);
   }
 
   // ── 字号阶梯上限 ───────────────────────────────────
