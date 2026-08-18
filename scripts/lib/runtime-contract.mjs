@@ -551,7 +551,10 @@ export const auditFrozenColumns = async (page, name, report) => {
   const rows = page.locator("tbody tr");
   if ((await rows.count()) === 0) return; // 本页没有数据表
 
+  // 窄视口下桌面表格通常是 display:none（行仍在 DOM 里），移动端另有一套卡片列表。
+  // 对隐藏的行做 hover 只会挂在那里等到超时 —— 它不是违规，是这一档根本没有这张表。
   const row = rows.first();
+  if (!(await row.isVisible())) return;
   const cells = row.locator("td");
   const cellCount = await cells.count();
 
