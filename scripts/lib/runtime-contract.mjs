@@ -577,13 +577,20 @@ export const auditFrozenColumns = async (page, name, report) => {
     }
   }
 
-  // ② hover 态：行亮起来，冻结列必须跟着亮（此时 <tr> 自己有非透明背景，可直接对拍）
+  // ② hover 态：行亮起来，冻结列必须跟着亮。
+  //
+  // 基准取「同行普通单元格算出来的背景」，不是 <tr> 的背景 —— 行高亮有两种写法，屏幕上
+  // 是同一件事：挂在 <tr> 上，或挂在每个 <td> 上（冻结单元格必须不透明，不少实现索性把
+  // 背景都给了单元格）。只认 <tr> 会把后一种误判成「没有行 hover 态」，而真正该查的
+  // 冻结列对拍，因为这里的 return 根本没机会跑 —— 一条误报顺带盖掉一条真断言。
   await row.hover();
   await page.waitForTimeout(250); // 等 transition-colors 走完
-  const rowBg = await bgOf(row);
+  const plainIndex = [...Array(cellCount).keys()].find((i) => !sticky.includes(i));
+  let rowBg = await bgOf(row);
+  if (!isOpaque(rowBg) && plainIndex !== undefined) rowBg = await bgOf(cells.nth(plainIndex));
 
   if (!isOpaque(rowBg)) {
-    fail(name, `hover 数据行没有背景高亮（<tr> 仍是 ${rowBg}）—— 表格必须有行 hover 态`);
+    fail(name, `hover 数据行没有背景高亮（行与普通单元格都是 ${rowBg}）—— 表格必须有行 hover 态`);
     return;
   }
 

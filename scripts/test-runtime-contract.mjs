@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { chromium } from "playwright";
-import { auditPage, createReport } from "./lib/runtime-contract.mjs";
+import { auditFrozenColumns, auditPage, createReport } from "./lib/runtime-contract.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKBENCH = pathToFileURL(join(ROOT, "examples/workbench.html")).href;
@@ -112,6 +112,32 @@ try {
   await page.evaluate(() => document.getElementById("surface-probe")?.remove());
 
   console.log("✓ runtime radius scope: only checked where the corner is actually visible");
+
+  // 行 hover 的两种写法都要认：示范页把背景挂在 <tr> 上，把它改挂到 <td> 上，屏幕上
+  // 是同一件事，冻结列审计必须照样跑得动；两处都去掉才算真的没有 hover 态。
+  await page.addStyleTag({
+    content: "table.data tbody tr:hover { background: transparent !important } " +
+      "table.data tbody tr:hover td { background: var(--table-row-hover) !important } " +
+      "table.data tbody tr:hover td.op { background: var(--table-row-hover) !important }",
+  });
+  const cellHover = createReport();
+  await auditFrozenColumns(page, "cell-hover", cellHover);
+  assert.ok(
+    !cellHover.failures.some((failure) => failure.includes("没有背景高亮")),
+    `行高亮挂在单元格上也是行高亮：\n${cellHover.failures.join("\n")}`
+  );
+
+  await page.addStyleTag({
+    content: "table.data tbody tr:hover td, table.data tbody tr:hover td.op { background: transparent !important }",
+  });
+  const noHover = createReport();
+  await auditFrozenColumns(page, "no-hover", noHover);
+  assert.ok(
+    noHover.failures.some((failure) => failure.includes("没有背景高亮")),
+    `行与单元格都不亮时必须失败：\n${noHover.failures.join("\n")}`
+  );
+
+  console.log("✓ runtime row hover: accepts tr- or cell-painted highlight, still catches none");
 } finally {
   await browser.close();
 }
