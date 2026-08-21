@@ -15,6 +15,7 @@ Specs:
 - Root fills `100svh`.
 - Main content uses `min-h-0 min-w-0 overflow-hidden`.
 - Real scrolling belongs to page work areas or table viewports.
+- Those scroll regions never rubber-band: `overscroll-behavior: none` on every axis that actually scrolls (the document layer is already covered by `tokens/base.css`). macOS WKWebView — a Tauri desktop shell — bounces wherever this is left unset, and one bouncing dock breaks the workbench feel for the whole app.
 - Topbar is 48-56px tall (the DS template uses 56px): translucent white (`--topbar`) + backdrop blur + 1px bottom border + white top highlight (`--shadow-topbar`). Title 15px / 600 with a short clay tick mark — that title slot is the default route `h1`, so read Title Authority below before putting a page name anywhere else.
 - The canvas is a single warm near-white plane (`--background`) — no gradients, textures, or decorative backgrounds. White surfaces float on it via shadow, not borders.
 - Normal content padding is 16-24px.

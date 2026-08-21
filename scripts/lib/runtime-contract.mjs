@@ -531,6 +531,38 @@ export const collect = (palette) =>
         autoDetected,
       });
     }
+    // ── 过度滚动橡皮筋（SKILL.md：Interaction Is Quiet）───────────
+    // 文档层无条件要求 none —— macOS WKWebView（Tauri 桌面壳）的整页橡皮筋从这来。
+    // 滚动容器只查「真的在滚」的轴：给滚不动的轴也写 none 会吞掉祖先的滚动链，
+    // 所以按轴分开断言。
+    out.overscroll = { doc: [], scrollers: [], okCount: 0 };
+    for (const el of [document.documentElement, document.body]) {
+      const s = getComputedStyle(el);
+      out.overscroll.doc.push({
+        tag: el.tagName.toLowerCase(),
+        x: s.overscrollBehaviorX,
+        y: s.overscrollBehaviorY,
+      });
+    }
+    for (const el of document.querySelectorAll("*")) {
+      if (el === document.documentElement || el === document.body) continue;
+      const s = getComputedStyle(el);
+      const scrollsY = /(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const scrollsX = /(auto|scroll)/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      if (!scrollsY && !scrollsX) continue;
+      const badY = scrollsY && s.overscrollBehaviorY !== "none";
+      const badX = scrollsX && s.overscrollBehaviorX !== "none";
+      if (badY || badX) {
+        const label =
+          typeof el.className === "string" && el.className.trim()
+            ? el.className.trim().split(/\s+/).slice(0, 3).join(".")
+            : el.tagName.toLowerCase();
+        out.overscroll.scrollers.push({ label: label.slice(0, 60), badY, badX });
+      } else {
+        out.overscroll.okCount++;
+      }
+    }
+
     return out;
   })();
 
@@ -944,6 +976,33 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
       );
     } else {
       pass(name, `分页导航：箭头钉两端，${pagerShape.slots} 槽位（上限 7），非当前页码 quiet`);
+    }
+  }
+
+  // ── 过度滚动橡皮筋：全局禁用（SKILL.md：Interaction Is Quiet）────
+  {
+    let bounceBroken = false;
+    for (const docEl of d.overscroll.doc) {
+      if (docEl.x !== "none" || docEl.y !== "none") {
+        bounceBroken = true;
+        fail(
+          name,
+          `<${docEl.tag}> overscroll-behavior 为 ${docEl.x}/${docEl.y} —— 文档层必须 none，` +
+            `否则桌面壳（macOS WKWebView）过度滚动会出整页橡皮筋回弹`
+        );
+      }
+    }
+    for (const sc of d.overscroll.scrollers) {
+      bounceBroken = true;
+      const axes = [sc.badY ? "y" : "", sc.badX ? "x" : ""].filter(Boolean).join("+");
+      fail(
+        name,
+        `滚动容器「${sc.label}」的 ${axes} 轴在滚动却没设 overscroll-behavior: none —— ` +
+          `到边界会自己回弹，并把滚动链传给文档层`
+      );
+    }
+    if (!bounceBroken) {
+      pass(name, `橡皮筋已全局禁用：文档层 + ${d.overscroll.okCount} 个滚动容器`);
     }
   }
 
