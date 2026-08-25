@@ -78,6 +78,29 @@ starts at its first working surface.
 - Keep the gap from the page title row to the first business panel at 12-16px for dense admin workbenches.
 - Do not let page headers float in a large blank band. Extra vertical space belongs inside scrollable work areas, table docks, or empty states, not above the title.
 
+## Section Heading Bands
+
+A section heading band (a panel's own `h3` row, with a count/subtitle beside it and its actions on the
+right) is the most common place a shared layout rule quietly eats a child's own layout.
+
+- The band is a flex row: title group on the left, actions on the right.
+- The title group and the action group each own their internal layout — the title row is a baseline-aligned
+  flex row (`h3` + count/status), the action group is a centered flex row (view switcher + primary action).
+- **Never scope the band's default child layout with a bare descendant selector.** `.section-heading > div
+  { display: grid }` reads as "stack the title over its subtitle", but its `(0,1,1)` specificity silently
+  outranks every single-class child (`.section-title-row`, `.section-heading-actions` — `(0,1,0)`), so those
+  children's own `display: flex` never applies. The symptom is not a CSS error: the count wraps under the
+  title, the action buttons stack into two rows, and the class names all still look correct in review.
+- Scope it so it cannot reach a child that has its own identity: `.section-heading > div:not([class])`,
+  or give the stacking group a real class of its own. Raising the child's specificity instead
+  (`.section-heading > .section-heading-actions`) fixes one child and leaves the trap armed for the next one.
+- This is the general rule, not a heading-band quirk: **a container may only style children that have no
+  class of their own.** The moment a child carries a class, that class is its layout contract, and a
+  descendant selector from the parent must not be able to outrank it.
+- Verify it rendered, not just that it is declared: assert that the title and its count share a `y`, and
+  that every control in the action group shares a `y` and an outer height. A wrapped heading band is
+  invisible to lint, typecheck, and the token contract.
+
 ## Sidebar
 
 Width:

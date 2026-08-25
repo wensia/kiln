@@ -78,7 +78,7 @@ export const collect = (palette) =>
     const out = {
       buttons: [], cards: [], shadows: [], verticalGrids: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
-      centeredContent: [], segmentedTracks: [],
+      centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
     };
     const CLAY = palette.clay;
@@ -155,6 +155,7 @@ export const collect = (palette) =>
         borderWidth: s.borderTopWidth,
         shadow: s.boxShadow.slice(0, 60),
       });
+
     }
 
     for (const el of document.querySelectorAll("*")) {
@@ -266,6 +267,59 @@ export const collect = (palette) =>
         trigger: Math.max(...triggers),
         label: (list.getAttribute("aria-label") || list.textContent || "").trim().slice(0, 12),
       });
+    }
+
+    // 勾选类控件的标记必须待在自己的框里（components.md：Checkbox）。
+    // 用伪元素 + 绝对 px 画的勾，一旦外层被压扁就会飞到框外 —— 类名全对、lint 全过，
+    // 只有渲染是错的，所以只能靠量。
+    for (const box of document.querySelectorAll('input[type="checkbox"] + *, [class*="checkbox-box"]')) {
+      const rect = box.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      const input = box.parentElement?.querySelector('input[type="checkbox"]');
+      if (!input || !input.checked) continue;
+      const glyph = box.querySelector("svg");
+      let markRect = null;
+      if (glyph) {
+        markRect = glyph.getBoundingClientRect();
+      } else {
+        const after = getComputedStyle(box, "::after");
+        // 伪元素画的勾：用它声明的 left/top + 尺寸推算落点
+        const left = parseFloat(after.left), top = parseFloat(after.top);
+        const w = parseFloat(after.width), h = parseFloat(after.height);
+        if (Number.isFinite(left) && Number.isFinite(top) && w > 0) {
+          markRect = { x: rect.x + left, y: rect.y + top, width: w, height: h };
+        }
+      }
+      if (!markRect) continue;
+      const inside = markRect.x >= rect.x - 1 && markRect.y >= rect.y - 1
+        && markRect.x + markRect.width <= rect.x + rect.width + 1
+        && markRect.y + markRect.height <= rect.y + rect.height + 1;
+      out.checkMarks.push({
+        inside,
+        drawnAsIcon: Boolean(glyph),
+        label: (input.getAttribute("aria-label") || box.className || "").toString().slice(0, 20),
+      });
+    }
+
+    // 区块标题带（layouts-and-pages.md：Section Heading Bands）：容器的通用规则
+    // （.section-heading > div 之类）特异性 (0,1,1) 会盖掉带类子容器自己的 display，
+    // 症状是计数换到标题下一行、动作按钮堆成两行 —— 类名全对，lint 全过，只有渲染是错的。
+    for (const band of document.querySelectorAll('[class*="section-heading"], [class*="panel-heading"]')) {
+      const kids = [...band.children].filter((el) => el.getBoundingClientRect().height > 0);
+      if (kids.length < 2) continue;
+      for (const kid of kids) {
+        // 只查有自己类名的子容器：无类 div 归容器管，那是合法的堆叠组
+        if (!kid.className || typeof kid.className !== "string") continue;
+        const inner = [...kid.children].filter((el) => el.getBoundingClientRect().height > 0);
+        if (inner.length < 2) continue;
+        const ys = inner.map((el) => Math.round(el.getBoundingClientRect().top));
+        out.headingBands.push({
+          cls: kid.className.split(/\s+/)[0],
+          display: getComputedStyle(kid).display,
+          wrapped: Math.max(...ys) - Math.min(...ys) > 4,
+          label: (band.querySelector("h2, h3")?.textContent || "").trim().slice(0, 12),
+        });
+      }
     }
 
     // 标题权威（layouts-and-pages.md：Title Authority）：一条路由恰好一个 h1。
@@ -809,6 +863,25 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
       );
     }
   }
+  for (const mark of d.checkMarks || []) {
+    if (!mark.inside)
+      fail(name, `勾选框「${mark.label}」的对勾落在框外${mark.drawnAsIcon ? "" : "（用伪元素+绝对 px 画的，外层一被压扁就会跑位；改成居中图标）"}`);
+  }
+  if (d.checkMarks?.length) {
+    pass(name, `${d.checkMarks.length} 个勾选标记均在框内`);
+  }
+
+  for (const band of d.headingBands || []) {
+    if (band.wrapped)
+      fail(
+        name,
+        `区块标题带「${band.label}」里的 .${band.cls} 换行了（display: ${band.display}）—— 容器的 > div 规则大概率盖掉了它自己的布局，用 :not([class]) 收窄容器规则`
+      );
+  }
+  if (d.headingBands?.length) {
+    pass(name, `${d.headingBands.length} 个区块标题带子组未换行`);
+  }
+
   if (d.segmentedTracks?.length) {
     pass(name, `${d.segmentedTracks.length} 条分段轨道外框已检查`);
   }

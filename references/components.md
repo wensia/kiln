@@ -460,6 +460,22 @@ Creating a new record from a select — one combobox, not two fields:
 - The popup reuses the select dropdown's visual language exactly — card radius, popover shadow, item padding/highlight, check indicator on the selected option — anchored to the input's left edge at full trigger width. With zero options and no query, still render the listbox with a muted hint row so the control never looks broken.
 - Ship this once as a shared component (e.g. `CreatableSelect`, taking `value / text / onSelect / onTextChange / options`) rather than per-page wiring. Where the backend cannot create from that flow (an edit form that only accepts an existing id), keep the plain Select — do not offer creation the submit path would silently drop.
 
+## Checkbox
+
+- The box is **16px square**, control radius (`4px`), 1px `--border-visible` at rest on the card surface.
+- Checked state fills with `--primary` and shows a **centered check icon** in `--primary-foreground`. Hover (unchecked) darkens the border only; focus-visible draws the standard ring with 2px offset; disabled drops opacity and blocks the pointer.
+- **Draw the tick as an icon, not as CSS.** A check built from two borders on a pseudo-element (`::after` with `left`/`top` in px, rotated 45°) is positioned against whatever box model the wrapper happened to have when those pixel values were picked. Center a real `Check` glyph inside the box with flex instead: it survives every size, density, and wrapper change, and it is the same mark the Select indicator already uses.
+- Keep the native `<input type="checkbox">` in the DOM, visually hidden and stretched over the box, so label association, focus, keyboard toggling, and form semantics stay intact — the styled box is a sibling that reacts to `:checked` / `:focus-visible` / `:disabled`.
+- A checkbox in a table selection cell carries no text; a checkbox in a toolbar (a real "show archived" switch) is a different component with its own labelled shell. **Do not flatten the toolbar switch into a bare box by zeroing its padding and height** — see the pseudo-element warning below.
+
+## Restyling a Shared Control
+
+When a shared control has to look different inside a denser context (a table cell, a compact toolbar, an inline editor), changing its box model is not a local edit.
+
+- **A control's pixel-positioned pseudo-elements are part of its box model.** Zeroing `padding`, `height`, or `gap` on a wrapper silently breaks any `::before` / `::after` whose `top`/`left` were derived from the original geometry. The class names still look right, nothing errors, and the mark simply renders outside its box.
+- Before overriding a shared control's geometry, grep its stylesheet for `::before` / `::after` with absolute offsets. If any exist, either reposition them in the same scoped override, or — better — don't reshape the control at all: build a separate primitive for the dense context and let each keep its own contract.
+- Verify by measuring the rendered result, not by reading the override: assert the visible box's width/height and that any inner mark's center is within a pixel of the box's center. A displaced tick is invisible to lint, typecheck, and the token contract.
+
 ## Field Group
 
 - Use FieldGroup, Field, FieldLabel, and FieldDescription.
