@@ -76,7 +76,7 @@ export const collect = (palette) =>
   // eslint-disable-next-line no-undef
   (() => {
     const out = {
-      buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [],
+      buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [], nativeDatalists: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
@@ -210,6 +210,13 @@ export const collect = (palette) =>
           });
         }
       }
+    }
+
+    // 原生 datalist：弹出面板由浏览器自绘，样式与断言都够不着 —— 原语本身在 DOM 里，查它
+    for (const el of document.querySelectorAll("input[list]")) {
+      out.nativeDatalists.push(
+        (el.getAttribute("aria-label") || el.name || el.id || "unnamed input").slice(0, 40)
+      );
     }
 
     for (const el of document.querySelectorAll("*")) {
@@ -893,6 +900,15 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
   }
   if (d.cards.length && !d.cardInsets.length)
     pass(name, `${d.cards.length} 个白色面板的内容内缩已检查`);
+
+  // ── 原生 datalist 禁用：不可样式化也不可断言的原语 ───────────
+  for (const label of d.nativeDatalists || []) {
+    fail(
+      name,
+      `输入框「${label}」用原生 datalist 做建议下拉 —— 弹出面板是浏览器自绘的，` +
+        `样式和契约都够不着；换自绘 combobox（CreatableSelect）`
+    );
+  }
 
   // ── 阴影必须暖黑 ───────────────────────────────────
   const cold = d.shadows.filter((x) => isVisible(x.shadow) && !isWarmShadow(x.shadow));
