@@ -101,6 +101,28 @@ right) is the most common place a shared layout rule quietly eats a child's own 
   that every control in the action group shares a `y` and an outer height. A wrapped heading band is
   invisible to lint, typecheck, and the token contract.
 
+## Card Content Inset
+
+A white card is a container with an edge, and its content acknowledges that edge. The most common
+failure looks harmless in code review: the heading band carries `padding`, so the top of the card
+looks finished — and then a search field, a form grid, or a list row below it is mounted bare and
+runs edge to edge, because nothing between the band and the card told it not to.
+
+- **Every content block inside a card owns a horizontal inset.** The heading band's padding is the
+  band's own; it insets nothing else. A block mounted directly into the card — a filter stack, a
+  form, a checklist group, a textarea — brings its own inset or is wrapped by something that does.
+- The inset ladder is the token pair `--space-4` (narrow panels, compact rows) and `--space-6`
+  (standard bands and body blocks). Do not invent intermediate values per block.
+- **Adjacent blocks align their first visible label.** A heading at `--space-6` over rows at
+  `--space-3` reads as a ragged left edge, not as hierarchy — pick the rung once per card and hold
+  it. (This is the same rule the metric/summary strips already follow in `SKILL.md`.)
+- Edge-to-edge is reserved for **true full-bleed structure**: dividers, table row backgrounds, tab
+  tracks, charts and media, and nested panels that carry their own contract. A form control is
+  never full-bleed.
+- The rendered contract enforces the floor, not the taste: visible text and form controls inside a
+  white card must sit ≥8px from the card's left and right edges. The ladder above is prose because
+  choosing the rung is design; being off the ladder entirely is a defect the machine can catch.
+
 ## Sidebar
 
 Width:

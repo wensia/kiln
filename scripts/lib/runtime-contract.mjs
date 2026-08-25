@@ -76,7 +76,7 @@ export const collect = (palette) =>
   // eslint-disable-next-line no-undef
   (() => {
     const out = {
-      buttons: [], cards: [], shadows: [], verticalGrids: [],
+      buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
@@ -156,6 +156,56 @@ export const collect = (palette) =>
         shadow: s.boxShadow.slice(0, 60),
       });
 
+      // ── 卡内容内缩：内容贴卡边是结构错误，不是密度选择 ──
+      // 条文写阶梯（--space-4 / --space-6），断言守底线：可见文本与表单控件距卡的
+      // 左右边缘 ≥8px。full-bleed 只属于真正的整宽结构：分隔线、表格、tab 轨道、
+      // SVG/canvas 图表、嵌套白面板（它自己会作为卡被查一遍）。
+      const MIN_INSET = 8;
+      let flagged = 0;
+      for (const child of el.querySelectorAll("*")) {
+        if (flagged >= 3) break; // 每卡最多记 3 条，别刷屏
+        if (child.closest("table,[role=tablist],svg,canvas") !== null) continue;
+        const cs = getComputedStyle(child);
+        if (cs.visibility === "hidden" || cs.display === "none") continue;
+        if (cs.position === "absolute" || cs.position === "fixed") continue;
+        const isControl = child.matches("input,textarea,select,button");
+        const hasText = [...child.childNodes].some(
+          (n) => n.nodeType === 3 && n.textContent.trim()
+        );
+        if (!isControl && !hasText) continue;
+        // 嵌套白面板的内容归嵌套面板自己管
+        let host = child.parentElement;
+        while (host && host !== el) {
+          const hs = getComputedStyle(host);
+          const hr = host.getBoundingClientRect();
+          if (
+            hs.backgroundColor === "rgb(255, 255, 255)" &&
+            hr.height >= 60 &&
+            hr.width >= 120 &&
+            hs.boxShadow !== "none"
+          )
+            break;
+          host = host.parentElement;
+        }
+        if (host !== el) continue;
+        const cr = child.getBoundingClientRect();
+        if (cr.width === 0 || cr.height === 0) continue;
+        if (cr.height <= 2) continue; // 分隔线
+        const insetL = cr.left - r.left;
+        const insetR = r.right - cr.right;
+        const worst = Math.min(insetL, insetR);
+        if (worst < MIN_INSET) {
+          flagged += 1;
+          out.cardInsets.push({
+            cls: (el.className || "").toString().slice(0, 50),
+            text: (child.textContent || child.getAttribute("aria-label") || child.tagName)
+              .trim()
+              .slice(0, 24),
+            side: insetL <= insetR ? "左" : "右",
+            inset: Math.round(worst),
+          });
+        }
+      }
     }
 
     for (const el of document.querySelectorAll("*")) {
@@ -823,6 +873,18 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
     if (r > 8) fail(name, `白卡 .${c.cls} 圆角 ${r}px，超过面板上限 8px`);
   }
   if (d.cards.length) pass(name, `${d.cards.length} 个白色面板分层已检查`);
+
+  // ── 卡内容内缩：内容不贴卡边 ──────────────────────
+  for (const c of d.cardInsets) {
+    fail(
+      name,
+      `白卡 .${c.cls} 内「${c.text}」距${c.side}边缘 ${c.inset}px —— 卡内容不许贴边` +
+        `（底线 8px；标准内缩走 --space-4 / --space-6，相邻块对齐首个可见标签。` +
+        `full-bleed 只属于分隔线、表格、tab 轨道、图表、嵌套面板）`
+    );
+  }
+  if (d.cards.length && !d.cardInsets.length)
+    pass(name, `${d.cards.length} 个白色面板的内容内缩已检查`);
 
   // ── 阴影必须暖黑 ───────────────────────────────────
   const cold = d.shadows.filter((x) => isVisible(x.shadow) && !isWarmShadow(x.shadow));
