@@ -116,7 +116,11 @@ export const collect = (palette) =>
       // clay，计入上限会让任何带侧栏或带筛选器的页面必然超限。
       const stateful =
         b.getAttribute("aria-current") !== null || b.getAttribute("aria-pressed") === "true";
-      if (s.backgroundColor === CLAY && !stateful) {
+      // 弹层打开时用户的「视口」就是弹层：遮罩之下的页面动作被压暗、不可点，
+      // 不与弹层内的动作竞争同一份 clay 预算。只在有打开的 dialog 时豁免遮罩下层。
+      const openDialog = document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+      const behindOverlay = openDialog !== null && !openDialog.contains(b);
+      if (s.backgroundColor === CLAY && !stateful && !behindOverlay) {
         out.clayFills++;
       }
     }
@@ -642,10 +646,14 @@ export const collect = (palette) =>
     out.overscroll = { doc: [], scrollers: [], okCount: 0 };
     for (const el of [document.documentElement, document.body]) {
       const s = getComputedStyle(el);
+      // 弹层的 scroll-lock（react-remove-scroll 等）会临时把 body 写成
+      // overflow:hidden + overscroll-behavior:contain。此刻文档层根本不可滚，
+      // contain 出不了橡皮筋 —— 锁定期间豁免，解锁后仍要求 none。
+      const scrollLocked = s.overflow === "hidden" || s.overflowY === "hidden";
       out.overscroll.doc.push({
         tag: el.tagName.toLowerCase(),
-        x: s.overscrollBehaviorX,
-        y: s.overscrollBehaviorY,
+        x: scrollLocked && s.overscrollBehaviorX === "contain" ? "none" : s.overscrollBehaviorX,
+        y: scrollLocked && s.overscrollBehaviorY === "contain" ? "none" : s.overscrollBehaviorY,
       });
     }
     for (const el of document.querySelectorAll("*")) {
