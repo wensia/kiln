@@ -327,6 +327,38 @@ h2.section-title {
 .w-num { width: 96px; }
 .swatches { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
 
+/* ---- 入口锚定示范区 ---- */
+/* 动作独占中间一列：集合从 1 项涨到 30 项、折成几行，入口的两个坐标都不动 */
+.anchor-row {
+  display: grid;
+  grid-template-columns: 5rem 7.5rem minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) 0;
+}
+.anchor-row + .anchor-row { border-top: 1px solid var(--border); }
+/* align-self: start —— 少了它，折行的集合会把整行撑高，居中的按钮跟着往下沉 */
+.anchor-label,
+.anchor-slot {
+  display: flex;
+  min-height: var(--control-height);
+  align-items: center;
+  align-self: start;
+}
+.anchor-label { font-size: var(--text-body); font-weight: var(--weight-medium); }
+.anchor-collection {
+  display: flex;
+  min-height: var(--control-height);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.anchor-note {
+  grid-column: 2 / -1;
+  margin: 0;
+  font-size: var(--text-meta);
+  color: var(--muted-foreground);
+}
+
 .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 .icon-18 { width: 18px; height: 18px; }
 </style>
@@ -546,6 +578,46 @@ h2.section-title {
           <span class="badge badge-info">处理中</span>
           <span class="badge badge-warning">待接单</span>
           <span class="badge badge-danger">已超时</span>
+        </div>
+      </section>
+
+      <section class="panel form-panel">
+        <h2 class="section-title">入口锚定</h2>
+        <!-- 集合数量各不相同，三行的入口仍在同一条竖线上；第二行折了两行，入口也没下沉 -->
+        <div>
+          <div class="anchor-row">
+            <div class="anchor-label">授权部门</div>
+            <div class="anchor-slot" data-action-anchor>
+              <button class="btn btn-outline" type="button">选择部门</button>
+            </div>
+            <div class="anchor-collection" data-anchor-collection>
+              <span class="badge">西南楼 · 咨询部</span>
+            </div>
+            <p class="anchor-note">部门内的在职员工自动获得权限。</p>
+          </div>
+
+          <div class="anchor-row">
+            <div class="anchor-label">额外授权</div>
+            <div class="anchor-slot" data-action-anchor>
+              <button class="btn btn-outline" type="button">添加员工</button>
+            </div>
+            <div class="anchor-collection" data-anchor-collection>
+              <span class="badge">张海艳</span><span class="badge">王建国</span><span class="badge">李慧敏</span>
+              <span class="badge">赵晓峰</span><span class="badge">孙丽娜</span><span class="badge">周文博</span>
+              <span class="badge">吴海燕</span><span class="badge">郑天成</span><span class="badge">冯玉洁</span>
+              <span class="badge">秦一鸣</span><span class="badge">许静文</span><span class="badge">何嘉树</span>
+            </div>
+            <p class="anchor-note">授权给不在上述部门、但需要拨打的员工。</p>
+          </div>
+
+          <div class="anchor-row">
+            <div class="anchor-label">排除人员</div>
+            <div class="anchor-slot" data-action-anchor>
+              <button class="btn btn-outline" type="button">添加排除</button>
+            </div>
+            <div class="anchor-collection" data-anchor-collection></div>
+            <p class="anchor-note">排除优先于以上两项。</p>
+          </div>
         </div>
       </section>
     </div>

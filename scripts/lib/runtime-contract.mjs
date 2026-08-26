@@ -79,6 +79,7 @@ export const collect = (palette) =>
       buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [], nativeDatalists: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
+      actionAnchors: [], anchorStacks: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
     };
     const CLAY = palette.clay;
@@ -682,6 +683,74 @@ export const collect = (palette) =>
       }
     }
 
+    // 入口锚定（components.md → Action Anchor）：反复要点的入口，它的坐标不能由旁边
+    // 集合的数据量决定。这里只能查**声明过的**槽位——「这一坨是会随数据涨落的集合」是
+    // 业务事实，DOM 里看不出来：三个并排的 badge 既可能是数据驱动的标签组，也可能是三个
+    // 写死的状态标记，自动判定必然误伤后者。所以判据取「你声明了，但摆错了」。
+    for (const anchor of document.querySelectorAll("[data-action-anchor]")) {
+      const rect = anchor.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      const control = [...anchor.querySelectorAll('button,[role="button"],input,select,a[href]')].find(
+        isRendered
+      );
+      const label =
+        (control?.textContent || anchor.textContent || "").trim().replace(/\s+/g, " ").slice(0, 16) ||
+        "(未命名入口)";
+
+      // 两个槽互相嵌套 = 入口又回到了被数据推着走的位置，声明只是给它换了件外衣
+      const nested =
+        Boolean(anchor.querySelector("[data-anchor-collection]")) ||
+        Boolean(anchor.parentElement?.closest("[data-anchor-collection]"));
+
+      // 同一行里的集合槽——纵向对齐拿它当基准
+      const collection = [...(anchor.parentElement?.children ?? [])].find(
+        (el) => el !== anchor && el.matches?.("[data-anchor-collection]") && isRendered(el)
+      );
+      // 纵向漂移量 = 控件在自己槽里被推下去的距离，不是它与集合首项的顶边差：
+      // 按钮 36px、标签 20px，两者各自居中时顶边本来就差 8px，拿它当基准会把正确布局判错。
+      // 测控件相对**槽**的位移则与邻居的高度无关：
+      //   self-start 的槽（高 = 控件高）→ 0；
+      //   被折行集合撑高又居中的槽 → 半个撑高量，正是这条规则要抓的下沉；
+      //   撑高但 align-items: start 的槽 → 0，控件确实没动，照样放行。
+      // 少了 self-start 的页面单行时看不出来，集合折到三行才现形——「一开始都对」的那类错。
+      const drift = control
+        ? Math.round(control.getBoundingClientRect().top - rect.top)
+        : 0;
+
+      out.actionAnchors.push({
+        label,
+        nested,
+        hasCollection: Boolean(collection),
+        drift,
+        left: Math.round(rect.left),
+      });
+    }
+
+    // 同一堆叠里的兄弟行共享一条竖线。两行对不齐，就说明至少有一行的入口是骑在邻居的
+    // 数据宽度上的——这是唯一不需要改变数据量、单次渲染就能看见漂移的角度。
+    {
+      const stacks = new Map();
+      for (const anchor of document.querySelectorAll("[data-action-anchor]")) {
+        if (!isRendered(anchor)) continue;
+        const stack = anchor.parentElement?.parentElement;
+        if (!stack) continue;
+        if (!stacks.has(stack)) stacks.set(stack, []);
+        stacks.get(stack).push(anchor);
+      }
+      for (const [, anchors] of stacks) {
+        if (anchors.length < 2) continue; // 一行无从比较
+        const lefts = anchors.map((el) => Math.round(el.getBoundingClientRect().left));
+        out.anchorStacks.push({
+          count: anchors.length,
+          lefts: [...new Set(lefts)],
+          label: anchors
+            .map((el) => (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 10))
+            .join(" / ")
+            .slice(0, 60),
+        });
+      }
+    }
+
     return out;
   })();
 
@@ -970,6 +1039,35 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
 
   if (d.segmentedTracks?.length) {
     pass(name, `${d.segmentedTracks.length} 条分段轨道外框已检查`);
+  }
+
+  // ── 入口锚定 ───────────────────────────────────────
+  // 三条判据分别对应三种翻车方式：把入口塞回集合里、忘了 self-start、以及只对了一行。
+  for (const anchor of d.actionAnchors || []) {
+    if (anchor.nested)
+      fail(
+        name,
+        `入口「${anchor.label}」与集合槽互相嵌套 —— 声明了锚点却仍排在集合的自动流里，数据一涨它照样跑`
+      );
+    // 4px 容差留给槽自己的内边距；再多就是被撑高的格子推下去的距离，不是内边距
+    if (anchor.drift > 4)
+      fail(
+        name,
+        `入口「${anchor.label}」在自己的槽里低了 ${anchor.drift}px —— 格子被折行的集合撑高后把它垂直居中了，标签与入口都要 self-start`
+      );
+  }
+  for (const stack of d.anchorStacks || []) {
+    if (stack.lefts.length > 1)
+      fail(
+        name,
+        `同一堆叠里 ${stack.count} 个入口左边缘不齐（${stack.lefts.join(" / ")}px：${stack.label}）—— 至少有一行的入口位置是跟着邻居的数据宽度走的`
+      );
+  }
+  if (d.actionAnchors?.length) {
+    pass(
+      name,
+      `${d.actionAnchors.length} 个入口已锚定（独立槽位 + 钉在行首${d.anchorStacks?.length ? "，堆叠内左边缘一致" : ""}）`
+    );
   }
 
   // ── 标题权威唯一 ───────────────────────────────────

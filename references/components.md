@@ -507,6 +507,35 @@ The test: type the longest legitimate value into the field. **If the box is stil
 
 Anti-pattern: every field in a form column inheriting that column's full width regardless of payload; a full-width numeric input; a settings toggle stretched edge to edge.
 
+## Action Anchor
+
+Wherever an entry point sits next to a **collection** — configured tags, selected items, granted departments, applied filters, uploaded files — the entry point gets its own layout slot. It is never the last item in the same auto-flow the collection wraps through.
+
+The rule is about position, not about markup: **a control the user reaches for repeatedly must not have its coordinates decided by how much data happens to sit beside it.** A collection's width and line count are properties of the data, so an entry point queued behind one inherits them — 1 tag today, 9 tomorrow, 30 next month, and the button lands somewhere new each time. The user re-locates it on every visit, and it is the control they use most.
+
+Two axes, and both move if you only think about one:
+
+- **Horizontal** — give the action its own grid column (or another slot the collection cannot enter). Every row in the stack then puts its action on the same vertical line, and the collection wraps in the column beside it. Do **not** solve this by pushing the action to the far end with `justify-between`: that fixes the drift by destroying proximity, and on a wide viewport the entry point for a tag you are looking at ends up a full screen away (see Field Width, and the Anti-Patterns entry on stretched switch rows). Anchor it **next to the label, before the collection** — read as "授权部门 → 选择部门 → what is already granted".
+- **Vertical** — pin the label and the action to the top of the row (`self-start`). A grid cell stretches to the tallest sibling, so a collection that wraps to three lines silently re-centers the button downward. Horizontal alignment alone looks fixed at one tag and drifts at nine.
+
+Declare the two slots so the contract can check them:
+
+```html
+<div class="grid sm:grid-cols-[5rem_7.5rem_minmax(0,1fr)]">
+  <div class="self-start">授权部门</div>
+  <div data-action-anchor class="self-start"><button>选择部门</button></div>
+  <div data-anchor-collection><!-- tags, any number, wrapping to any height --></div>
+</div>
+```
+
+- `data-action-anchor` wraps the entry point's slot; `data-anchor-collection` wraps the collection it must not be pushed by. Neither may contain the other.
+- Controls that live *inside* one collection item (a tag's own × remove button) are part of that item, not entry points. They do not need an anchor.
+- Sibling anchors in one stack share a left edge. If two rows in the same panel disagree, one of them is riding on its neighbour's data.
+
+The test: render the row with one item in the collection, then with thirty. **If either coordinate of the entry point changed, it is not anchored.**
+
+Anti-pattern: an add/edit/select entry point trailing a wrapping tag list; the same entry point re-centering downward as tags wrap; `justify-between` used to "fix" the drift by exiling the action to the container's far edge.
+
 ## Mutually Exclusive Options
 
 Two options that cannot both be true (claim it / write it off, keep in pool / release to pool, schedule / mark unreachable) form **one relationship**. Both ends must express it **the same way**.

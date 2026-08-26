@@ -138,6 +138,75 @@ try {
   );
 
   console.log("✓ runtime row hover: accepts tr- or cell-painted highlight, still catches none");
+
+  // 入口锚定：三种翻车方式各来一个负样本。三条都不碰 class 名和组件名 —— 只有渲染
+  // 几何与结构参与断言，正如这条规则本身谈的是位置而不是写法。
+  const anchorPositive = createReport();
+  await auditPage(page, "anchor-positive", { kind: "admin", report: anchorPositive, skipFont: true });
+  assert.ok(
+    anchorPositive.ok.some((item) => item.includes("入口已锚定")),
+    `示范页的入口锚定应当通过：\n${anchorPositive.failures.join("\n")}`
+  );
+
+  // 1) 忘了 self-start：单行时毫无症状，集合涨到折行才把入口一路推下去 ——
+  //    所以负样本必须把数据也喂涨，这正是这条规则要抓的「一开始都对」。
+  await page.evaluate(() => {
+    const style = document.createElement("style");
+    style.id = "anchor-probe-style";
+    style.textContent = ".anchor-slot { align-self: stretch }";
+    document.head.appendChild(style);
+    const collection = document.querySelectorAll("[data-anchor-collection]")[1];
+    for (let i = 0; i < 24; i++) {
+      const tag = document.createElement("span");
+      tag.className = "badge";
+      tag.dataset.probeTag = "1";
+      tag.textContent = `临时${i}`;
+      collection.appendChild(tag);
+    }
+  });
+  const drifted = createReport();
+  await auditPage(page, "anchor-drift", { kind: "admin", report: drifted, skipFont: true });
+  assert.ok(
+    drifted.failures.some((failure) => failure.includes("添加员工") && failure.includes("self-start")),
+    `被折行集合推下去的入口必须被拒绝：\n${drifted.failures.join("\n")}`
+  );
+  await page.evaluate(() => {
+    document.getElementById("anchor-probe-style")?.remove();
+    document.querySelectorAll("[data-probe-tag]").forEach((tag) => tag.remove());
+  });
+
+  // 2) 声明了锚点，却仍把入口留在集合的自动流里 —— 换了件外衣，数据一涨照样跑
+  await page.evaluate(() => {
+    const row = document.querySelectorAll(".anchor-row")[0];
+    row.querySelector("[data-anchor-collection]").appendChild(row.querySelector("[data-action-anchor]"));
+  });
+  const nested = createReport();
+  await auditPage(page, "anchor-nested", { kind: "admin", report: nested, skipFont: true });
+  assert.ok(
+    nested.failures.some((failure) => failure.includes("选择部门") && failure.includes("嵌套")),
+    `塞回集合里的入口必须被拒绝：\n${nested.failures.join("\n")}`
+  );
+  await page.evaluate(() => {
+    const row = document.querySelectorAll(".anchor-row")[0];
+    const collection = row.querySelector("[data-anchor-collection]");
+    row.insertBefore(row.querySelector("[data-action-anchor]"), collection);
+  });
+
+  // 3) 单行看不出的那种：某一行的入口偏了，只有把兄弟行摆在一起比才现形
+  await page.evaluate(() => {
+    document.querySelectorAll("[data-action-anchor]")[0].style.marginLeft = "24px";
+  });
+  const ragged = createReport();
+  await auditPage(page, "anchor-ragged", { kind: "admin", report: ragged, skipFont: true });
+  assert.ok(
+    ragged.failures.some((failure) => failure.includes("左边缘不齐")),
+    `堆叠内左边缘不齐必须被拒绝：\n${ragged.failures.join("\n")}`
+  );
+  await page.evaluate(() => {
+    document.querySelectorAll("[data-action-anchor]")[0].style.marginLeft = "";
+  });
+
+  console.log("✓ runtime action anchor: catches vertical drift, nested slots, and ragged stacks");
 } finally {
   await browser.close();
 }
