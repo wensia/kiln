@@ -347,69 +347,84 @@ QA:
 
 ## Date / Time Picker
 
-Use the DS `DateRangePicker` as the core pattern for overview, analytics, payroll, and questionnaire date/time fields.
+One calendar, two shapes: a **single-date field** (a date on a form) and the DS `DateRangePicker` (overview, analytics, payroll, questionnaire). Grid, navigation, bounds, and the keyboard protocol are identical; only the trigger's payload and what a click commits differ. Do not build the single-date field as a second component with sizes of its own.
 
 Trigger:
 
-- Toolbar trigger: outline small button, 32px high, min width about 150px, `justify-start`, `px-2.5`, tabular numbers.
-- Condition/form trigger: outline button, 40px high, full field width, radius 6px (documented exception to the 4px control radius for this tall field trigger), `border-border/70`, `bg-background`, `px-3`, `text-sm font-normal`, `shadow-xs`.
-- Toolbar trigger may show `CalendarIcon` with `data-icon="inline-start"`.
-- Date text format: `YYYY-MM-DD` or `YYYY-MM-DD 至 YYYY-MM-DD`.
-- Trigger needs a `title` with the full date range.
+- **A date trigger is an ordinary form control with no exception of its own:** `--control-height`, `--radius-control`, `--input` border, `--card` surface, `--shadow-input` — pixel-identical to the `Input` and `SelectTrigger` beside it. This section used to grant the form-shaped trigger a taller box at `--radius-card` on the `--background` surface, which left it 4px taller and a shade greyer than the input in the same form row, and contradicted this file's own rule that a pure icon button must match "date trigger height and radius" at the default control height. Both statements shipped, and both went on "passing" until somebody put the two controls side by side in one row. There is no tall variant.
+- Toolbar trigger: outline `sm` control, min width about 150px, `justify-start`, tabular numbers.
+- Leading `CalendarIcon` with `aria-hidden`, then the date text. Text is tabular.
+- Empty state shows a placeholder such as `选择日期` in muted foreground — never a fabricated date, and never today silently pre-filled as if the user had chosen it.
+- Date text format: `YYYY-MM-DD`, or `YYYY-MM-DD 至 YYYY-MM-DD` for a range. The trigger carries a `title` with the full value.
+- A clearable field puts a quiet icon-only X inside the trigger's right edge, with matching right padding so the text never runs under it. It is a separate button with its own accessible name, such as `清空到期日` — not a "clear" row inside the calendar, because clearing should be one keyboard stop rather than four. This is one of the sanctioned quiet controls: icon-only, framed by the control boundary (see Interaction Is Quiet in `SKILL.md`).
 
 Dialog:
 
 - Desktop uses compact dialog content, `sm:max-w-sm`.
 - Mobile uses bottom sheet posture: `top-auto bottom-0 translate-y-0 rounded-b-none`.
-- Header is only the title, such as `选择日期区间` or `选择结算区间`.
+- **No visible title.** The `‹ 年 月 ›` row is already this popup's header; a second line reading `选择日期` only repeats the name of the field that opened it, and pushes the calendar down by a whole band. Keep the title as `sr-only`: dialog primitives require a Title, and deleting it outright makes screen readers announce an unnamed dialog.
 
-Selection summary:
+Selection summary (range shape only):
 
 - Rounded 8px, `border-border/70`, `bg-muted/30`, `px-3 py-2`.
 - Label: 11px, leading 4, muted. Text switches between `选择开始日期` and `选择结束日期`.
 - Value: 14px, medium, tabular. Shows placeholder or selected range.
+- The single-date shape has no "which endpoint am I choosing" state, so it does not get this strip. Do not add one to hold the value that the trigger behind the dialog is already showing.
 
 Calendar navigation:
 
-- Use one in-place `day → month → year` view stack inside the existing dialog or sheet. Do not open a nested popover or Select for year/month navigation.
-- Keep the display cursor separate from the selected range. Header clicks, arrow buttons, keyboard paging, and choosing a year or month update only the visible calendar and its view; they never create, clear, reorder, or clamp a selected endpoint.
-- Every view keeps the same three-part header: previous button, center title slot, next button. Arrow buttons use the shared outline icon-button treatment. In day and month views the center title is a real neutral Button with a visible rest surface, not passive text or a hover-only affordance; in year view the ten-year interval is a non-interactive label because there is no higher-level view to open. That label keeps the same center-slot dimensions as the actionable titles so the header never jumps.
-- Day, month, and year bodies share one stable content-region height. Switching views must not resize the dialog or bottom sheet; sparse higher-level grids align inside the same footprint as the six-week day grid.
+- **Year and month are two peer entries, each opening its own panel:** clicking the year goes straight to the year grid, clicking the month opens the month grid, clicking either again returns to the calendar. Do not stack them into a `day → month → year` drill-down — that makes "jump to a distant year", the one long-range move this component exists for, cost an extra click through a panel the user did not ask for.
+- Every view keeps the same three-part header: previous button, the entry pair, next button. Arrow buttons use the shared outline icon-button treatment and page whichever panel is open — month in the calendar, year in the month panel, decade in the year panel — with accessible names to match.
+- The entries sit side by side at content width, centred; they do not stretch across the header's middle column. One bar of muted fill spanning the top of a popup that is otherwise just a calendar reads as a single composite control instead of two separately clickable grains.
+- Open state is `aria-expanded` on the entry, shown by rotating its chevron and deepening its surface. No clay here: the current month and current year inside the grids are already speaking with clay.
+- With the year panel open, the year entry shows the ten-year interval — that is what the arrows page now — and the month entry is withdrawn, because until the year is settled a month has nothing to mean.
+- Keep the display cursor separate from the selected value. Header clicks, arrow buttons, keyboard paging, and choosing a year or month update only the visible calendar and its view; they never create, clear, reorder, or clamp a selection.
+- Day, month, and year bodies share one content-region height, derived from the six-week day grid: weekday row + grid gap + six date rows. Switching views must not resize the dialog or bottom sheet; sparse higher-level grids align inside that same footprint.
+- `Esc` returns from any panel to the calendar without closing the popup; `Esc` on the calendar closes it. Do not unwind one level at a time — the year panel may have been opened straight from the calendar or drilled into from the month panel, and level-by-level unwinding sends half the users back to a panel they never visited.
 
 Day view:
 
 - Arrow buttons move one month and are labelled `上个月` and `下个月`.
-- The title shows `YYYY 年 M 月`, uses tabular figures, and exposes the displayed value in its accessible name, such as `选择年月，当前 2026 年 8 月`; activating it opens the month view for that displayed year.
+- The year entry reads `YYYY 年` and the month entry reads `M 月`, both tabular, each exposing its displayed value in its accessible name, such as `选择年份，当前 2026 年` and `选择月份，当前 8 月`.
 
 Month view:
 
 - Arrow buttons move one year and are labelled `上一年` and `下一年`.
-- The title shows `YYYY 年` and exposes the displayed year in its accessible name, such as `选择年份，当前 2026 年`; activating it opens the year view containing that year.
 - Render all twelve months as a compact grid of real buttons. The displayed month carries the selected/current state; choosing an enabled month updates the display cursor and returns to day view without selecting a date.
 
 Year view:
 
-- The title shows the active ten-year interval, such as `2020–2029`. Arrow buttons move one decade and are labelled `上一个十年` and `下一个十年`.
+- The year entry shows the active ten-year interval, such as `2020–2029 年`. Arrow buttons move one decade and are labelled `上一个十年` and `下一个十年`.
 - Use a twelve-cell year grid: the ten years in the active interval plus one adjacent year at each edge. Adjacent-interval years stay visually secondary but remain selectable when within bounds.
-- The displayed year carries the selected/current state; choosing an enabled year updates the display cursor and returns to month view without selecting a date.
-- Month and year cells reuse the date button's radius, typography, hover, focus, disabled, and selected-state language. Do not invent a second control style for the higher-level views.
+- The displayed year carries the selected/current state; choosing an enabled year updates the display cursor and opens the month panel. That is the one drill-down worth keeping: it runs downward, toward the date, and spends a click the user was about to spend anyway.
+- Month and year cells reuse the date cell's radius, typography, hover, focus, disabled, and selected-state language. Do not invent a second control style for the higher-level views.
 
 Calendar grid:
 
-- Weekdays: 7-column grid, 4px gap, centered, 12px muted text, order `一 二 三 四 五 六 日`.
-- Dates: 7-column grid, 4px gap.
-- Date button: 36px high, full column width, 14px / 400, tabular.
-- Start/end date: solid clay (selected date endpoints are a sanctioned `--primary` state).
+- Weekdays: 7-column grid, `--space-1` gap, centered, `--text-meta` muted, order `一 二 三 四 五 六 日`.
+- Dates: 7-column grid, `--space-1` gap.
+- Date cell: `--control-height` tall, full column width, `--text-body` at 400, tabular. A date cell fills its column and shares grid lines with its neighbours, so it does **not** take the control radius — the rendered-style contract exempts `gridcell` and direct `grid`/`row` children from that rule for exactly this reason.
+- **Today's cell reads 今 rather than its day number**, and carries `aria-current="date"`. Its accessible name stays the full date, so keyboard navigation, locators, and tests are untouched — only the visible glyph changes. A single Chinese character sits fuller than two digits at the same size, so today's cell drops one step to `--text-meta` to read level with the field of numerals around it. When today falls into an overflow cell of an adjacent month it still reads 今 and still takes the overflow foreground: it is genuinely today, and it gives the month you paged into a landmark.
+- Marking today is not the same as selecting it, and the two must stay visually distinct: 今 is a label, the selection is a clay fill. A picker whose empty state pre-selects today has removed the user's ability to tell "I chose this" from "the form guessed".
+- Selected date, or range endpoints: solid clay — selected dates are a sanctioned `--primary` state.
 - In-range date: `bg-primary/10 text-primary`, hover `bg-primary/15`.
-- Outside current month: `text-muted-foreground/45` unless selected or in range.
+- Outside the current month: muted-weak foreground unless selected or in range.
 - Selected date sets `aria-pressed`.
 
-Interaction:
+Interaction — single date:
+
+- One click commits the date and closes the popup. No confirm button, and no separate "OK" row.
+- Reopening starts on the selected date's month, or on today's month when the field is empty. It never starts on the month the user was browsing when they last dismissed the popup.
+
+Interaction — range:
 
 - First click sets start date, clears end date, and switches to choosing end date.
 - Second click sets end date.
 - If the second date is earlier than the start date, swap start/end automatically.
 - Close the dialog after a complete range is selected.
+
+Keyboard:
+
 - Do not ask users to type date strings manually.
 - In day view, `PageUp` / `PageDown` move one month; adding `Shift` moves one year. These shortcuts change only the display cursor, use the same bound checks as the header buttons, and must not scroll the page behind the picker.
 - Month and year grids use roving focus: arrow keys move between cells, and `Enter` / `Space` activates the focused cell. After a view transition, focus the displayed enabled month/year or the corresponding enabled date rather than resetting focus to the dialog frame.
@@ -417,14 +432,18 @@ Interaction:
 Bounds:
 
 - Propagate `minDate` / `maxDate` through every view. A date outside the range is disabled; a month is disabled when it contains no enabled date; a year is disabled when it contains no enabled month.
-- Disable a previous/next control when its destination month, year, or decade contains no enabled value. Do not allow navigation into an all-disabled view and do not silently change the selected range to satisfy a bound.
+- Disable a previous/next control when its destination month, year, or decade contains no enabled value. Do not allow navigation into an all-disabled view and do not silently change the selected value to satisfy a bound.
 
 QA:
 
+- Put the trigger in a real form row next to an `Input` and a `SelectTrigger` and measure all three: same height, same radius, same surface, same border. This is the check the old 40px exception would have failed for as long as it existed.
 - Verify direct multi-year jumps, December/January rollover, both directions of decade paging, and selection of the adjacent-interval years.
-- Start with an existing complete range, browse through day/month/year views, then return; both endpoints and the selection summary must remain byte-for-byte unchanged until a date button is activated.
+- Open the year panel from the calendar (not via the month panel), then press `Esc`: the calendar comes back and the popup stays open.
+- With a range already selected, browse through day/month/year views and return; both endpoints and the selection summary must remain byte-for-byte unchanged until a date cell is activated.
+- Check today's cell on a month that contains today and on the two adjacent months that overflow into it: 今 in all three, full date in the accessible name, overflow foreground preserved, and no selection implied.
 - Exercise exact `minDate` / `maxDate` edges, entirely disabled months/years, disabled navigation controls, and a range whose endpoints lie in different years.
-- Run the same pointer and keyboard flows in the desktop dialog and mobile bottom sheet, including narrow-height composition. Check title/button accessible names, disabled semantics, roving focus, visible focus rings, and focus restoration after every view transition.
+- Clear a clearable field by keyboard alone, and confirm the clear control is reachable without entering the calendar.
+- Run the same pointer and keyboard flows in the desktop dialog and the mobile bottom sheet, including narrow-height composition. Check entry/button accessible names, disabled semantics, roving focus, and focus restoration after every view transition.
 
 ## Select
 

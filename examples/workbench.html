@@ -198,6 +198,15 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 .input::placeholder { color: var(--muted-foreground); }
 .input:focus { outline: none; border-color: var(--ring); box-shadow: var(--ring-focus); }
 
+/* 日期触发器不是「更高的字段」：它复用 .input 的盒子，只多一个前置图标槽。
+   规范曾给它开过一档更高的例外，结果是同一行里日期比输入框高一档、底色也不同。 */
+.date-trigger {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  text-align: left; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.date-trigger > .icon { color: var(--muted-foreground); flex: 0 0 auto; }
+
 .input-wrap { position: relative; }
 .input-wrap .input { padding-right: var(--space-8); }
 .input-affix {                       /* 嵌入式装饰件的定位槽 */
@@ -325,6 +334,7 @@ h2.section-title {
 .w-name { width: 200px; }
 .w-pass { width: 240px; }
 .w-num { width: 96px; }
+.w-date { width: 176px; }
 .swatches { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
 
 /* ---- 入口锚定示范区 ---- */
@@ -566,6 +576,15 @@ h2.section-title {
           <div class="field w-num">
             <label class="field-label" for="f-num">时长（小时）</label>
             <input class="input cell-num" id="f-num" type="text" value="4">
+          </div>
+
+          <div class="field w-date">
+            <label class="field-label" for="f-date">交付日</label>
+            <button class="input date-trigger" id="f-date" type="button"
+                    aria-haspopup="dialog" aria-label="交付日" title="2026-08-27">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+              <span>2026-08-27</span>
+            </button>
           </div>
 
           <button class="btn btn-solid" type="button" data-center-content><span data-center-ink>保存</span></button>

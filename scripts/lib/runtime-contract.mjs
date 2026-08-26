@@ -79,7 +79,7 @@ export const collect = (palette) =>
       buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [], nativeDatalists: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
-      actionAnchors: [], anchorStacks: [],
+      actionAnchors: [], anchorStacks: [], fieldRows: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
     };
     const CLAY = palette.clay;
@@ -208,6 +208,67 @@ export const collect = (palette) =>
               .slice(0, 24),
             side: insetL <= insetR ? "左" : "右",
             inset: Math.round(worst),
+          });
+        }
+      }
+    }
+
+    // ── 同排字段控件：一行里的输入 / 选择 / 日期触发器必须同高 ──────────
+    // 补一次真实事故：日期触发器曾被规范当成「更高的那一档字段」——比它旁边的输入框
+    // 高一档、圆角大一档、底色从卡片变画布。token 名、类名、圆角读起来全都正确，
+    // components.md 甚至同时写着「纯图标按钮必须匹配日期触发器高度」的另一个值：
+    // 两条互相矛盾的条文各自「通过」了很久，因为静态地读任何一条都看不出问题。
+    // 只有把两个控件放进同一行、量它们的外框，差的那一档才现形 —— 这正是第二道门
+    // 存在的理由，也是散文永远补不上的那类错误。
+    const fieldName = (el) =>
+      (el.getAttribute("aria-label") ||
+        (el.labels && el.labels[0] && el.labels[0].textContent) ||
+        el.name ||
+        el.id ||
+        (el.textContent || "").trim() ||
+        "unnamed control").toString().trim().slice(0, 24);
+    // 量的是**可见外框**，不是元素盒 —— 与分段轨道那条规则同一个道理：搜索框把边框和
+    // 底色画在容器上、里面躺一个透明无边框的 input，元素盒比外框矮两道边框。按元素盒
+    // 记账会把每个搜索框都判成矮一档，而屏幕上它和邻座齐平。所以自身没有表面时，
+    // 向上找承载表面的那个盒子（最多三跳，够穿过一层 wrapper，不至于爬到面板上去）。
+    const outerBox = (el) => {
+      let node = el;
+      for (let hop = 0; node && hop < 3; hop += 1) {
+        const cs = getComputedStyle(node);
+        const painted = !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor);
+        if (painted || parseFloat(cs.borderTopWidth) > 0) break;
+        node = node.parentElement;
+      }
+      return (node || el).getBoundingClientRect();
+    };
+    const fields = [...document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),' +
+        'select, [role="combobox"], button[aria-haspopup]'
+    )]
+      .map((el) => ({ el, r: outerBox(el), s: getComputedStyle(el) }))
+      .filter((f) => f.r.width > 0 && f.r.height > 0 && f.s.visibility !== "hidden");
+    for (let i = 0; i < fields.length; i += 1) {
+      for (let j = i + 1; j < fields.length; j += 1) {
+        const a = fields[i];
+        const b = fields[j];
+        const mid = (f) => f.r.top + f.r.height / 2;
+        if (Math.abs(mid(a) - mid(b)) > 2) continue;
+        // 水平重叠的不是邻居，是嵌进控件边界里的装饰件：密码显隐、清空 X、
+        // 输入框内的单位后缀。它们本来就该比容器矮，规范也把它们列为 quiet 控件。
+        if (a.r.right > b.r.left && b.r.right > a.r.left) continue;
+        // 必须真的同属一行：最近共同祖先不能高过这一行本身，否则侧栏控件和内容区控件
+        // 只要 y 撞上就会被当成邻居。留 3 倍余量给「标签 + 控件 + 说明」这种字段组。
+        let ancestor = a.el.parentElement;
+        while (ancestor && !ancestor.contains(b.el)) ancestor = ancestor.parentElement;
+        if (!ancestor) continue;
+        const tallest = Math.max(a.r.height, b.r.height);
+        if (ancestor.getBoundingClientRect().height > tallest * 3) continue;
+        if (Math.round(a.r.height) !== Math.round(b.r.height)) {
+          out.fieldRows.push({
+            a: fieldName(a.el),
+            b: fieldName(b.el),
+            ha: Math.round(a.r.height),
+            hb: Math.round(b.r.height),
           });
         }
       }
@@ -969,6 +1030,16 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
   }
   if (d.cards.length && !d.cardInsets.length)
     pass(name, `${d.cards.length} 个白色面板的内容内缩已检查`);
+
+  // ── 同排字段控件：一行里的输入 / 选择 / 日期触发器必须同高 ──
+  for (const row of d.fieldRows) {
+    fail(
+      name,
+      `同排控件高度不一：「${row.a}」${row.ha}px 与「${row.b}」${row.hb}px 并排 —— ` +
+        `字段控件没有「更高的那一档」，同一行只有一个 --control-height`
+    );
+  }
+  if (!d.fieldRows.length) pass(name, "同排字段控件外框同高");
 
   // ── 原生 datalist 禁用：不可样式化也不可断言的原语 ───────────
   for (const label of d.nativeDatalists || []) {

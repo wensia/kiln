@@ -207,6 +207,49 @@ try {
   });
 
   console.log("✓ runtime action anchor: catches vertical drift, nested slots, and ragged stacks");
+
+  // 同排字段控件同高：这条规则是补一次真事故 —— 日期触发器被当成「更高的那一档字段」。
+  // 负样本只改渲染高度，不碰 class、不碰 token 名，因为事故当时那两样读起来都是对的。
+  const fieldPositive = createReport();
+  await auditPage(page, "field-row-positive", { kind: "admin", report: fieldPositive, skipFont: true });
+  assert.ok(
+    fieldPositive.ok.some((item) => item.includes("同排字段控件外框同高")),
+    `示范页同一行的输入框与日期触发器应当同高：\n${fieldPositive.failures.join("\n")}`
+  );
+
+  await page.evaluate(() => {
+    document.getElementById("f-date").style.height = "40px";
+  });
+  const tallDate = createReport();
+  await auditPage(page, "field-row-tall-date", { kind: "admin", report: tallDate, skipFont: true });
+  assert.ok(
+    tallDate.failures.some((failure) => failure.includes("同排控件高度不一") && failure.includes("交付日")),
+    `比邻座高一档的日期触发器必须被拒绝：\n${tallDate.failures.join("\n")}`
+  );
+  await page.evaluate(() => {
+    document.getElementById("f-date").style.height = "";
+  });
+
+  // 豁免不能过界：嵌在输入框边界里的装饰件（密码显隐、清空 X）本来就该比容器矮，
+  // 它与容器水平重叠 —— 判据取「重叠」而不是「谁是装饰件」，所以不需要任何声明。
+  await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.id = "affix-probe";
+    probe.style.cssText = "position:relative;width:240px";
+    probe.innerHTML =
+      '<input aria-label="探针输入" style="height:36px;width:240px">' +
+      '<button aria-label="探针装饰" aria-haspopup="dialog" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);height:28px;width:28px"></button>';
+    document.body.appendChild(probe);
+  });
+  const affix = createReport();
+  await auditPage(page, "field-row-affix", { kind: "admin", report: affix, skipFont: true });
+  assert.ok(
+    !affix.failures.some((failure) => failure.includes("探针装饰")),
+    `嵌在控件边界内的装饰件不是同排邻居：\n${affix.failures.join("\n")}`
+  );
+  await page.evaluate(() => document.getElementById("affix-probe")?.remove());
+
+  console.log("✓ runtime field row: catches the tall date trigger, exempts in-boundary affixes");
 } finally {
   await browser.close();
 }
