@@ -401,15 +401,65 @@ Year view:
 
 Calendar grid:
 
+The day grid is a **grid of separate cells**, not a block of table ruling. Cells sit apart by
+`--space-1` and each carries `--radius-control`, so a filled state reads as one rounded chip rather
+than a bar spanning the row. This paragraph used to say the opposite — that a date cell "shares grid
+lines with its neighbours, so it does **not** take the control radius" — while the reference
+implementation had carried the control radius all along. Two readings of one spec again, and the two
+products built from them stopped looking alike. The contract still *exempts* `gridcell` and direct
+`grid`/`row` children from the radius rule (it cannot know a given grid's intent), but exempt means
+unchecked, not forbidden: give the cells the radius.
+
 - Weekdays: 7-column grid, `--space-1` gap, centered, `--text-meta` muted, order `一 二 三 四 五 六 日`.
 - Dates: 7-column grid, `--space-1` gap.
-- Date cell: `--control-height` tall, full column width, `--text-body` at 400, tabular. A date cell fills its column and shares grid lines with its neighbours, so it does **not** take the control radius — the rendered-style contract exempts `gridcell` and direct `grid`/`row` children from that rule for exactly this reason.
-- **Today's cell reads 今 rather than its day number**, and carries `aria-current="date"`. Its accessible name stays the full date, so keyboard navigation, locators, and tests are untouched — only the visible glyph changes. A single Chinese character sits fuller than two digits at the same size, so today's cell drops one step to `--text-meta` to read level with the field of numerals around it. When today falls into an overflow cell of an adjacent month it still reads 今 and still takes the overflow foreground: it is genuinely today, and it gives the month you paged into a landmark.
-- Marking today is not the same as selecting it, and the two must stay visually distinct: 今 is a label, the selection is a clay fill. A picker whose empty state pre-selects today has removed the user's ability to tell "I chose this" from "the form guessed".
+- **A fixed-width month container must budget the gaps**: `7 × --control-height + 6 × --space-1`. Sizing
+  it at `7 × cell` (the intuitive arithmetic, and what a shadcn-derived calendar ships with) pushes the
+  last column past the container's right edge once the gap exists — visible only at the far edge of the
+  popup, which is exactly where nobody looks.
+- Date cell: `--control-height` tall, full column width, `--radius-control`, `--text-body` at 400,
+  tabular, **transparent at rest**, hover `--muted`.
+- **Do not build the date cell out of the product's `ghost` button variant.** In a workbench, `ghost`
+  is required to stay visible at rest (see Interaction Is Quiet in `SKILL.md`), so most products give it
+  a resting surface and border. That rule is right for a toolbar action and wrong for 42 cells in a
+  grid: the calendar turns into one continuous slab of muted fill and the gaps stop reading. Both rules
+  pass their own review; only the composition fails. A date cell is a `gridcell`, not an action — style
+  it from tokens directly.
+- **Today's cell reads 今 rather than its day number**, and carries `aria-current="date"`. Its accessible
+  name stays the full date, so keyboard navigation, locators, and tests are untouched — only the visible
+  glyph changes. A single Chinese character sits fuller than two digits at the same size, so today's cell
+  drops one step to `--text-meta` to read level with the field of numerals around it.
+- **Today is filled: solid `--primary` with `--primary-foreground`**, the same fill the selected date
+  carries. This reverses an earlier rule that kept today at a label's weight so it could never be
+  mistaken for the selection. The reversal holds because **the two are told apart by glyph, not by
+  fill**: today reads 今, a selected day reads its number, and no red chip is ambiguous. When today *is*
+  the selected day the two meanings genuinely coincide, and one chip is the honest rendering of that.
+  The old rule also lost the argument on merit — today is the anchor a user scans for first, and a
+  label-weight today in a field of numerals is not findable.
+- **Marking today still is not the same as pre-selecting it.** What must stay empty is the *field*: the
+  trigger shows its placeholder, no value is committed, and nothing is submitted if the user closes the
+  popup. A picker that writes today into an empty field has removed the user's ability to tell "I chose
+  this" from "the form guessed". The guarantee now lives in the value, not in the cell's color.
+- Today in an overflow cell of an adjacent month stays **unfilled**: it still reads 今 and takes the
+  overflow foreground. It is a landmark for the month you paged into, not the subject of that month.
 - Selected date, or range endpoints: solid clay — selected dates are a sanctioned `--primary` state.
-- In-range date: `bg-primary/10 text-primary`, hover `bg-primary/15`.
+- In-range date: `bg-primary/10 text-primary`, hover `bg-primary/15`. With cells held apart by the grid
+  gap, a range is a row of separate chips; do not paint the gaps back in with pseudo-elements to fake a
+  continuous bar.
 - Outside the current month: muted-weak foreground unless selected or in range.
+- Disabled cell: muted-weak foreground, transparent surface, no hover response.
 - Selected date sets `aria-pressed`.
+
+Month / year panel cells — a different set of states from the day grid, and deliberately so:
+
+- Grid: 3 columns × 4 rows, `--space-2` gap (wider than the day grid: twelve chips, not forty-two).
+- Cell: `--radius-control`, `--text-body`, tabular, resting surface `--muted` at ~45%, transparent
+  border, hover `--muted` with a faint `--foreground` border.
+- **The current month / year takes `--primary-subtle` with `--primary` text and a `--primary` border at
+  ~30% — a tinted chip, not the day grid's solid fill.** "Reuse the date cell's selected-state language"
+  used to be the whole instruction here, and it reads as "fill it solid", which then says *selected*
+  about a month the user has not chosen — the panel is showing where the cursor is, not committing a
+  value. Tint marks position; solid marks choice.
+- Disabled cell: muted-weak foreground on a barely-there surface, no hover response.
 
 Interaction — single date:
 

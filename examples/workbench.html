@@ -207,6 +207,92 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 }
 .date-trigger > .icon { color: var(--muted-foreground); flex: 0 0 auto; }
 
+/* ── 日期面板 ─────────────────────────────────────────────────────────
+   照抄这一段就能得到规范里的日历。三件事是这里的全部要点：
+   1) 格子彼此分开（--space-1）并各自带 --radius-control，填充态因此是一枚圆角
+      色块，而不是横贯整行的色条；
+   2) 格子静息透明 —— 不要拿工作台的 .btn-ghost 来做格子，那个变体被要求静息可见，
+      42 格铺开就是一整片糊底；
+   3) 三个视图共用一个内容区高度，切换时弹层不跳。这个高度从六周网格派生，不是量
+      出来的魔数：星期行 + 6 个日期格 + 6 道间距。 */
+.calendar {
+  --calendar-panel: calc(var(--space-6) + 6 * var(--control-height) + 6 * var(--space-1));
+  display: inline-flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  box-shadow: var(--shadow-popover);
+}
+.calendar-nav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
+/* 年、月是两个平级入口，内容宽度并排居中 —— 不铺满中间那一栏，
+   一条横贯顶部的 muted 长条会被读成一个复合控件，而不是两颗分别可点的粒。 */
+.calendar-entries { display: flex; align-items: center; gap: var(--space-1); }
+.calendar-entry {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  height: var(--control-height-sm); padding: 0 var(--space-2);
+  border: 1px solid transparent; border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
+  color: var(--foreground); font-size: var(--text-body); font-weight: 500;
+  font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.calendar-entry:hover { background: var(--muted); }
+.calendar-entry > svg { width: 14px; height: 14px; color: var(--muted-foreground); transition: transform 140ms ease; }
+.calendar-entry[aria-expanded="true"] { background: var(--muted); }
+.calendar-entry[aria-expanded="true"] > svg { transform: rotate(180deg); }
+
+/* 列宽写成 7 × 格子，间距另算 —— 若把容器定死成 7×格子而网格又有间距，
+   最后一列会顶到容器外面去，且只在弹层最右边缘露馅。 */
+.calendar-grid { display: grid; grid-template-columns: repeat(7, var(--control-height)); gap: var(--space-1); }
+.calendar-weekday { display: grid; height: var(--space-6); place-items: center; color: var(--muted-foreground); font-size: var(--text-meta); }
+.calendar-day {
+  height: var(--control-height); padding: 0;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--foreground);
+  font-size: var(--text-body); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.calendar-day:hover { background: var(--muted); }
+.calendar-day:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+.calendar-day[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
+/* 今天和选中同为实心陶土红：认错不了，因为区分靠字形 —— 今天写「今」，选中写日号。
+   汉字在同字号下比两位数字压得满，缩一档才和整片数字读起来齐平。 */
+.calendar-day[aria-current="date"] {
+  background: var(--primary); color: var(--primary-foreground);
+  font-weight: 500; font-size: var(--text-meta);
+}
+.calendar-day-range { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
+.calendar-day-outside { color: color-mix(in srgb, var(--muted-foreground) 45%, transparent); }
+/* 溢出到相邻月的今天只留字不留底：它是你翻到的那个月的地标，不是那个月的主角。 */
+.calendar-day-outside[aria-current="date"] {
+  background: transparent; font-weight: 400;
+  color: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+}
+.calendar-day:disabled { color: color-mix(in srgb, var(--muted-foreground) 28%, transparent); background: transparent; cursor: not-allowed; }
+
+/* 月 / 年面板：十二颗，不是四十二颗，所以间距放宽到 --space-2，且自带淡底。
+   「当前这一颗」用淡底描边，不用实心 —— 面板显示的是光标在哪，不是用户选了什么。 */
+.calendar-choices {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2); min-height: var(--calendar-panel);
+}
+.calendar-choice {
+  border: 1px solid transparent; border-radius: var(--radius-control); padding: 0 var(--space-2);
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  color: var(--foreground); font-size: var(--text-body); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+.calendar-choice:hover:not(:disabled) { border-color: color-mix(in srgb, var(--foreground) 18%, transparent); background: var(--muted); }
+.calendar-choice[aria-current="true"] {
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  background: var(--primary-subtle); color: var(--primary); font-weight: 500;
+}
+.calendar-choice-outside:not([aria-current="true"]) { color: color-mix(in srgb, var(--muted-foreground) 55%, transparent); }
+.calendar-choice:disabled { color: color-mix(in srgb, var(--muted-foreground) 30%, transparent); background: color-mix(in srgb, var(--muted) 20%, transparent); cursor: not-allowed; }
+
+.calendar-pair { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+
 .input-wrap { position: relative; }
 .input-wrap .input { padding-right: var(--space-8); }
 .input-affix {                       /* 嵌入式装饰件的定位槽 */
@@ -597,6 +683,98 @@ h2.section-title {
           <span class="badge badge-info">处理中</span>
           <span class="badge badge-warning">待接单</span>
           <span class="badge badge-danger">已超时</span>
+        </div>
+      </section>
+
+      <section class="panel form-panel">
+        <h2 class="section-title">日期面板</h2>
+        <div class="calendar-pair">
+          <div class="calendar">
+            <div class="calendar-nav">
+              <button class="btn btn-outline btn-icon btn-sm" type="button" aria-label="上个月"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+              <div class="calendar-entries">
+                <button class="calendar-entry" type="button" aria-expanded="false" aria-label="选择年份，当前 2026 年">2026 年<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+                <button class="calendar-entry" type="button" aria-expanded="false" aria-label="选择月份，当前 9 月">9 月<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+              </div>
+              <button class="btn btn-outline btn-icon btn-sm" type="button" aria-label="下个月"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+            </div>
+            <div class="calendar-grid">
+            <div class="calendar-weekday">一</div>
+            <div class="calendar-weekday">二</div>
+            <div class="calendar-weekday">三</div>
+            <div class="calendar-weekday">四</div>
+            <div class="calendar-weekday">五</div>
+            <div class="calendar-weekday">六</div>
+            <div class="calendar-weekday">日</div>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年8月31日">31</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月1日" aria-current="date">今</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月2日">2</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月3日">3</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月4日">4</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月5日">5</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月6日">6</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月7日">7</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月8日" aria-pressed="true">8</button>
+            <button class="calendar-day calendar-day-range" type="button" aria-label="2026年9月9日">9</button>
+            <button class="calendar-day calendar-day-range" type="button" aria-label="2026年9月10日">10</button>
+            <button class="calendar-day calendar-day-range" type="button" aria-label="2026年9月11日">11</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月12日" aria-pressed="true">12</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月13日">13</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月14日">14</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月15日">15</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月16日">16</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月17日">17</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月18日">18</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月19日">19</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月20日">20</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月21日">21</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月22日">22</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月23日">23</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月24日">24</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月25日">25</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月26日">26</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月27日">27</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月28日" disabled>28</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月29日" disabled>29</button>
+            <button class="calendar-day" type="button" aria-label="2026年9月30日" disabled>30</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月1日" disabled>1</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月2日" disabled>2</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月3日" disabled>3</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月4日" disabled>4</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月5日" disabled>5</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月6日" disabled>6</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月7日" disabled>7</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月8日" disabled>8</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月9日" disabled>9</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月10日" disabled>10</button>
+            <button class="calendar-day calendar-day-outside" type="button" aria-label="2026年10月11日" disabled>11</button>
+          </div>
+          </div>
+
+          <div class="calendar">
+            <div class="calendar-nav">
+              <button class="btn btn-outline btn-icon btn-sm" type="button" aria-label="上一年"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+              <div class="calendar-entries">
+                <button class="calendar-entry" type="button" aria-expanded="false" aria-label="选择年份，当前 2026 年">2026 年<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+                <button class="calendar-entry" type="button" aria-expanded="true" aria-label="选择月份，当前 9 月">9 月<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+              </div>
+              <button class="btn btn-outline btn-icon btn-sm" type="button" aria-label="下一年"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+            </div>
+            <div class="calendar-choices">
+            <button class="calendar-choice" type="button" disabled>1 月</button>
+            <button class="calendar-choice" type="button" disabled>2 月</button>
+            <button class="calendar-choice" type="button" disabled>3 月</button>
+            <button class="calendar-choice" type="button" disabled>4 月</button>
+            <button class="calendar-choice" type="button" disabled>5 月</button>
+            <button class="calendar-choice" type="button" disabled>6 月</button>
+            <button class="calendar-choice" type="button" disabled>7 月</button>
+            <button class="calendar-choice" type="button">8 月</button>
+            <button class="calendar-choice" type="button" aria-current="true">9 月</button>
+            <button class="calendar-choice" type="button">10 月</button>
+            <button class="calendar-choice" type="button">11 月</button>
+            <button class="calendar-choice" type="button">12 月</button>
+            </div>
+          </div>
         </div>
       </section>
 
