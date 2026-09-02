@@ -75,8 +75,12 @@ for (const m of specTable.matchAll(
 }
 
 // ── 4. 其它散文不得重述 hex ───────────────────────────────────
+// README 长期不在这张表里 —— 而画布色那次事故，第一套错值正是写在 readme 里的。
+// 首页是最多人读、最少人校的散文；双语之后它还变成了两份，各自都能漂。
 const PROSE = [
   "SKILL.md",
+  "README.md",
+  "README.zh-CN.md",
   "references/components.md",
   "references/layouts-and-pages.md",
   "references/platform-mapping.md",

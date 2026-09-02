@@ -1,201 +1,167 @@
-# kiln — 窑
+# kiln
 
-陶土成器之所。中文后台工作台的设计系统。
+**English** · [简体中文](./README.zh-CN.md)
 
-整个色彩体系都是窑里烧出的釉色：**陶土红**（clay，主色/关键动作/状态信号）、**窑青绿**（teal，成功）、**孔雀蓝**（peacock，信息）、**暖琥珀**（amber，警示）——暖、低饱和、做旧、彼此和谐。气质是一间**安静而密集的控制室**：信息价值第一，装饰最后。
+A design system for Chinese admin workbenches — the dense, unglamorous screens where the work actually happens.
 
-不是营销页的设计系统。是干活的工具的设计系统。
+Every color is a glaze fired in a kiln: **clay** (primary actions and status signals), **teal** (success), **peacock** (info), **amber** (warning). Warm, desaturated, aged, at ease with one another. The mood is a quiet, dense control room — information first, decoration last.
 
----
-
-## 两层，同一套釉色
-
-**工作台层** —— 紧凑、暖黑阴影分层、信息密度第一。侧栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件、日期面板。
-
-![kiln 工作台层示范页](docs/workbench.png)
-
-**纸面层** —— 同一套 token，换成大留白与印刷质感。用在登录、空状态、404、报告封面、发布说明、系统邮件这些**不干活**的表面上。
-
-![kiln 纸面层示范页](docs/paper-login.png)
-
-> 这两张图是 `npm run screenshots` 从 `examples/*.html` 渲染出来的，不是手截的。
-> 同一批示范页也是渲染契约的断言目标（`npm run verify:examples`），
-> 所以**图、规范、契约三者不会分家** —— 手截的图是第二个真相源，必然漂移。
+Not a design system for landing pages. One for tools people work in.
 
 ---
 
-## 这个仓库是什么
+## Two layers, one glaze
 
-**它同时是三样东西**，这不是巧合，是刻意的：
+**Workbench** — compact, layered with warm-black shadows, density first. Sidebar, metric strip, toolbar, frozen-column tables, pagination dock, form controls, date panels.
+
+![kiln workbench example page](docs/workbench.png)
+
+**Paper** — the same tokens, reset for whitespace and print. Login, empty states, 404, report covers, release notes, system mail: the surfaces where nobody is working.
+
+![kiln paper-layer example page](docs/paper-login.png)
+
+> Both images are rendered from `examples/*.html` by `npm run screenshots` — never captured by hand. Those same pages are the assertion target of the runtime contract, so the picture, the spec, and the check cannot drift apart.
+
+---
+
+## What this repo is
+
+Three things at once, deliberately:
 
 | | |
 |---|---|
-| **数值的真相源** | `tokens/*.css` —— 消费方 `@import tokens/index.css` |
-| **规则的真相源** | `SKILL.md` + `references/*.md` —— 人和 AI 读 |
-| **一个 Claude Code skill** | 仓库根就是 skill 根 |
+| **Source of truth for values** | `tokens/*.css` — consumers `@import tokens/index.css` |
+| **Source of truth for rules** | `SKILL.md` + `references/*.md` — read by humans and AI |
+| **A Claude Code skill** | the repo root *is* the skill root |
 
-所以 **`git commit` 就是「改设计系统」**。没有额外的同步步骤，没有「记得也改一下那边」。
+So `git commit` **is** "changing the design system." No sync step, nothing to remember to update on the other side.
 
 ```
-~/.claude/skills/kiln  ──symlink──>  这个仓库   （Claude Code）
-~/.agents/skills/kiln  ──symlink──>  这个仓库   （Codex / Droid / opencode）
+~/.claude/skills/kiln  ──symlink──>  this repo   (Claude Code)
+~/.agents/skills/kiln  ──symlink──>  this repo   (Codex / Droid / opencode)
 ```
+
+> The spec itself — `SKILL.md`, `references/*.md`, `ADOPTING.md` — is written in Chinese. It is a system *for* Chinese admin interfaces, and its rules lean constantly on Chinese typography, line breaking, and label conventions. The tokens, contracts, and scripts are language-neutral.
 
 ---
 
-## 数值只能住在一个地方
+## Quick start
 
-这套系统坏过一次，坏法值得写下来：
+### Let your AI install it
 
-**画布色曾经有三套值。** `readme.md` 写 `#F7F4F0`，`SKILL.md` 写 `#F6F3EF`，`tokens/colors.css` 里是第三个值。照散文实现的人只会得到一个错的颜色，而且**只能靠肉眼发现**。
-
-**更阴险的是「部分给值」。** 规格表给了颜色的 hex，却只给了阴影的名字和用途。于是实现者被迫**发明**阴影——而发明出来的值和查出来的值，在渲染之前长得一模一样。真实代价：六个阴影全错，`--shadow-primary-focus` 被推成 `0 0 0 3px`（真值是 `0 0 0 1px` + 一层 24px 扩散），`--shadow-topbar` 被推成 `inset`（真值不是）。
-
-> **一张「部分给值、部分不给」的规格表，比完全不给值更危险。** 有值的地方你以为都能查到，没值的地方就开始发明。
-
-所以现在的规矩是三层：
-
-| 层 | 能有数值吗 |
-|---|---|
-| `tokens/*.css` | **是** —— 机器真相源 |
-| `references/tokens.md` | **是**，但它是 CSS 的**镜像**，由 `scripts/verify.mjs` 校验一致 |
-| `SKILL.md` / 其它散文 | **否** —— 只命名 token，解释为什么 |
-
-`npm run verify` 会让违反这三条的改动**直接失败**。包括：散文里出现 hex、规格表和 CSS 分家、自造 token、契约里的 token 没定义。
-
----
-
-## 用法
-
-> **要在一个项目里落地？看 [ADOPTING.md](./ADOPTING.md)** —— 从一次真实迁移
-> （React + Vite + Tailwind v4 + shadcn，十几个页面、两万多行）反推出来的完整路径，
-> 含两个可直接复制的校验脚本，以及一张「哪些坑肉眼根本发现不了」的清单。
-
-### 让 AI 自己装（最短路径）
-
-不用先读这份 README。在新项目里把下面**整段**发给 Claude Code / Codex / Droid：
+Don't read this file first. Paste this whole block to Claude Code / Codex / Droid inside your project:
 
 ```text
-帮我接入 kiln 设计系统（中文后台 UI 设计规范），三步做完：
+Install the kiln design system (a Chinese admin UI spec). Three steps:
 
-1. 若 ~/kiln 不存在，执行 git clone git@github.com:wensia/kiln.git ~/kiln
-2. 建两个软链，缺一个对应 agent 就看不见它，而且不会报错：
+1. If ~/kiln doesn't exist: git clone git@github.com:wensia/kiln.git ~/kiln
+2. Create both symlinks — a missing one silently blinds that agent:
    mkdir -p ~/.claude/skills ~/.agents/skills
    ln -s ~/kiln ~/.claude/skills/kiln
    ln -s ~/kiln ~/.agents/skills/kiln
-3. 软链要重启会话才会进技能列表，所以本次会话直接读 ~/kiln/SKILL.md，
-   按需读 ~/kiln/references/*.md。之后这个项目所有 UI 都以它为准。
+3. Symlinks only register on session restart, so for now read ~/kiln/SKILL.md
+   directly, and ~/kiln/references/*.md as needed. From here on, every UI
+   decision in this project follows it.
 
-如果这是 Tailwind v4 + shadcn 项目，再照 ~/kiln/ADOPTING.md 把 token
-和两道校验门也接进来。
+If this is a Tailwind v4 + shadcn project, also follow ~/kiln/ADOPTING.md to
+wire in the tokens and both verification gates.
 ```
 
-装好之后，每次开工只要一句：
+Afterwards, one line starts any session:
 
-> **先加载 kiln skill，之后所有 UI 都按它来。**
+> **Load the kiln skill first — all UI follows it.**
 
-再把这句话写进项目的 `CLAUDE.md` / `AGENTS.md`，技能没被自动触发时还有规则兜底。
+Put that line in the project's `CLAUDE.md` / `AGENTS.md` as well: a rule catches what an untriggered skill misses.
 
-**自检：问它「kiln 是什么」。** 答不上来就是软链没生效 —— 它不会报错，只会安然按通用审美把整个页面写完。
+**Verify it took: ask the agent "what is kiln?"** If it can't answer, the symlink didn't land — and nothing will ever raise an error. The agent will calmly write the entire page from generic taste instead.
 
-### 作为 skill（手动装）
-
-**路径按 agent 区分，不是二选一** —— 同时用 Claude Code 和 Codex 就两个都要装：
-
-```bash
-mkdir -p ~/.claude/skills ~/.agents/skills
-ln -s "$(pwd)" ~/.claude/skills/kiln     # Claude Code
-ln -s "$(pwd)" ~/.agents/skills/kiln     # Codex / Droid / opencode
-```
-
-之后 agent 在做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
-
-> **装错位置不会报错。** agent 不会说"找不到 kiln"，它只会按通用审美把页面写完。
-> 自检方式是问它"kiln 是什么"——答不上来就是没装上。细节见
-> [ADOPTING.md 第五节](./ADOPTING.md)。
-
-### 作为 token 源（产品仓库消费）
+### As a token source
 
 ```css
-/* 你的 index.css */
+/* your index.css */
 @import "kiln/tokens/index.css";
 ```
 
-或者把 `tokens/*.css` **整个文件**复制过去。**永远不要把数值重新敲进文档或代码片段**——那是在造第二个真相源。
+Or copy `tokens/*.css` over whole. **Never retype the values into a doc or a snippet** — that is how a second source of truth is born.
 
-### 自检
+To land it in a real codebase, follow **[ADOPTING.md](./ADOPTING.md)**: the full path reverse-engineered from one real migration (React + Vite + Tailwind v4 + shadcn, a dozen pages, 20k+ lines), with two copy-paste verification scripts and an inventory of traps the eye cannot catch.
+
+### Verify
 
 ```bash
-npm run verify           # 静态：token 契约 + 规格表镜像 + 散文不含数值（零依赖）
-npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契约（需 playwright）
-npm run verify:paper     # 版面：对 examples/paper-login.html 数真实像素（需 playwright）
-npm run screenshots      # 重新生成 README 里的示例图（需 playwright）
+npm run verify           # static: token contract, spec-table mirror, no values in prose
+npm run verify:examples  # rendered: runtime contract against examples/workbench.html
+npm run verify:paper     # layout: real pixels of examples/paper-login.html
+npm run screenshots      # regenerate the images in this README
 ```
 
-改了示范页或 token 就跑一次 `npm run screenshots`，否则首页展示的是一套已经不存在的样子。
+---
 
-第二条是 kiln 自己吃自己的狗粮。在它出现之前，仓库里只有一份**给别人复制**的运行时模板，
-自己从来没有可供断言的渲染目标——一套要求别人验证渲染结果的规范，自己没验证过。
-`examples/workbench.html` 只消费 `tokens/*.css`、不含裸色值，把工作台的主要表面摆齐
-（侧栏、顶栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件），规则改了而示范页
-没跟上，这条命令会直接失败。
+## Values live in exactly one place
 
-第三条量的是**版面**而不是结构：截图之后逐像素数墨占比、数高饱和色相簇。
-纸面层的规矩（留白必须够、锚点只能有一个、纸不能浮在纸上面）没法从 computed style 问出来，
-只能看真实像素。区间是量出来的：工作台示范页在 1440 和 390 下分别是 8.11% 和 7.92% 墨，
-纸面层必须显著低于同视口的工作台。
+This system broke once, and the shape of the break is worth keeping.
+
+The canvas color had **three** different values at the same time — one in the readme, one in `SKILL.md`, a third in `colors.css`. Anyone implementing from prose got a wrong color, and only the eye could catch it.
+
+Worse was **partial specification**. The table gave values for colors but only names and intent for shadows, so implementers had to *invent* the shadows — and an invented value is indistinguishable from a looked-up one until it renders. Six shadows, all wrong.
+
+> A spec that gives values for some things and not others is **more** dangerous than one that gives none. Where values exist you assume you can look them up; where they don't, you start inventing.
+
+Hence three tiers:
+
+| Tier | May carry values |
+|---|---|
+| `tokens/*.css` | **yes** — the machine source of truth |
+| `references/tokens.md` | **yes**, but only as a *mirror* of the CSS, checked by `scripts/verify.mjs` |
+| `SKILL.md`, this README, all other prose | **no** — name the token, explain the why |
+
+`npm run verify` fails on any violation, and a pre-commit hook runs it.
+
+> Hosted Claude Design projects are an optional *downstream*: useful for showing components to non-engineers, never a source of truth. Distribution is git and npm.
 
 ---
 
-## 落地一个产品时：把规范变成会失败的检查
+## Two gates, because prose cannot hold itself
 
-散文管不住自己，人眼也审不完一整个应用。真正接住规范的是两道门：
+In that migration, **not one real bug was found by reading code.**
 
-**1. token 契约（构建时）** —— 断言每个 token 都有定义、没人自造 token、业务代码里没有裸 hex、没有 Tailwind 调色板裸色（`bg-green-100` / `text-red-500`）、没有页面专属的写死像素高度。
+**1. Token contract (build time)** — every contract token defined, nothing invented, no raw hex in product code, no Tailwind palette literals (`bg-green-100`), no factory shadows (`shadow-sm` and friends are cold black), no page-specific hardcoded heights.
 
-**2. 渲染样式契约（运行时）** —— 驱动真实页面，断言浏览器**算出来**的样式：圆角阶梯、控件高度、每视口至多一个陶土红动作、白卡靠阴影而非边框分层、阴影一律暖黑、字体栈、字号的上下限、表格只有横向分隔线。
+**2. Rendered-style contract (runtime)** — drives real pages and asserts what the browser *computed*: the radius ladder, control heights, at most one clay action per viewport, white cards layered by shadow rather than border, every shadow warm-black, the font stack, type-size bounds, tables ruled horizontally only.
 
-**第二道门不是锦上添花，它是唯一能抓住组合错误的东西。** 一个表面是半透明混合的组件（button-tab 的轨道、顶栏）是**上下文相关**的：把它从设计时所在的画布挪进白卡，对比度会无声失效——而 token 和类名看起来全都还是对的。
+**The second gate is the only thing that catches composition errors.** A translucent surface is context-dependent: move it off the canvas it was designed on and into a white card, and its contrast quietly collapses — while every token and every class name still looks correct.
 
-覆盖**每一个**页面、每一个 tab。断言没走到的地方，等于没有规范。
+Cover every page and every tab. **An assertion that never runs is worse than no assertion** — it makes you believe something is protected.
 
 ---
 
-## 关于 Claude Design 的托管项目
-
-kiln **不依赖**任何托管项目。数值的真相源就是这个仓库的 `tokens/*.css`，分发靠 git 和 npm。
-
-网页版 Claude Design 里的 design-system 项目是**可选的下游**：它能把组件渲染成可视化卡片，适合
-给非工程师看。Claude Code 有 `DesignSync` 工具可以直接写入那类项目（不需要人肉粘贴），但那是
-一条单向的、可有可无的支路——**不要把它当成真相源**，否则又多了一份会漂移的副本。
-
-## 结构
+## Layout
 
 ```
 kiln/
-├── SKILL.md                    # skill 入口：请求路由、意图、工艺规则、反模式
+├── SKILL.md                     # skill entry: routing, intent, craft rules, anti-patterns
 ├── references/
-│   ├── tokens.md               # 规格表（CSS 的镜像，机器校验一致）
-│   ├── components.md           # 组件规格、状态、QA
-│   ├── layouts-and-pages.md    # shell、侧栏（含折叠 rail）、DataTableDock、页面蓝图
-│   ├── platform-mapping.md     # React/Tailwind、纯 CSS、暗色、小程序、跨项目复用
-│   └── paper.md                # ★ 纸面层：登录/空状态/404/封面/发布说明/邮件
-├── tokens/                     # ★ 数值的唯一真相源
-│   ├── index.css               #   工作台入口，消费方只 import 这个
+│   ├── tokens.md                # spec table (a mirror of the CSS, machine-checked)
+│   ├── components.md            # component specs, states, QA
+│   ├── layouts-and-pages.md     # shell, sidebar (incl. collapsed rail), DataTableDock, blueprints
+│   ├── platform-mapping.md      # React/Tailwind, plain CSS, dark mode, mini-program, reuse
+│   └── paper.md                 # ★ paper layer: login / empty / 404 / covers / release notes / mail
+├── tokens/                      # ★ the only source of truth for values
+│   ├── index.css                #   workbench entry — the one file consumers import
 │   ├── colors.css  typography.css  spacing.css
 │   ├── radius.css  elevation.css   fonts.css  base.css
-│   └── paper.css               #   纸面层：**不**被 index.css 引入，纸面页面显式加载
-├── contract/tokens.json        # 合法 token 全集（机器契约，工作台层与纸面层分开列）
-├── evals/evals.json            # skill 冒烟测试
+│   └── paper.css                #   paper layer: NOT pulled in by index.css; load it explicitly
+├── contract/tokens.json         # the legal token set (workbench and paper listed separately)
+├── evals/evals.json             # skill smoke tests
 ├── examples/
-│   ├── workbench.html          #   工作台示范页：渲染契约的自测目标，也是 README 图的来源
-│   └── paper-login.html        #   纸面层示范页：版面契约的自测目标
-├── docs/                       # README 的示例图（由 npm run screenshots 生成，勿手改）
+│   ├── workbench.html           #   workbench demo: target of the runtime contract and README images
+│   └── paper-login.html         #   paper demo: target of the layout contract
+├── docs/                        # README images — generated by npm run screenshots, never hand-edited
 └── scripts/
-    ├── verify.mjs              # 静态自检：契约 + 镜像一致 + 散文不含数值
-    ├── verify-examples.mjs     # 工作台：结构断言（computed style）
-    ├── verify-paper.mjs        # 纸面层：版面断言（逐像素数墨占比与色相簇）
-    ├── screenshots.mjs         # 从示范页渲染 README 示例图（图不手截，避免第二个真相源）
-    ├── lib/runtime-contract.mjs # ★ 渲染断言的唯一来源（示范页与宿主模板共用）
-    └── templates/              # 宿主项目模板：只写「跑哪些页面」，规则从 lib 来
+    ├── verify.mjs               # static: contract + mirror + no values in prose
+    ├── verify-examples.mjs      # workbench: structural assertions (computed style)
+    ├── verify-paper.mjs         # paper: layout assertions (ink ratio and hue clusters, by pixel)
+    ├── screenshots.mjs          # renders the README images from the demo pages
+    ├── lib/runtime-contract.mjs # ★ the single source of rendered assertions (demos + host template)
+    └── templates/               # host-project templates: they name pages, the rules come from lib
 ```
