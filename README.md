@@ -8,6 +8,22 @@
 
 ---
 
+## 两层，同一套釉色
+
+**工作台层** —— 紧凑、暖黑阴影分层、信息密度第一。侧栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件、日期面板。
+
+![kiln 工作台层示范页](docs/workbench.png)
+
+**纸面层** —— 同一套 token，换成大留白与印刷质感。用在登录、空状态、404、报告封面、发布说明、系统邮件这些**不干活**的表面上。
+
+![kiln 纸面层示范页](docs/paper-login.png)
+
+> 这两张图是 `npm run screenshots` 从 `examples/*.html` 渲染出来的，不是手截的。
+> 同一批示范页也是渲染契约的断言目标（`npm run verify:examples`），
+> 所以**图、规范、契约三者不会分家** —— 手截的图是第二个真相源，必然漂移。
+
+---
+
 ## 这个仓库是什么
 
 **它同时是三样东西**，这不是巧合，是刻意的：
@@ -55,7 +71,34 @@
 > （React + Vite + Tailwind v4 + shadcn，十几个页面、两万多行）反推出来的完整路径，
 > 含两个可直接复制的校验脚本，以及一张「哪些坑肉眼根本发现不了」的清单。
 
-### 作为 skill（agent 自动加载）
+### 让 AI 自己装（最短路径）
+
+不用先读这份 README。在新项目里把下面**整段**发给 Claude Code / Codex / Droid：
+
+```text
+帮我接入 kiln 设计系统（中文后台 UI 设计规范），三步做完：
+
+1. 若 ~/kiln 不存在，执行 git clone git@github.com:wensia/kiln.git ~/kiln
+2. 建两个软链，缺一个对应 agent 就看不见它，而且不会报错：
+   mkdir -p ~/.claude/skills ~/.agents/skills
+   ln -s ~/kiln ~/.claude/skills/kiln
+   ln -s ~/kiln ~/.agents/skills/kiln
+3. 软链要重启会话才会进技能列表，所以本次会话直接读 ~/kiln/SKILL.md，
+   按需读 ~/kiln/references/*.md。之后这个项目所有 UI 都以它为准。
+
+如果这是 Tailwind v4 + shadcn 项目，再照 ~/kiln/ADOPTING.md 把 token
+和两道校验门也接进来。
+```
+
+装好之后，每次开工只要一句：
+
+> **先加载 kiln skill，之后所有 UI 都按它来。**
+
+再把这句话写进项目的 `CLAUDE.md` / `AGENTS.md`，技能没被自动触发时还有规则兜底。
+
+**自检：问它「kiln 是什么」。** 答不上来就是软链没生效 —— 它不会报错，只会安然按通用审美把整个页面写完。
+
+### 作为 skill（手动装）
 
 **路径按 agent 区分，不是二选一** —— 同时用 Claude Code 和 Codex 就两个都要装：
 
@@ -86,7 +129,10 @@ ln -s "$(pwd)" ~/.agents/skills/kiln     # Codex / Droid / opencode
 npm run verify           # 静态：token 契约 + 规格表镜像 + 散文不含数值（零依赖）
 npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契约（需 playwright）
 npm run verify:paper     # 版面：对 examples/paper-login.html 数真实像素（需 playwright）
+npm run screenshots      # 重新生成 README 里的示例图（需 playwright）
 ```
+
+改了示范页或 token 就跑一次 `npm run screenshots`，否则首页展示的是一套已经不存在的样子。
 
 第二条是 kiln 自己吃自己的狗粮。在它出现之前，仓库里只有一份**给别人复制**的运行时模板，
 自己从来没有可供断言的渲染目标——一套要求别人验证渲染结果的规范，自己没验证过。
@@ -142,12 +188,14 @@ kiln/
 ├── contract/tokens.json        # 合法 token 全集（机器契约，工作台层与纸面层分开列）
 ├── evals/evals.json            # skill 冒烟测试
 ├── examples/
-│   ├── workbench.html          #   工作台示范页：渲染契约的自测目标
+│   ├── workbench.html          #   工作台示范页：渲染契约的自测目标，也是 README 图的来源
 │   └── paper-login.html        #   纸面层示范页：版面契约的自测目标
+├── docs/                       # README 的示例图（由 npm run screenshots 生成，勿手改）
 └── scripts/
     ├── verify.mjs              # 静态自检：契约 + 镜像一致 + 散文不含数值
     ├── verify-examples.mjs     # 工作台：结构断言（computed style）
     ├── verify-paper.mjs        # 纸面层：版面断言（逐像素数墨占比与色相簇）
+    ├── screenshots.mjs         # 从示范页渲染 README 示例图（图不手截，避免第二个真相源）
     ├── lib/runtime-contract.mjs # ★ 渲染断言的唯一来源（示范页与宿主模板共用）
     └── templates/              # 宿主项目模板：只写「跑哪些页面」，规则从 lib 来
 ```
