@@ -139,6 +139,107 @@ try {
 
   console.log("✓ runtime row hover: accepts tr- or cell-painted highlight, still catches none");
 
+  // Real browser regression for double-painted row states. A tr and sticky td
+  // can have identical computed colors while translucent ordinary td paint
+  // makes the visible ordinary cells darker. Raw string comparison misses it.
+  const frozenProbe = await context.newPage();
+  const frozenBaseCss = `
+    body { margin: 24px; background: white; }
+    .probe { border-collapse: collapse; width: 600px; background: white; }
+    .probe tr { background: rgb(255, 255, 255); }
+    .probe td { height: 40px; width: 200px; background: transparent; }
+    .probe td.frozen { position: sticky; right: 0; background: inherit; }
+    .probe tr:nth-child(even) { background: rgb(248, 246, 242); }
+    .probe tr:hover { background: rgb(241, 238, 233); }
+    .probe tr:has([aria-expanded="true"]) { background: rgb(237, 235, 231); }
+    .probe tr[data-state="selected"], .probe tr[aria-selected="true"] { background: rgb(240, 224, 219); }
+  `;
+  const frozenRow = (attributes = "", expanded = false) =>
+    `<tr ${attributes}><td>普通列</td><td>普通列二</td><td class="frozen"><button type="button" aria-expanded="${expanded}">更多</button></td></tr>`;
+  const frozenTable = (rows) => `<table class="probe"><tbody>${rows}</tbody></table>`;
+  const frozenCases = [
+    {
+      name: "single-paint-all-states",
+      html: frozenTable(frozenRow() + frozenRow() + frozenRow('data-state="selected"') + frozenRow("", true) + frozenRow('aria-selected="true"', true)),
+      css: "",
+      expected: null,
+    },
+    {
+      name: "translucent-row-with-opaque-frozen-tint",
+      html: frozenTable(frozenRow()),
+      css: ".probe tr:hover { background: rgba(241, 238, 233, .4); } .probe tr:hover td.frozen { background: rgb(241, 238, 233); }",
+      expected: /hover.+合成背景/,
+    },
+    {
+      name: "equivalent-css-color-notation",
+      html: frozenTable(frozenRow()),
+      css: ".probe tr:hover td.frozen { background: color(srgb 0.945098 0.933333 0.913725); }",
+      expected: null,
+    },
+    {
+      name: "ordinary-cells-double-hover-tint",
+      html: frozenTable(frozenRow()),
+      css: ".probe tr:hover td:not(.frozen) { background: rgba(47, 47, 47, .08); }",
+      expected: /hover.+合成背景/,
+    },
+    {
+      name: "selected-double-tint-beyond-first-row",
+      html: frozenTable(frozenRow() + frozenRow() + frozenRow('data-state="selected"')),
+      css: '.probe tr[data-state="selected"] td:not(.frozen) { background: rgba(47, 47, 47, .08); }',
+      expected: /行3\].+selected.+合成背景/,
+    },
+    {
+      name: "open-menu-double-tint",
+      html: frozenTable(frozenRow() + frozenRow("", true)),
+      css: '.probe tr:has([aria-expanded="true"]) td:not(.frozen) { background: rgba(47, 47, 47, .08); }',
+      expected: /menu-open.+合成背景/,
+    },
+    {
+      name: "selected-hover-precedence-drift",
+      html: frozenTable(frozenRow('aria-selected="true"')),
+      css: '.probe tr[aria-selected="true"]:hover td.frozen { background: rgb(241, 238, 233); }',
+      expected: /hover\/selected.+合成背景/,
+    },
+    {
+      name: "opaque-frozen-paint-required-in-every-state",
+      html: frozenTable(frozenRow('data-state="selected"')),
+      css: '.probe tr[data-state="selected"] td.frozen { background: rgba(240, 224, 219, .5); }',
+      expected: /selected.+半透明/,
+    },
+    {
+      name: "visible-table-after-hidden-table",
+      html: `<div hidden>${frozenTable(frozenRow())}</div>${frozenTable(frozenRow())}`,
+      css: ".probe tr:hover td:not(.frozen) { background: rgba(47, 47, 47, .08); }",
+      expected: /表2.+合成背景/,
+    },
+    {
+      name: "later-visible-table",
+      html: frozenTable(frozenRow()) + `<section>${frozenTable(frozenRow())}</section>`,
+      css: "section .probe tr:hover td:not(.frozen) { background: rgba(47, 47, 47, .08); }",
+      expected: /表2.+合成背景/,
+    },
+  ];
+  for (const sample of frozenCases) {
+    await frozenProbe.setContent(`<style>${frozenBaseCss}${sample.css}</style>${sample.html}`);
+    await frozenProbe.evaluate(() => {
+      window.frozenProbeClicks = 0;
+      document.addEventListener("click", () => { window.frozenProbeClicks += 1; });
+    });
+    const stateBefore = await frozenProbe.locator("tbody").evaluateAll((bodies) => bodies.map((body) => body.innerHTML));
+    const result = createReport();
+    await auditFrozenColumns(frozenProbe, sample.name, result);
+    if (sample.expected) {
+      assert.ok(result.failures.some((failure) => sample.expected.test(failure)), `${sample.name} must fail:\n${result.failures.join("\n")}`);
+    } else {
+      assert.deepEqual(result.failures, [], `${sample.name} must pass:\n${result.failures.join("\n")}`);
+      assert.ok(result.ok.length, `${sample.name} must actually inspect a frozen row`);
+    }
+    assert.equal(await frozenProbe.evaluate(() => window.frozenProbeClicks), 0, "The audit must not click business controls");
+    assert.deepEqual(await frozenProbe.locator("tbody").evaluateAll((bodies) => bodies.map((body) => body.innerHTML)), stateBefore, "The audit must preserve existing selection/menu state");
+  }
+  await frozenProbe.close();
+  console.log("✓ runtime frozen composites: one paint, equivalent notation, double tints, state precedence, opacity, and multiple tables");
+
   // 入口锚定：三种翻车方式各来一个负样本。三条都不碰 class 名和组件名 —— 只有渲染
   // 几何与结构参与断言，正如这条规则本身谈的是位置而不是写法。
   const anchorPositive = createReport();

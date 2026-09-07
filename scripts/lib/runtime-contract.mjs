@@ -815,81 +815,129 @@ export const collect = (palette) =>
     return out;
   })();
 
+/** Read actual flat-color surfaces, including a translucent td over its tr. */
+const collectFrozenRowSurfaces = (row) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Canvas unavailable for frozen-column background comparison");
+  const rgba = (color) => {
+    context.clearRect(0, 0, 1, 1);
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+    return [...context.getImageData(0, 0, 1, 1).data];
+  };
+  const surface = (element) => {
+    const own = getComputedStyle(element);
+    const layers = [];
+    const unsupported = new Set();
+    let covered = false;
+    for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      // Group opacity/blending changes even an opaque descendant. Do not turn an
+      // unsupported paint model into a passing "same color" measurement.
+      if (style.opacity !== "1" || style.mixBlendMode !== "normal") unsupported.add("opacity/blend");
+      if (covered) continue;
+      if (style.backgroundImage !== "none") unsupported.add("background-image");
+      layers.unshift(style.backgroundColor);
+      covered = rgba(style.backgroundColor)[3] === 255;
+    }
+    context.clearRect(0, 0, 1, 1);
+    // The browser's default page canvas is white when no ancestor paints it.
+    context.fillStyle = "white";
+    context.fillRect(0, 0, 1, 1);
+    for (const layer of layers) {
+      context.fillStyle = layer;
+      context.fillRect(0, 0, 1, 1);
+    }
+    const composite = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+    return { raw: own.backgroundColor, alpha: rgba(own.backgroundColor)[3], composite, unsupported: [...unsupported] };
+  };
+  const cells = [...row.children]
+    .filter((cell) => cell.tagName === "TD" && cell.getBoundingClientRect().width > 0)
+    .map((cell, index) => ({ index, sticky: getComputedStyle(cell).position === "sticky", ...surface(cell) }));
+  return {
+    cells,
+    row: surface(row),
+    selected: row.matches('[aria-selected="true"], [data-state="selected"]'),
+    menuOpen: Boolean(row.querySelector('[aria-expanded="true"], [data-popup-open], button[data-state="open"]')),
+  };
+};
+
 /**
- * 冻结列背景：必须不透明，且必须跟着行状态走。
+ * A frozen column is an opaque repaint of the SAME visible row surface. Compare
+ * composited cell colors, not tr/td backgroundColor strings: a translucent td
+ * over a tinted tr paints twice even when the sticky cell uses the same token.
  *
- * 为什么它单独跑一趟、而不是并进上面的 collect()：**这条规则只在行 hover 时才现形**。
- * 冻结列涂死一个背景色（`bg-card`）的实现，静息态下和正确实现的像素一模一样 —— 静态
- * 收集 computed style 永远抓不到它。只有鼠标压上去那一刻才看得见：整行亮了，冻结列没亮，
- * 高亮在冻结边缘齐刷刷断掉。
- *
- * 而它偏偏又极容易写错：Tailwind v4 里 `bg-card` 落在 utilities 层，行状态规则通常在
- * base 层，**层序压过特异性** —— utilities 里一个单类工具类，稳稳压死 base 里 (0,3,0) 的
- * :hover 规则。token 全对、类名全对、代码审查挑不出毛病。
+ * Check representative normal/zebra/selected/menu-open rows in every visible
+ * tbody. Only hover is driven automatically; selection and menus must already be
+ * reached by the host's real interactions. This audit never clicks business UI.
  */
 export const auditFrozenColumns = async (page, name, report) => {
   const { fail, pass } = report;
-  const rows = page.locator("tbody tr");
-  if ((await rows.count()) === 0) return; // 本页没有数据表
+  const bodies = page.locator("tbody");
+  const sameColor = (a, b) => a.every((channel, index) => Math.abs(channel - b[index]) <= 1);
+  const colorText = (value) => `rgb(${value.join(", ")})`;
 
-  // 窄视口下桌面表格通常是 display:none（行仍在 DOM 里），移动端另有一套卡片列表。
-  // 对隐藏的行做 hover 只会挂在那里等到超时 —— 它不是违规，是这一档根本没有这张表。
-  const row = rows.first();
-  if (!(await row.isVisible())) return;
-  const cells = row.locator("td");
-  const cellCount = await cells.count();
+  for (let bodyIndex = 0; bodyIndex < await bodies.count(); bodyIndex += 1) {
+    const rows = bodies.nth(bodyIndex).locator(":scope > tr");
+    const representatives = await rows.evaluateAll((elements) => {
+      const seen = new Set();
+      return elements.flatMap((row, index) => {
+        const rect = row.getBoundingClientRect();
+        const style = getComputedStyle(row);
+        if (!rect.width || !rect.height || style.visibility === "hidden") return [];
+        if (![...row.children].some((cell) => cell.tagName === "TD" && getComputedStyle(cell).position === "sticky")) return [];
+        const selected = row.matches('[aria-selected="true"], [data-state="selected"]');
+        const menu = Boolean(row.querySelector('[aria-expanded="true"], [data-popup-open], button[data-state="open"]'));
+        const key = `${index % 2}/${selected}/${menu}`;
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [index];
+      });
+    });
+    for (const rowIndex of representatives) {
+      const row = rows.nth(rowIndex);
+      const label = `${name}/表${bodyIndex + 1}/行${rowIndex + 1}`;
+      let broken = false;
+      const compare = (snapshot, state) => {
+        const reference = snapshot.cells.find((cell) => !cell.sticky) ?? snapshot.row;
+        for (const cell of snapshot.cells.filter((item) => item.sticky)) {
+          const location = `${state} 冻结列第 ${cell.index + 1} 格`;
+          if (cell.alpha !== 255) {
+            broken = true;
+            fail(label, `${location}背景 ${cell.raw} 半透明 —— 横向滚动时下层列会透出来`);
+          }
+          if (reference.unsupported.length || cell.unsupported.length) {
+            broken = true;
+            fail(label, `${location}含非纯色背景或 opacity/blend，无法自动比较实际合成色；需页面截图验证，不能记为通过`);
+          } else if (!sameColor(cell.composite, reference.composite)) {
+            broken = true;
+            fail(label, `${location}合成背景 ${colorText(cell.composite)}，同行普通格为 ${colorText(reference.composite)} —— 行高亮在冻结边界出现深浅差。检查 tr/td 是否重复叠加透明 tint，或 sticky 的 bg-* 是否压过行状态规则。`);
+          }
+        }
+      };
 
-  // 冻结单元格 = 算出来 position:sticky —— 不认 class、不认 data 属性命名，只认浏览器的结论
-  const sticky = [];
-  for (let i = 0; i < cellCount; i += 1) {
-    if ((await cells.nth(i).evaluate((el) => getComputedStyle(el).position)) === "sticky") sticky.push(i);
-  }
-  if (!sticky.length) return; // 这张表没有冻结列
-
-  const bgOf = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
-
-  // 报「通过」必须以本轮**没有**失败为前提。上一版无条件 pass，于是同一次运行里
-  // 冻结列既报 ✓ 又报 ✗ —— 一个自相矛盾的报告，读的人只会挑自己想信的那条。
-  let broken = false;
-
-  // ① 静息态：冻结单元格必须不透明，否则横向滚动时下层的列会从底下透出来
-  for (const i of sticky) {
-    const bg = await bgOf(cells.nth(i));
-    if (!isOpaque(bg)) {
-      broken = true;
-      fail(name, `冻结列第 ${i + 1} 格背景 ${bg} 半透明 —— 横向滚动时下层列会透出来`);
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(250); // Let existing background transitions settle.
+      const resting = await row.evaluate(collectFrozenRowSurfaces);
+      const state = [resting.selected && "selected", resting.menuOpen && "menu-open"].filter(Boolean).join("+") || "rest/zebra";
+      compare(resting, state);
+      await row.hover();
+      await page.waitForTimeout(250);
+      const hovered = await row.evaluate(collectFrozenRowSurfaces);
+      compare(hovered, `hover/${state}`);
+      const before = resting.cells.find((cell) => !cell.sticky) ?? resting.row;
+      const after = hovered.cells.find((cell) => !cell.sticky) ?? hovered.row;
+      // Selected/open state can legitimately outrank hover. An ordinary row
+      // needs a visible change; being opaque at rest alone is not a hover state.
+      if (!resting.selected && !resting.menuOpen && sameColor(before.composite, after.composite)) {
+        broken = true;
+        fail(label, `hover 数据行没有背景高亮（合成前后均为 ${colorText(after.composite)}）—— 表格必须有行 hover 态`);
+      }
+      if (!broken) pass(label, `冻结列 ${resting.cells.filter((cell) => cell.sticky).length} 格：不透明，${state} 与 hover 的合成背景均跟随同行`);
     }
   }
-
-  // ② hover 态：行亮起来，冻结列必须跟着亮。
-  //
-  // 基准取「同行普通单元格算出来的背景」，不是 <tr> 的背景 —— 行高亮有两种写法，屏幕上
-  // 是同一件事：挂在 <tr> 上，或挂在每个 <td> 上（冻结单元格必须不透明，不少实现索性把
-  // 背景都给了单元格）。只认 <tr> 会把后一种误判成「没有行 hover 态」，而真正该查的
-  // 冻结列对拍，因为这里的 return 根本没机会跑 —— 一条误报顺带盖掉一条真断言。
-  await row.hover();
-  await page.waitForTimeout(250); // 等 transition-colors 走完
-  const plainIndex = [...Array(cellCount).keys()].find((i) => !sticky.includes(i));
-  let rowBg = await bgOf(row);
-  if (!isOpaque(rowBg) && plainIndex !== undefined) rowBg = await bgOf(cells.nth(plainIndex));
-
-  if (!isOpaque(rowBg)) {
-    fail(name, `hover 数据行没有背景高亮（行与普通单元格都是 ${rowBg}）—— 表格必须有行 hover 态`);
-    return;
-  }
-
-  for (const i of sticky) {
-    const bg = await bgOf(cells.nth(i));
-    if (bg !== rowBg) {
-      broken = true;
-      fail(
-        name,
-        `hover 时冻结列第 ${i + 1} 格是 ${bg}，同行是 ${rowBg} —— 行高亮走到冻结列就断了。` +
-          `多半是给 sticky cell 加了 bg-* 工具类：utilities 层压过了 base 层的行状态规则。`
-      );
-    }
-  }
-  if (!broken) pass(name, `冻结列 ${sticky.length} 格：不透明且跟随行 hover`);
 };
 
 /**

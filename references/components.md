@@ -768,9 +768,11 @@ Scroll frame and sticky layering:
 Frozen column background:
 
 - A frozen cell must be **opaque** (the columns scrolling underneath must not show through) **and** must follow its row's state. These two requirements fight each other, and the fight is silent: an opaque background painted once freezes the cell at its resting color, and every row highlight — zebra, hover, selected, row-menu-open — then visibly stops at the frozen edge while the rest of the row lights up.
-- So a sticky cell cannot inherit the row background; it has to repaint it. Drive it from **one** rule set keyed on the sticky cells, covering all four states, consuming the same `--table-row-*` tokens the row consumes:
+- A sticky cell has to repaint the row surface opaquely. `background-color: inherit` is safe only when the row owns a fully opaque resolved color; inheritance does not make a translucent row opaque. Otherwise drive it from **one** rule set keyed on the sticky cells, covering all four states, consuming the same `--table-row-*` tokens the row consumes:
 
 ```css
+/* The row owns the state surface; ordinary cells do not tint it a second time. */
+[data-slot="table-row"] > td:not([data-sticky-cell])                 { background-color: transparent; }
 [data-slot="table-row"] > [data-sticky-cell]                          { background: var(--card); }
 [data-slot="table-row"]:nth-child(even) > [data-sticky-cell]          { background: var(--table-row-alt); }
 [data-slot="table-row"]:hover > [data-sticky-cell],
@@ -779,7 +781,9 @@ Frozen column background:
 ```
 
 - **Never put a `bg-*` utility class on a sticky body cell** (`bg-card`, `bg-background`, …). Under Tailwind v4 the utility lands in `@layer utilities`, the rules above live in `@layer base`, and **layer order beats specificity** — a single-class utility silently outranks a `(0,3,0)` `:hover` rule. The cell keeps a valid-looking token, the code review passes, and the row highlight dies at the frozen column. If the sticky background must be expressed in the component, put it in the same layer as the state rules or hoist both out of `@layer`.
-- Row-state tokens must mix into `--card`, never into `transparent`: a `color-mix(…, transparent)` row tint is fine on a normal cell (it composites over the table surface) but turns a frozen cell into a window.
+- **Same state means the same visible composite color across the row, not merely the same token name or `backgroundColor` string.** Keep the row as the opaque surface owner; ordinary cells stay transparent and frozen cells repaint that row surface opaquely. A selected row must not become a darker action-column rectangle. Do not apply a translucent state tint to both the row and its ordinary cells: those cells composite the tint twice while an opaque frozen cell paints it once. A local `bg-muted/…`, `bg-primary/…`, or inherited alpha background on either layer can cause this even when the frozen cell has the correct token. Scope any genuinely cell-specific semantic fill separately from the row highlight.
+- Row-state tokens must mix into `--card`, never into `transparent`. One opaque state surface lets normal, zebra, hover, selected, and row-menu-open backgrounds match without revealing the columns scrolling beneath frozen cells. Define state precedence once for the row and its frozen repaint; selected plus hover or an open menu must use the same winning state on both sides.
+- QA compares an ordinary cell’s background composited over its row and ancestors with each frozen cell’s opaque paint, allowing only raster rounding. Cover a normal and zebra row, selection, open row menus, and their hover combinations. The runtime contract samples those states when present in every visible table and drives hover only; the host must reach selection/menu states through its own real interactions and audit again. It must not claim unvisited states passed or click business controls to invent coverage. Non-flat background images or group opacity/blending need screenshot validation when the automatic flat-color comparison reports it cannot measure them.
 - Header sticky cells are the exception: they carry `--table-header` and have no row states, so a utility class there is harmless.
 
 Frozen column scroll shadow:
