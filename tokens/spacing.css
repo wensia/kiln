@@ -15,11 +15,40 @@
   --space-12: 48px;
 
   /* ---- Control heights ---- */
+  /* 本段即 standard 密度档的基准。下方 [data-density] 块必须逐个覆盖本段
+     的全部 token，且只覆盖本段 —— 由 scripts/verify.mjs 的密度档检查守着。 */
   --nav-item-height: 36px;     /* 侧边导航项 */
   --table-row-height: 48px;    /* 表格行基线 */
   --table-pagination-height: 40px; /* 分页条带（三级条带：32px 控件 + 上下留白）*/
   --toolbar-control: 32px;     /* 工具栏控件 32-36 */
-  --control-height: 36px;      /* 表单 / 按钮默认 (h-9) */
-  --control-height-sm: 32px;   /* 小号控件 (h-8) */
+  --control-height: 36px;      /* 表单 / 按钮默认 */
+  --control-height-sm: 32px;   /* 小号控件 */
+  --control-height-lg: 40px;   /* 重要提交 / 移动端主操作 */
+
+  /* ---- Rhythm ---- */
   --field-rhythm: 12px;        /* 表单字段垂直节奏 8-12 */
+}
+
+/* ============================================================
+   密度档
+   散文层（SKILL.md 的 Density Ladder）一直讲密度随屏幕类型变，契约层
+   （references/components.md）反复写 "when the whole group is explicitly
+   compact"，但 compact 从来没有定义 —— 于是消费者只能自己发明更小的档位。
+   这里给它一个真值。
+
+   规则：密度档**只改控件几何**。
+   字号（可读性下限，中文界面尤甚）、间距阶梯、圆角、边框、图标尺寸一律不随档变 ——
+   控件框缩了图标不缩，图标占比自然上升，这是要的效果。
+   整档平移，不新增更小的档位名：compact 档下最小的仍是 sm，
+   「太小的动作请用文字链接」那条契约在任何档位下都继续成立。
+   ============================================================ */
+
+[data-density="compact"] {
+  --nav-item-height: 32px;
+  --table-row-height: 40px;
+  --table-pagination-height: 36px;
+  --toolbar-control: 28px;
+  --control-height: 32px;
+  --control-height-sm: 28px;
+  --control-height-lg: 36px;
 }

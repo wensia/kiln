@@ -14,6 +14,9 @@ Prefer semantic tokens:
 
 Rules:
 
+- Business forms consume shared Kiln wrappers (Button, Input, Textarea, Select / Combobox, Checkbox, RadioGroup, DatePicker / TimePicker, ColorPicker, Slider). Do not render native `<select>`, `<datalist>`, or browser / OS picker input types, and do not pass such a type through Input. CSS restyling and `appearance: none` cannot replace the popup or interaction contract.
+- Preserve semantic HTML inside shared primitives and fully styled editor-specific controls. Invisible file bridges / hidden form values and library-generated hidden inputs are permitted; native system file dialogs are separate from page forms. No entire-directory exception is permitted, including for demos.
+- Enforce this boundary with an AST check in the host build: include all TSX sources, inspect conditional and spread input types, and test forbidden fixtures. Open shared selectors and pickers in browser QA to verify their real popup, focus, and keyboard behavior as well as their trigger styling.
 - Use `bg-background`, `bg-card`, `bg-muted`, `border-border`, `text-muted-foreground`, `bg-solid`, `bg-primary`, and status tokens.
 - White cards/panels/metric blocks are borderless by default and separate via `shadow-card`; add `border-border` only for inputs, table row dividers, and structural seams.
 - Use token-backed sizing where useful: `h-[var(--control-height)]`, `rounded-[var(--radius-control)]`.

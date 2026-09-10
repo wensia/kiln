@@ -67,12 +67,23 @@ Required implementation checks:
 - Ordinary filled actions use the ink/solid treatment (`bg-solid text-solid-foreground`). Clay red (`bg-primary`) is reserved for **the single key action of a flow** (e.g. the "新建…" entry on a resource-management page) and for active/current/selected/filter/focus/error/destructive semantics. If the host button component has only a `default` filled variant, make `default` solid and add an explicit `primary` variant for the key action and stateful filled controls. At most one clay-filled action per viewport — if everything is red, nothing reads as state. Which button gets which fill is **not a judgment call**: run the variant decision table in `components.md` (Button → Variant decision), first match wins.
 - Do not claim the migration is complete after lint or build alone when the user asks about visual consistency. Inspect at least one representative live page or computed-style snapshot and verify: button/input/select radius `4px`, card/panel/dialog radius `6px`, ordinary filled action uses solid, and the key action / active / selected / focus / error state uses primary.
 
+### Shared Controls Are Mandatory
+
+Business forms and workbench controls must use the host project's shared, Kiln-styled components. **Do not expose browser / OS default form controls.** This includes native `<select>`, `<datalist>` suggestions, and visible `<input>` types `date`, `datetime-local`, `time`, `month`, `week`, `color`, `range`, `checkbox`, `radio`, or `file`. Date/calendar, time, color, slider, select, checkbox, and radio interactions need shared components with Kiln-rendered triggers, popups, states, and keyboard behavior.
+
+- `appearance: none`, a CSS wrapper, or `<Input type="date">` does not satisfy this rule: opening the control must also stay inside the design system. If a shared component is missing, implement it once before using it in business UI.
+- Preserve semantic HTML. Shared components may render `<button>`, text-like `<input>`, and `<textarea>`; controlled rich-text / canvas editors and existing fully styled specialized interactions may use those elements as their rendering substrate. Shared number inputs retain numeric semantics but remove browser spinner decoration or replace it with shared controls. This rule is not permission to replace accessible HTML controls with generic `<div>` elements.
+- A visible semantic HTML substrate must have an explicit styling hook (`className` / `style`); bare unstyled inputs, textareas, and buttons fail the build gate. The hook is a minimum static check, not proof of correct styling or permission to skip shared components in business forms.
+- Invisible `type="file"` upload bridges and `type="hidden"` form values are allowed. Hidden form elements produced internally by an accessible component library are allowed; business UI must still use its shared styled wrapper. Native system file-open / save dialogs are outside this page-control rule.
+- Apply the same rule to prototypes, demos, and development routes so temporary native controls cannot become production defaults. Do not exempt entire source directories or preserve current violations with a baseline.
+
 ### Make the spec machine-checkable
 
-Prose cannot enforce itself, and a human eye cannot audit a whole app. In a real port, wire two gates:
+Prose cannot enforce itself, and a human eye cannot audit a whole app. In a real port, wire three gates:
 
 1. **Token contract** (build-time). Assert that every token the design system declares is defined, that nobody invented a token, and that business code contains no raw hex, no Tailwind palette colors (`bg-green-100`, `text-red-500`…), and no page-specific hard-coded pixel heights. Values must come from the design system, not from someone's reading of a paragraph.
 2. **Rendered-style contract** (runtime). Drive the real pages and assert the browser's computed styles: the radius ladder, control heights, at most one clay-filled action per viewport, no clay and at most one fill inside a table row, white cards separated by shadow rather than border, warm-black shadows only, the font stack, the type-scale floor and ceiling, vertical grid lines markedly lighter than the row divider, and frozen columns that follow the row's highlight (this one requires actually hovering — a static computed-style sweep cannot see it).
+3. **Control contract** (build-time). Parse JSX / TSX with an AST and reject native selectors and default-control input types, including multiline attributes, conditional `type` expressions, and shared-Input calls that pass native picker types. Check all application and development sources, allow only the invisible bridge cases above, and run negative fixtures that prove the gate rejects regressions. There is no violation baseline for this contract. Runtime checks must also open representative controls to confirm the popup is styled and keyboard-accessible.
 
 The second gate is not optional polish — it is the **only** thing that catches composition errors. A component whose surface is a semi-transparent mix (a button-tab track, the topbar) is context-dependent: nest it in a white card instead of the canvas it was designed for and its contrast quietly collapses, while the tokens and the class names all still look correct. Cover **every** page and every tab; whatever the assertions do not visit is, in practice, unspecified.
 
@@ -178,7 +189,30 @@ If two regions compete, demote one by reducing color, size, contrast, or proximi
 
 ### Density Ladder
 
-Choose density by screen type:
+Two things are stacked here — keep them apart.
+
+**Product tier** — a real token switch on a root or subtree. It shifts control
+geometry only: control heights, nav item height, toolbar control, table row.
+Type scale, spacing ladder, radius, borders and icon sizes never follow it.
+Icons keep their size while the box shrinks, so icon-to-box ratio rises — that is
+the intent, not an oversight.
+
+| Tier | Attribute | Control default / small / large | For |
+| --- | --- | --- | --- |
+| standard | (none) | see `tokens/spacing.css` | Admin backends: tables plus forms, sparse actions, short sessions |
+| compact | `data-density="compact"` | one step down | Dense tool surfaces: icon-heavy toolbars, high on-screen information density, long sessions |
+
+Set it once on the root for the whole product, or on a subtree to give one region
+its own density — an editor canvas can stay `standard` inside a `compact` shell.
+Values live in `tokens/spacing.css`; `scripts/verify.mjs` enforces that every tier
+covers the full set of control heights and touches nothing else.
+
+The tier shifts the whole ladder rather than adding a smaller rung: under
+`compact` the smallest button is still `sm`. "Too minor for `sm`? Use an inline
+text link" holds in every tier.
+
+**Screen type** — chosen per screen *within* a tier, expressed through spacing,
+grouping and placement rather than control height:
 
 - Dense: data tables, bulk actions, pagination, inline editing.
 - Standard: resource management, settings, connection setup.

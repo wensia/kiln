@@ -2,17 +2,27 @@
 
 Use these component rules with `references/tokens.md`. Keep controls compact, stable, and built for repeated operations. Components shipped in the DS bundle (`window.AIDesignSystem_4c1727`): Button, Input, Select, Checkbox, DateRangePicker, Card, Badge, Table, ResourceCard, MetricStat, SidebarNav, SegmentedControl, Tabs. Sections below without a DS component (password input, dialog, sheet, dropdown, toast…) are sanctioned patterns built from the same tokens.
 
+## Shared Control Boundary
+
+All business-facing form controls use shared Kiln components. Native `<select>` / `<datalist>` and browser-rendered date, time, color, range, checkbox, radio, or file controls are forbidden, even when their closed appearance is restyled. `<Input type="date">` still opens a native picker and is equally forbidden. Use a shared Select / Combobox, DatePicker / TimePicker, ColorPicker, Slider, Checkbox, RadioGroup, or upload action as appropriate; build a missing component once at the shared layer.
+
+Use semantic `<button>`, text-like `<input>`, and `<textarea>` inside shared components or fully styled editor-specific interactions. Invisible file-upload bridges, hidden form values, and accessibility-library internals are allowed; a custom visual wrapper around a visible native control is not. See `SKILL.md` → Shared Controls Are Mandatory for the exact boundary and build gate.
+
+Visible semantic substrates require an explicit `className` or `style`; bare browser-default inputs, textareas, and buttons are forbidden. A styling hook alone does not authorize a separate business form control or bypass any native-picker prohibition.
+
 ## Button
 
 ### Variant decision (run this, don't taste it)
 
 Walk it top-down; **the first row that matches wins**. This exists so "红还是黑" is never an aesthetic judgment call made per-button — it is a property of what the action *is*.
 
+The scoped [Data Editor Toolbar](#data-editor-toolbar) pattern below may use its specified resting and active treatments instead of the generic surface rules. This is a composition pattern for dense editors, not a change to shared Button defaults.
+
 | # | Ask | Variant |
 | --- | --- | --- |
 | 1 | Does it express a **state** rather than an action? (current page, selected row/item, a filter trigger holding active conditions, active nav/tab) | **clay `primary`** — and it MUST carry `aria-current` / `aria-pressed` / `data-state`. Stateful fills are **exempt** from the one-clay-per-viewport cap. |
 | 2 | Is it **high-risk and irreversible**? (删除, 作废, 解绑) | `destructive`, plus destructive labeling, a confirm step, or menu placement |
-| 3 | Is it **the single key action of this page or flow**? (the 新建… entry, 开始兑换, the page's reason to exist) | **clay `primary`** — at most **one per viewport** |
+| 3 | Is it **the single key action of this page or flow**? (the 新建… entry, 开始兑换, the page's reason to exist, or the commit/completion action defined by [Bulk Action Bar](#bulk-action-bar)) | **clay `primary`** — at most **one per viewport** |
 | 4 | Is it an **ordinary filled command**? (dialog/sheet confirm, 保存, 生成, secondary submit) | **ink `default`** (`bg-solid`) |
 | 5 | Is it a **row-level key action**? (one per table row, and it is what the page is *for* — 认领 on a claim queue, 拨打 on a call queue) | **ink `default`**, `sm` size — **at most one filled button per row, and never clay** |
 | 6 | Anything else (toolbar, detail header, secondary/row-secondary actions) | `outline` / `ghost` — must have a **visible surface before hover** |
@@ -31,15 +41,21 @@ Base:
 
 Sizes (the DS Button API set — `sm | default | lg | icon | icon-sm`):
 
-| Size | Height | Use |
-| --- | --- | --- |
-| `sm` | 32px | Toolbar, inline, dialog secondary, table operation cells |
-| `default` | 36px | Default form/page action |
-| `lg` | 40px | Important submit or mobile primary |
-| `icon-sm` | 32px | Compact tool icon |
-| `icon` | 36px | Default icon button |
+| Size | standard | compact | Use |
+| --- | --- | --- | --- |
+| `sm` | 32px | 28px | Toolbar, inline, dialog secondary, table operation cells |
+| `default` | 36px | 32px | Default form/page action |
+| `lg` | 40px | 36px | Important submit or mobile primary |
+| `icon-sm` | 32px | 28px | Compact tool icon |
+| `icon` | 36px | 32px | Default icon button |
 
-There is no 24px `xs` size in the DS. When an action is too minor for a 32px `sm` button, render it as a real inline text link instead of inventing a smaller button.
+Heights come from the control-height tokens, so they follow the product's density
+tier (see SKILL.md → Density Ladder). Bind height to the token, not to a fixed
+utility class — a hardcoded `h-9` silently opts that control out of the tier.
+
+The ladder shifts as a whole; no tier adds a smaller rung. There is no `xs` size in
+the DS in any tier. When an action is too minor for the current tier's `sm` button,
+render it as a real inline text link instead of inventing a smaller button.
 
 Rules:
 
@@ -51,7 +67,7 @@ Rules:
 - In shadcn-style button variants, the `default` filled variant should resolve to solid/ink, with an explicit `primary` variant for the key action and stateful filled controls. Do not leave `default` mapped to `bg-primary`.
 - Destructive actions use the destructive token, which currently maps to clay red, but they still need destructive labeling, confirmation, or menu placement. Do not use clay red alone to imply danger.
 - Outline, ghost, and text-like actions stay neutral by default. Page, toolbar, detail, edit, follow-up, call, close, and reset actions must still be discoverable before hover; `ghost` should resolve to a neutral soft button with a weak visible surface such as `border-border/70 bg-muted/40 text-foreground`, or the action should use `outline`. Hover may raise contrast with `text-foreground`, a stronger muted background, or a border change; it should not jump to clay red unless the action is truly selected, active, focused, or destructive.
-- Do not use transparent `ghost`, `border-transparent`, or primary-colored text to demote a visible action. If the action is too minor for a button, render it as a real inline text link in surrounding copy; if it remains in a toolbar or detail header, give it a stable neutral button surface.
+- Do not use transparent `ghost`, `border-transparent`, or primary-colored text to demote a visible action outside the scoped [Data Editor Toolbar](#data-editor-toolbar) pattern. If the action is too minor for a button, render it as a real inline text link in surrounding copy; if it remains in an ordinary toolbar or detail header, give it a stable neutral button surface.
 - Text buttons such as Save, Create, Cancel, Generate, and Confirm do not need decorative icons.
 - Press feedback: 1px downward shift (`active:translate-y-px`); selection is expressed by color, never scale.
 - Pure icon buttons need `aria-label` or `title`.
@@ -62,9 +78,41 @@ Rules:
 - Do not use `truncate` to hide button text problems.
 - The Button renders content-sized (`inline-flex`); it does not inherit its container's width. For a full-width button (mobile primary CTA, dialog footer stretch), set `width: 100%` **on the button element itself** — in React via `style`/`className` on the Button; in Design Components via `dc-props` (see platform-mapping.md, the `style` attribute on `<x-import>` sizes only the mount wrapper). Height overrides (e.g. a 44px mobile touch target over `lg` 40px) follow the same rule.
 
+## Bulk Action Bar
+
+Use this pattern for the temporary workflow entered by selecting multiple files or rows. Keep the bar in the workspace footer, with a visible selection count and scope.
+
+- Every active bulk action bar has exactly one non-destructive key action using the shared Button's `primary` variant. This matches the key-action decision above; it is not an ordinary secondary command merely because it appears in a footer.
+- If the batch has changes or a selection waiting to be submitted, use the actual commit action, such as “应用更改” or “确认选择”, as that primary button. Label it for what will be committed.
+- If each file operation takes effect when invoked and the bar remains open for more work, use “完成” as the primary button to exit selection mode. It does not submit, save, or undo those operations; do not imply that completed commands are still waiting to be applied.
+- Move, select all, clear selection, and other supporting commands use `outline`. Delete and other destructive commands keep `destructive` semantics, labeling, and their required confirmation; a destructive color does not count as the bar's non-destructive primary action. Do not color every batch command primary.
+- The bar's primary action is the single key action of the active bulk workflow. While that workflow is active, demote or replace a competing page-level primary action so the viewport still has only one clay-filled action. Selected navigation, view toggles, and other semantic state fills retain the existing state exception.
+- Keep the primary and destructive variants during async work. Disable commands that would change selection, repeat work, or exit an operation in progress, and retain their labels and the selection count. Loading must not erase the action hierarchy or silently dismiss the bar.
+- This rule applies to the bulk bar itself. A separate confirmation dialog or sheet still follows the Button decision and dialog rules: ordinary confirms use `default`, and destructive confirms use `destructive`. Do not generalize this pattern into making every confirmation primary.
+
+QA: inspect the rendered bar before hover, with a selection, and while busy. Verify the sole non-destructive primary action, neutral supporting actions, destructive semantics, readable selection scope, and stable placement. Confirm that “完成” exits selection without applying an additional operation.
+
+## Data Editor Toolbar
+
+Use this scoped pattern for a multidimensional table or a similarly dense document editor whose view controls sit immediately above the editing surface. The document identity, view tabs, and compact command row form distinct layers. This pattern does not apply to ordinary page actions, detail headers, standalone forms, or dialog footers.
+
+- Build every command from the shared Button. A local, explicitly named editor-toolbar style may remove the resting fill and border from routine icon-and-text commands. Keep the label and icon visible before hover; do not depend on a tooltip or pointer movement to reveal the action. This does not allow unstyled native controls or change the shared `ghost` variant for the rest of the product.
+- Keep one compact density tier throughout the row, using control-height, spacing, typography, icon, and radius tokens. Group creation, view configuration, and history/utility commands by position and spacing. The main add-record action may retain the existing primary treatment; do not add filled backgrounds to every neighboring command.
+- A view tab with an adjacent More action is one visual unit. The shared tab container owns selected, hover and menu-open surfaces; neither the name nor the More button paints an independent fill over it. Hovering a selected tab must retain its complete selected surface. Keep separate semantic click targets and visible keyboard focus for switching the view and opening its menu, with matching full-height geometry.
+- Resting commands use readable neutral foreground. Hover uses a muted surface; an open popup or pressed command has a persistent surface or semantic color. Active filters, grouping, and sorting also show a count or explicit state and expose `aria-pressed` / `aria-expanded`; a primary tint or foreground may carry that state without requiring a solid primary fill on each command. Keyboard focus retains the shared visible ring, and disabled or loading commands keep their labels and state counts.
+- Field configuration, filter, grouping, and sort controls open shared, trigger-anchored popovers. The grid keeps its position and width while a temporary configuration popup is open. Constrain popup size to the viewport, scroll its content, and keep the trigger reachable in narrow windows; do not solve overflow by hiding the command or shrinking controls below the compact tier.
+- Separate the searchable field list from the focused field-edit form. The field list supports finding a field and discovering the add-field action. A field editor contains only that field's applicable properties and explicit apply/cancel actions; field-type choices use shared, searchable, icon-labeled controls. Do not expose unavailable types as working options.
+- Field-list rows leave `space-1` above and below their compact controls, and the scrollable list keeps bottom padding before its footer divider. Size the row around its controls and padding; do not make the row and button the same height or clip the last row against the divider.
+- A row's More trigger needs distinct resting, hover, keyboard-focus and expanded states. Its hover surface must remain distinguishable from the row's hover surface; use a shared tooltip for its action label. Open its menu as a nested overlay, retaining the field list and search query. Escape closes only the topmost overlay and returns focus to its trigger.
+- Keep editing safeguards across anchored and nested popups: a picker must not commit the underlying grid prematurely, IME composition must finish before navigation, invalid input stays editable, and cancel must not write a draft. Escape and focus return follow the shared overlay behavior.
+
+QA must open the actual popovers and inspect default, hover, keyboard focus, pressed/open, applied-count, disabled, and loading states. Check wide and narrow editor routes, ensure the table does not reflow when configuring a view, and verify that the toolbar's transparent treatment is scoped to the editor rather than leaking into shared Button defaults.
+
 ## Filter Trigger Button
 
 Use this pattern for "更多筛选" / advanced filter entry points in table toolbars and list workspaces, especially when the active condition count helps users scan state without opening the sheet. (A clay-filled active state here is sanctioned: the button represents an applied-filter state, which is exactly what `--primary` signals.)
+
+Dense document editors may instead use the scoped [Data Editor Toolbar](#data-editor-toolbar) trigger treatment, while retaining the counting and accessibility rules below.
 
 Base:
 
@@ -143,6 +191,7 @@ Rules:
 - Focus rings are a composition contract, not only a component-state contract. An outward ring is clipped when the control is flush with an ancestor that uses `overflow-hidden`, `overflow-clip`, or a scrollport boundary. Give the control at least one ring-width of breathing room or switch that control to an inset ring (Tailwind: `focus-visible:ring-inset`); keep the primary focus signal intact.
 - Do not fix a clipped focus ring by removing the ring or by globally changing a structural overflow rule. Inspect the nearest clipping ancestor first, choose the smallest local remedy, then focus the real control and verify that all four edges remain visible. A lint/build pass or an unfocused screenshot does not prove this state.
 - Numeric inputs allow empty and intermediate values during typing.
+- Remove the browser's default number-spinner decoration in the shared Input while retaining `type="number"` semantics; use shared buttons if explicit increment / decrement actions are needed. This text-input styling rule does not permit native picker types whose popup remains browser / OS controlled.
 - Format numeric values on blur when possible.
 
 ## Password Input
@@ -191,10 +240,12 @@ The 发送验证码 action lives **inside the SMS-code input**, right-aligned, a
 
 Use the DS `DateRangePicker` as the core pattern for overview, analytics, payroll, and questionnaire date/time fields.
 
+Single-date and time fields use shared DatePicker / TimePicker variants of the same pattern. Render both the trigger and picker content with Kiln components; do not substitute `input[type=date]`, `datetime-local`, `time`, `month`, or `week`, including through an Input wrapper.
+
 Trigger:
 
-- Toolbar trigger: outline small button, 32px high, min width about 150px, `justify-start`, `px-2.5`, tabular numbers.
-- Condition/form trigger: outline button, 40px high, full field width, radius 6px (documented exception to the 4px control radius for this tall field trigger), `border-border/70`, `bg-background`, `px-3`, `text-sm font-normal`, `shadow-xs`.
+- Toolbar trigger: shared outline button using the same `--control-height` tier and `--radius-control` as adjacent Input / Select controls, `justify-start`, tabular numbers. Use the small tier only when the whole group is compact.
+- Condition/form trigger: shared outline button, full field width, with the same control height and radius tokens as sibling Input fields; `--input` border and background tokens. Date fields do not get a taller or rounder exception.
 - Toolbar trigger may show `CalendarIcon` with `data-icon="inline-start"`.
 - Date text format: `YYYY-MM-DD` or `YYYY-MM-DD 至 YYYY-MM-DD`.
 - Trigger needs a `title` with the full date range.
@@ -242,7 +293,8 @@ Interaction:
 - Small/inline height: 30-32px.
 - Radius: 4px.
 - Same input visual language: `--input` border, white surface, quiet trigger.
-- Radix/shadcn Select content defaults should use trigger-edge positioning, not selected-item positioning: set `SelectContent` to `position="popper"` with `align="start"` in shared components. Keep `position="item-aligned"` only for explicit native-menu behavior where the selected item must sit over the trigger.
+- Use the shared Select / Combobox component; native `<select>` and `<datalist>` are forbidden. The popup, option highlight, check indicator, focus state, and scrolling must be rendered by the design system, not by the browser / OS.
+- Radix/shadcn Select content uses trigger-edge positioning: set `SelectContent` to `position="popper"` with `align="start"` in shared components. Base UI implementations use the corresponding trigger-edge positioning option. Do not use item-aligned positioning to imitate a native menu over the trigger.
 - Popper Select dropdowns should align their left edge to the trigger, use at least `--radix-select-trigger-width`, and keep a real content viewport height. Do not set the viewport height to `--radix-select-trigger-height`, or long option lists will collapse to one-row scroll panes.
 - QA Select positioning in dense workbench headers, table toolbars, dialogs, and narrow viewports. Check placeholder state, selected first item, selected middle item, selected last item, hover/focus, and long labels; the dropdown should not jump horizontally or overlap the trigger.
 - If options exceed about 8 or need search, use a combobox/dialog instead of a long dropdown.
@@ -470,7 +522,7 @@ Pagination is **one shared global component** — every data table consumes it; 
 - Page navigation is minimal: a **3-number window centered on the current page** (`3 [4] 5`) plus the page-jump Select — no 上一页/下一页 buttons and no ellipsis. The neighbor numbers ARE prev/next (one click switches); long jumps go through the「第 x 页」Select. At the boundaries the window clamps to the edge (`[1] 2 3`, `33 34 [35]`); with ≤3 pages render them all.
 - Pagination is a tertiary strip — use the compact 32px tier: page-number buttons ~32px (12px tabular text), page-size and page-jump Selects `size="sm"` (32px, still ≥120px wide); the current page is a selected state → clay fill (`bg-primary text-primary-foreground`); other pages use the neutral outline surface. All controls in the strip share the same 32px outer height. Do not go below 32px — the Select trigger cannot render shorter.
   - Page jump is a Select (「第 x 页」options), not static text — it doubles as the current-page indicator.
-- Bulk action bar stays in the footer area.
+- [Bulk action bars](#bulk-action-bar) stay in the footer area and follow their explicit primary/supporting/destructive action hierarchy.
 - Selection scope must be explicit, and it has **two halves that do not match on purpose**: the header checkbox acts on **the current page only** (it selects or clears this page's rows), while the count in the strip is the **cross-page running total** — leaving a page does not drop what you picked there. Both behaviors are right; what breaks trust is showing one and meaning the other, so the count must be visible whenever selection is on.
 
 ## Summary / Filter Strip

@@ -71,6 +71,68 @@ for (const m of specTable.matchAll(
   }
 }
 
+// ── 3b. 密度档必须完整，且只管几何 ────────────────────────────
+// 同一个病的第二次发作：散文（SKILL.md 的 Density Ladder）讲密度随屏幕类型变，
+// 契约（components.md）反复写 "explicitly compact"，token 却只有一档定值 ——
+// 于是消费者只能自己发明更小的档位。这里把它变成会失败的检查。
+//
+//   · 每个 [data-density] 档必须覆盖 :root「Control heights」段的全部 token
+//     （漏一个，该档就会静默继承 standard 值，混排出两种高度）
+//   · 且不得覆盖该段之外的任何 token
+//     （密度档只改控件几何；字号、间距、圆角、图标尺寸不随档变）
+const spacingCss = readFileSync(join(cssDir, "spacing.css"), "utf8");
+const rootBlock = spacingCss.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+const heightsSection =
+  rootBlock.match(/\/\* ---- Control heights ---- \*\/([\s\S]*?)(?=\/\* ----|$)/)?.[1] ?? "";
+const heightTokens = new Set(
+  [...heightsSection.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1])
+);
+
+if (heightTokens.size === 0) {
+  fail(
+    "密度档基准缺失：tokens/spacing.css 的 :root 里找不到「Control heights」段。" +
+      "密度档检查依赖这个段落边界，不要删掉那行注释。"
+  );
+}
+
+const densityBlocks = [
+  ...spacingCss.matchAll(/\[data-density="([a-z-]+)"\]\s*\{([\s\S]*?)\n\}/g),
+];
+for (const [, tier, body] of densityBlocks) {
+  const inTier = new Set(
+    [...body.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1])
+  );
+  for (const t of heightTokens) {
+    if (!inTier.has(t)) {
+      fail(
+        `密度档不完整：[data-density="${tier}"] 没有覆盖 ${t} —— ` +
+          `该档会静默继承 standard 值，同一屏混出两种控件高度。`
+      );
+    }
+  }
+  for (const t of inTier) {
+    if (!heightTokens.has(t)) {
+      fail(
+        `密度档越界：[data-density="${tier}"] 覆盖了 ${t} —— ` +
+          `密度档只改控件几何。字号有可读性下限（中文界面尤甚），` +
+          `间距/圆角/图标尺寸是物理像素阶梯，都不随档变。`
+      );
+    }
+  }
+}
+
+// 散文提到的档位必须真的存在
+const tiers = new Set(densityBlocks.map((m) => m[1]));
+const skillMd = readFileSync(join(ROOT, "SKILL.md"), "utf8");
+for (const m of skillMd.matchAll(/data-density="([a-z-]+)"/g)) {
+  if (!tiers.has(m[1])) {
+    fail(
+      `散文承诺了不存在的密度档：SKILL.md 提到 data-density="${m[1]}"，` +
+        `但 tokens/spacing.css 没有这个档。`
+    );
+  }
+}
+
 // ── 4. 其它散文不得重述 hex ───────────────────────────────────
 const PROSE = [
   "SKILL.md",

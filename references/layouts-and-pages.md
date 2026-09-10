@@ -71,6 +71,13 @@ Collapse behaviour (shell-owned):
 - Never auto-expand on rail hover — the main content would jump sideways every time the pointer crosses the rail.
 - The nav component renders whichever state it is handed; open/closed state, persistence, and the shortcut belong to the shell, not to the nav.
 
+macOS overlay exception (Shard):
+
+- When native traffic-light controls occupy the sidebar title strip, the shell may use a full-hide collapse mode instead of retaining the 49px rail.
+- The expanded sidebar starts with a 48-56px draggable title strip. Its collapse trigger sits after the traffic-light safe-area inset; omit a decorative brand block when it has no product action.
+- On collapse, the entire sidebar exits layout and the same trigger migrates to the first surviving content title strip, again after the traffic-light safe-area inset. Never leave the sidebar/content boundary running through the traffic-light group.
+- The migrated trigger changes only sidebar visibility. Route, selection, scroll state, keyboard shortcut, and persisted preference remain unchanged.
+
 Collapsed rail:
 
 A bare icon column is not navigable — a user cannot tell pages apart by icon alone. These are contract, not polish:
