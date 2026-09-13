@@ -10,17 +10,13 @@
 
 ---
 
-## 两层，同一套釉色
+## 默认版式
 
-**工作台层** —— 紧凑、暖黑阴影分层、信息密度第一。侧栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件、日期面板。
+**工作台** —— 紧凑、暖黑阴影分层、信息密度第一。侧栏、指标条、工具栏、带冻结列的数据表、分页坞、表单控件、日期面板。
 
-![kiln 工作台层示范页](docs/workbench.png)
+![kiln 工作台示范页](docs/workbench.png)
 
-**纸面层** —— 同一套 token，换成大留白与印刷质感。用在登录、空状态、404、报告封面、发布说明、系统邮件这些**没人在干活**的表面上。
-
-![kiln 纸面层示范页](docs/paper-login.png)
-
-> 两张图由 `npm run screenshots` 从 `examples/*.html` 渲染，从不手截。同一批示范页也是渲染契约的断言目标，所以**图、规范、契约三者不会分家**。
+> 示例图由 `npm run screenshots` 从 `examples/*.html` 渲染，从不手截。同一批示范页也是渲染契约的断言目标，所以**图、规范、契约三者不会分家**。
 
 ---
 
@@ -88,7 +84,6 @@
 ```bash
 npm run verify           # 静态：token 契约 + 规格表镜像 + 散文不含数值（零依赖）
 npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契约（需 playwright）
-npm run verify:paper     # 版面：对 examples/paper-login.html 数真实像素（需 playwright）
 npm run screenshots      # 重新生成 README 里的示例图（需 playwright）
 ```
 
@@ -141,23 +136,19 @@ kiln/
 │   ├── tokens.md               # 规格表（CSS 的镜像，机器校验一致）
 │   ├── components.md           # 组件规格、状态、QA
 │   ├── layouts-and-pages.md    # shell、侧栏（含折叠 rail）、DataTableDock、页面蓝图
-│   ├── platform-mapping.md     # React/Tailwind、纯 CSS、暗色、小程序、跨项目复用
-│   └── paper.md                # ★ 纸面层：登录 / 空状态 / 404 / 封面 / 发布说明 / 邮件
+│   └── platform-mapping.md     # React/Tailwind、纯 CSS、暗色、小程序、跨项目复用
 ├── tokens/                     # ★ 数值的唯一真相源
 │   ├── index.css               #   工作台入口，消费方只 import 这个
 │   ├── colors.css  typography.css  spacing.css
-│   ├── radius.css  elevation.css   fonts.css  base.css
-│   └── paper.css               #   纸面层：**不**被 index.css 引入，纸面页面显式加载
-├── contract/tokens.json        # 合法 token 全集（工作台层与纸面层分开列）
+│   └── radius.css  elevation.css   fonts.css  base.css
+├── contract/tokens.json        # 合法 token 全集
 ├── evals/evals.json            # skill 冒烟测试
 ├── examples/
-│   ├── workbench.html          #   工作台示范页：渲染契约的自测目标，也是 README 图的来源
-│   └── paper-login.html        #   纸面层示范页：版面契约的自测目标
+│   └── workbench.html          #   工作台示范页：渲染契约的自测目标，也是 README 图的来源
 ├── docs/                       # README 的示例图（由 npm run screenshots 生成，勿手改）
 └── scripts/
     ├── verify.mjs              # 静态自检：契约 + 镜像一致 + 散文不含数值
     ├── verify-examples.mjs     # 工作台：结构断言（computed style）
-    ├── verify-paper.mjs        # 纸面层：版面断言（逐像素数墨占比与色相簇）
     ├── screenshots.mjs         # 从示范页渲染 README 示例图（图不手截，避免第二个真相源）
     ├── lib/runtime-contract.mjs # ★ 渲染断言的唯一来源（示范页与宿主模板共用）
     └── templates/              # 宿主项目模板：只写「跑哪些页面」，规则从 lib 来

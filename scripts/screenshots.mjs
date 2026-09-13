@@ -50,19 +50,11 @@ const SHOTS = [
     out: "workbench.png",
     viewport: { width: 1440, height: 900 },
     fullPage: true,
-    label: "工作台层 · 1440",
-  },
-  {
-    file: "examples/paper-login.html",
-    out: "paper-login.png",
-    viewport: { width: 1440, height: 900 },
-    fullPage: false,
-    label: "纸面层 · 1440",
+    label: "工作台 · 1440",
   },
   // 没有 390 的截图，是因为 examples/workbench.html 在 390 下版面是塌的
   // （侧栏不折叠占掉半屏、指标卡文字竖排、表格被挤到只剩操作列）。
-  // verify-paper.mjs 在 390 下跑过它，但只数墨占比 —— 数得出「墨够不够」，
-  // 数不出「版面还成不成立」。示范页补上窄视口之前，这里不该有图：
+  // 示范页补上窄视口并验证版面之前，这里不该有图：
   // README 展示一张塌掉的页面，比不展示更坏。
 ];
 
