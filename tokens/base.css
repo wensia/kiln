@@ -25,6 +25,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 过度滚动不回弹（橡皮筋全局禁用）：文档层一律 none —— macOS WKWebView
+   （Tauri 桌面壳）的整页橡皮筋就是从这里来的。滚动容器由业务侧在真正滚动的
+   轴上重复声明 none；运行时契约会逐个检查（scripts/lib/runtime-contract.mjs）。 */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* Tabular figures for counts / totals / metrics / pagination */
 .tabular,
 [data-tabular] {

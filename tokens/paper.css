@@ -1,0 +1,48 @@
+/* ============================================================
+   kiln — 纸面层 token（笺）
+
+   同一窑的釉，一半烧成器，一半印在纸上。
+   工作台（tokens/index.css）管信息密集的工作表面；纸面层管这个产品里
+   **不是工作台**的那些表面：登录、空状态、404、报表封面、发布说明、邮件。
+
+   这里只放工作台用不到的东西：纸色、印刷质感、大字号、大留白。
+   颜色一律从 colors.css 的 palette 派生 —— 纸面换的是密度和材质，不是色系。
+   一个裸色值都不新增，否则「同一窑」就只是句好听的话。
+
+   ── 这个文件**不**被 tokens/index.css 引入 ────────────────
+   纸面页面显式 @import "kiln/tokens/paper.css"。分开加载是为了让两层的
+   契约各自保持锋利：工作台的字号天花板（--text-data 22px）和纸面的
+   display 字号必须待在不同的门后面，否则两边的断言同时失效 ——
+   工作台放进了 hero，纸面被压成了表格。
+   ============================================================ */
+
+:root {
+  /* ---- 纸张表面 ----
+     比工作台画布更暖、更实，因为它要**看起来像纸**而不是像屏幕底色。 */
+  --paper: color-mix(in srgb, var(--palette-surface) 55%, var(--palette-canvas));
+  --paper-deep: color-mix(in srgb, var(--palette-surface) 88%, var(--palette-line));
+  --paper-foreground: var(--palette-ink);
+  --paper-muted: var(--palette-muted-ink);
+
+  /* ---- 印刷质感 ----
+     工作台靠暖黑柔和阴影分层（屏幕的语言）；纸面靠颗粒、细线和压痕
+     （印刷的语言）。纸上不投柔光阴影 —— 纸不会浮在纸上面。 */
+  --paper-grain: color-mix(in srgb, var(--palette-ink) 6%, transparent);
+  --paper-rule: color-mix(in srgb, var(--palette-ink) 20%, transparent);
+  --paper-edge: color-mix(in srgb, var(--palette-ink) 9%, transparent);
+
+  /* ---- 纸面字号：工作台的天花板在这里解除 ----
+     规范禁止的是「工作页面里的 hero」，不是产品门面本身。 */
+  --text-display: 48px;
+  --text-title: 28px;
+  --text-lead: 17px;
+  --text-paper-body: 15px;
+
+  /* ---- 纸面留白：工作台阶梯止于 48px，纸面从这里往上续 ---- */
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* ---- 纸面控件：比工作台松一档。
+     工作台的 36px 是为了一屏塞下更多行；纸面上没有"更多行"要塞。 */
+  --paper-control-height: 44px;
+}

@@ -1,0 +1,1399 @@
+/**
+ * kiln — 运行时设计契约的**断言核心**。
+ *
+ * 为什么单独一个文件：这套断言有两个调用方 ——
+ *   · scripts/verify-examples.mjs   跑 examples/ 里的示范页（kiln 自己吃自己的狗粮）
+ *   · scripts/templates/verify-runtime.mjs  被复制进宿主项目，跑真实业务路由
+ * 规则写两份就会漂移，而漂移正是这套系统坏掉的唯一方式。模板只负责「跑哪些页面、
+ * 怎么登录」，规则一律从这里来。
+ *
+ * 为什么需要它（而不是只有静态 token 检查）：verify.mjs 只能证明「数值来自契约、
+ * 没人乱编」，它抓不住**组合错误** —— token 全对、类名全对，嵌套关系错了，效果照样崩。
+ * 真实踩过的坑：Tabs 的轨道底色是半透明 color-mix，设计稿里它坐在画布上，实现把它
+ * 塞进了纯白卡片里，混合结果从「落差 5 色阶」塌成「落差 2 色阶」—— 代码层面挑不出
+ * 任何毛病，只有量出计算后的颜色才看得见。
+ */
+
+/** 视觉锚点的默认取值 —— kiln 是陶土红 + 墨黑。
+ *  Port 出去的项目换了主色，把自己的值传进 auditPage，规则本身不用改
+ *  （见 references/platform-mapping.md 的 Fixed / Variable / Residue：
+ *   「有且仅有一个锚点」是固定层，「锚点是哪个色」是可变层）。 */
+export const KILN_PALETTE = {
+  clay: "rgb(182, 83, 60)", // --primary：信号，稀缺
+  ink: "rgb(47, 47, 47)",   // --solid：普通实心动作的重量，不是信号
+};
+
+/**
+ * 居中契约的误差是运行时实现值，只在这里定义。
+ * 布局盒应当更严；可见墨迹需容纳字体 hinting 和小数像素。
+ */
+export const CENTER_CONTRACT = Object.freeze({
+  layoutTolerance: 0.5,
+  inkTolerance: 0.75,
+});
+
+export const px = (v) => Math.round(parseFloat(v) || 0);
+
+/** Tailwind 会给元素挂 `rgba(0,0,0,0) 0px 0px` 这种全透明的 shadow 占位，alpha=0，不是真实阴影 */
+export const isVisible = (shadow) =>
+  (shadow.match(/rgba?\([^)]+\)/g) ?? []).some((c) => {
+    const n = c.match(/[\d.]+/g);
+    return n && (n.length >= 4 ? parseFloat(n[3]) : 1) > 0;
+  });
+
+/** 从一串 box-shadow 里挑出真正可见（alpha>0）的那几层，避开 Tailwind 的透明占位 */
+export const coldPart = (shadow) =>
+  shadow
+    .split(/,(?![^(]*\))/)
+    .map((s) => s.trim())
+    .filter((s) => isVisible(s))
+    .join(", ") || shadow;
+
+/** 暖黑 rgba(54,47,42,·)，或白色高光（顶栏/输入框内高光是规范允许的） */
+export const isWarmShadow = (s) =>
+  /rgba?\(\s*54,\s*47,\s*42/.test(s) || /rgba?\(\s*255,\s*255,\s*255/.test(s);
+
+/** rgba 的 alpha —— 没有第四个分量就是不透明 */
+export const isOpaque = (color) => {
+  const n = (color.match(/[\d.]+/g) ?? []).map(Number);
+  return n.length < 4 || n[3] === 1;
+};
+
+/** 收集器：调用方各自维护自己的失败/通过清单 */
+export const createReport = () => {
+  const failures = [];
+  const ok = [];
+  return {
+    failures,
+    ok,
+    fail: (page, msg) => failures.push(`[${page}] ${msg}`),
+    pass: (page, msg) => ok.push(`[${page}] ${msg}`),
+  };
+};
+
+/** 页面通用契约 —— 在浏览器里跑，返回可断言的事实 */
+export const collect = (palette) =>
+  // eslint-disable-next-line no-undef
+  (() => {
+    const out = {
+      buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [], nativeDatalists: [],
+      heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
+      centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
+      actionAnchors: [], anchorStacks: [], fieldRows: [],
+      titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
+    };
+    const CLAY = palette.clay;
+    const INK = palette.ink;
+
+    for (const b of document.querySelectorAll("button")) {
+      const s = getComputedStyle(b);
+      const r = b.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue; // 不可见的不算
+      // Radix 的 Checkbox / Radio / Switch 渲染成 <button role="checkbox|radio|switch">，
+      // 但它们**不是按钮**：勾选框是 16px 见方的选择控件，圆角和 32px 控件下限都不适用于它。
+      // 按 tagName 收集就会把它们一起吃进来 —— 只认标签、不认角色，是这个断言的洞。
+      const role = b.getAttribute("role");
+      if (role === "checkbox" || role === "radio" || role === "switch") continue;
+      // 网格的格子是同一个洞的另一半：可点的日历格子、月份格、年份格都渲染成 <button>，
+      // 但它铺满一格、与邻格共享网格线，圆角 4px 会把整张网格切成碎片 —— 控件圆角这条
+      // 规则本来就不是给它写的。判据取「谁是格子」而不是「谁在网格里」：格子是 grid/row
+      // 的直接子元素，或自报 gridcell；表格操作列里的按钮嵌在单元格内部，不受影响。
+      const parentRole = b.parentElement?.getAttribute("role");
+      if (role === "gridcell" || parentRole === "grid" || parentRole === "row") continue;
+      out.buttons.push({
+        text: (b.textContent || "").trim().slice(0, 14),
+        radius: s.borderRadius,
+        height: s.height,
+        bg: s.backgroundColor,
+        // 圆角要不要查，取决于它看不看得见 —— 见 auditPage 里的 surfaced 判定
+        borderWidth: s.borderTopWidth,
+        // tab trigger 比普通控件矮一档（components.md：Tabs button 变体 = --control-height-sm，
+        // line 变体另有高度），不受 32px 控件下限约束
+        isTab: b.getAttribute("role") === "tab" || !!b.closest('[role="tablist"]'),
+      });
+      // clay 有两种合法用途：「流程唯一的关键动作」和「状态/选中/焦点」（判定表第 1、3 行）。
+      // 上限 1 只约束**动作**填充 —— 侧栏 active 导航项、分页当前页（aria-current）、
+      // 持有激活条件的高级筛选触发器（aria-pressed）都是**状态**填充，规范明确要求它们用
+      // clay，计入上限会让任何带侧栏或带筛选器的页面必然超限。
+      const stateful =
+        b.getAttribute("aria-current") !== null || b.getAttribute("aria-pressed") === "true";
+      // 弹层打开时用户的「视口」就是弹层：遮罩之下的页面动作被压暗、不可点，
+      // 不与弹层内的动作竞争同一份 clay 预算。只在有打开的 dialog 时豁免遮罩下层。
+      const openDialog = document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+      const behindOverlay = openDialog !== null && !openDialog.contains(b);
+      if (s.backgroundColor === CLAY && !stateful && !behindOverlay) {
+        out.clayFills++;
+      }
+    }
+
+    // 表格行内的填充按钮（Button 判定表第 5 行）：
+    // clay **永不**进操作列 —— 20 行就是 20 个红，红在整个产品里都不再是信号；
+    // 行级主动作用 ink，且每行至多一个填充，其余动作低权重或收进 ... 菜单。
+    for (const row of document.querySelectorAll("tbody tr")) {
+      const fills = [...row.querySelectorAll("button, a")]
+        .filter((b) => {
+          const r = b.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        })
+        .map((b) => ({
+          text: (b.textContent || "").trim().slice(0, 10),
+          bg: getComputedStyle(b).backgroundColor,
+          stateful:
+            b.getAttribute("aria-current") !== null || b.getAttribute("aria-pressed") === "true",
+        }))
+        .filter((b) => b.bg === CLAY || b.bg === INK);
+
+      const clay = fills.filter((f) => f.bg === CLAY && !f.stateful);
+      if (clay.length || fills.length > 1) {
+        out.rowFills.push({ clay: clay.map((f) => f.text), fills: fills.map((f) => f.text) });
+      }
+    }
+
+    for (const el of document.querySelectorAll("div,section,aside,header")) {
+      const s = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      if (s.backgroundColor !== "rgb(255, 255, 255)") continue;
+      if (r.height < 60 || r.width < 120) continue; // 太小的不算卡片
+      out.cards.push({
+        cls: (el.className || "").toString().slice(0, 50),
+        radius: s.borderRadius,
+        borderWidth: s.borderTopWidth,
+        shadow: s.boxShadow.slice(0, 60),
+      });
+
+      // ── 卡内容内缩：内容贴卡边是结构错误，不是密度选择 ──
+      // 条文写阶梯（--space-4 / --space-6），断言守底线：可见文本与表单控件距卡的
+      // 左右边缘 ≥8px。full-bleed 只属于真正的整宽结构：分隔线、表格、tab 轨道、
+      // SVG/canvas 图表、嵌套白面板（它自己会作为卡被查一遍）。
+      const MIN_INSET = 8;
+      let flagged = 0;
+      for (const child of el.querySelectorAll("*")) {
+        if (flagged >= 3) break; // 每卡最多记 3 条，别刷屏
+        if (child.closest("table,[role=tablist],svg,canvas") !== null) continue;
+        const cs = getComputedStyle(child);
+        if (cs.visibility === "hidden" || cs.display === "none") continue;
+        if (cs.position === "absolute" || cs.position === "fixed") continue;
+        const isControl = child.matches("input,textarea,select,button");
+        const hasText = [...child.childNodes].some(
+          (n) => n.nodeType === 3 && n.textContent.trim()
+        );
+        if (!isControl && !hasText) continue;
+        // 嵌套白面板的内容归嵌套面板自己管
+        let host = child.parentElement;
+        while (host && host !== el) {
+          const hs = getComputedStyle(host);
+          const hr = host.getBoundingClientRect();
+          if (
+            hs.backgroundColor === "rgb(255, 255, 255)" &&
+            hr.height >= 60 &&
+            hr.width >= 120 &&
+            hs.boxShadow !== "none"
+          )
+            break;
+          host = host.parentElement;
+        }
+        if (host !== el) continue;
+        const cr = child.getBoundingClientRect();
+        if (cr.width === 0 || cr.height === 0) continue;
+        if (cr.height <= 2) continue; // 分隔线
+        const insetL = cr.left - r.left;
+        const insetR = r.right - cr.right;
+        const worst = Math.min(insetL, insetR);
+        if (worst < MIN_INSET) {
+          flagged += 1;
+          out.cardInsets.push({
+            cls: (el.className || "").toString().slice(0, 50),
+            text: (child.textContent || child.getAttribute("aria-label") || child.tagName)
+              .trim()
+              .slice(0, 24),
+            side: insetL <= insetR ? "左" : "右",
+            inset: Math.round(worst),
+          });
+        }
+      }
+    }
+
+    // ── 同排字段控件：一行里的输入 / 选择 / 日期触发器必须同高 ──────────
+    // 补一次真实事故：日期触发器曾被规范当成「更高的那一档字段」——比它旁边的输入框
+    // 高一档、圆角大一档、底色从卡片变画布。token 名、类名、圆角读起来全都正确，
+    // components.md 甚至同时写着「纯图标按钮必须匹配日期触发器高度」的另一个值：
+    // 两条互相矛盾的条文各自「通过」了很久，因为静态地读任何一条都看不出问题。
+    // 只有把两个控件放进同一行、量它们的外框，差的那一档才现形 —— 这正是第二道门
+    // 存在的理由，也是散文永远补不上的那类错误。
+    const fieldName = (el) =>
+      (el.getAttribute("aria-label") ||
+        (el.labels && el.labels[0] && el.labels[0].textContent) ||
+        el.name ||
+        el.id ||
+        (el.textContent || "").trim() ||
+        "unnamed control").toString().trim().slice(0, 24);
+    // 量的是**可见外框**，不是元素盒 —— 与分段轨道那条规则同一个道理：搜索框把边框和
+    // 底色画在容器上、里面躺一个透明无边框的 input，元素盒比外框矮两道边框。按元素盒
+    // 记账会把每个搜索框都判成矮一档，而屏幕上它和邻座齐平。所以自身没有表面时，
+    // 向上找承载表面的那个盒子（最多三跳，够穿过一层 wrapper，不至于爬到面板上去）。
+    const outerBox = (el) => {
+      let node = el;
+      for (let hop = 0; node && hop < 3; hop += 1) {
+        const cs = getComputedStyle(node);
+        const painted = !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor);
+        if (painted || parseFloat(cs.borderTopWidth) > 0) break;
+        node = node.parentElement;
+      }
+      return (node || el).getBoundingClientRect();
+    };
+    const fields = [...document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),' +
+        'select, [role="combobox"], button[aria-haspopup]'
+    )]
+      .map((el) => ({ el, r: outerBox(el), s: getComputedStyle(el) }))
+      .filter((f) => f.r.width > 0 && f.r.height > 0 && f.s.visibility !== "hidden");
+    for (let i = 0; i < fields.length; i += 1) {
+      for (let j = i + 1; j < fields.length; j += 1) {
+        const a = fields[i];
+        const b = fields[j];
+        const mid = (f) => f.r.top + f.r.height / 2;
+        if (Math.abs(mid(a) - mid(b)) > 2) continue;
+        // 水平重叠的不是邻居，是嵌进控件边界里的装饰件：密码显隐、清空 X、
+        // 输入框内的单位后缀。它们本来就该比容器矮，规范也把它们列为 quiet 控件。
+        if (a.r.right > b.r.left && b.r.right > a.r.left) continue;
+        // 必须真的同属一行：最近共同祖先不能高过这一行本身，否则侧栏控件和内容区控件
+        // 只要 y 撞上就会被当成邻居。留 3 倍余量给「标签 + 控件 + 说明」这种字段组。
+        let ancestor = a.el.parentElement;
+        while (ancestor && !ancestor.contains(b.el)) ancestor = ancestor.parentElement;
+        if (!ancestor) continue;
+        const tallest = Math.max(a.r.height, b.r.height);
+        if (ancestor.getBoundingClientRect().height > tallest * 3) continue;
+        if (Math.round(a.r.height) !== Math.round(b.r.height)) {
+          out.fieldRows.push({
+            a: fieldName(a.el),
+            b: fieldName(b.el),
+            ha: Math.round(a.r.height),
+            hb: Math.round(b.r.height),
+          });
+        }
+      }
+    }
+
+    // 原生 datalist：弹出面板由浏览器自绘，样式与断言都够不着 —— 原语本身在 DOM 里，查它
+    for (const el of document.querySelectorAll("input[list]")) {
+      out.nativeDatalists.push(
+        (el.getAttribute("aria-label") || el.name || el.id || "unnamed input").slice(0, 40)
+      );
+    }
+
+    for (const el of document.querySelectorAll("*")) {
+      const s = getComputedStyle(el).boxShadow;
+      if (s && s !== "none") {
+        out.shadows.push({
+          shadow: s,
+          tag: el.tagName.toLowerCase(),
+          cls: (el.className || "").toString().slice(0, 60),
+        });
+      }
+    }
+
+    // 表格竖向网格线：**不再是有无之争，而是权重之争**。
+    // 密集表（多窄列、跨列比数字、要横向滚）画竖线是真实的阅读需要，规范允许；
+    // 但行分隔线必须始终是主结构，竖线只能是眼睛可以忽略的对位辅助线 —— 上限是行分隔线
+    // 权重（alpha × 宽度）的 60%。横竖同权重 = 报纸网格 = 禁。
+    //
+    // 只查**数据行**（tbody 的 tr）——指标条(metric strip)的竖线不是表格网格；
+    // thead 的竖线是分组表头的结构边界。两者都不受此约束。
+    const alphaOf = (c) => {
+      if (!c || c === "transparent") return 0;
+      // 现代色彩语法把 alpha 放在斜杠后：oklab(.94 .002 .006 / .25)、color(srgb … / .25)
+      const slash = c.match(/\/\s*([\d.]+%?)\s*\)/);
+      if (slash) return slash[1].endsWith("%") ? parseFloat(slash[1]) / 100 : parseFloat(slash[1]);
+      const n = c.match(/[\d.]+/g);
+      if (/^(rgba|hsla)/.test(c)) return n && n.length >= 4 ? parseFloat(n[3]) : 1;
+      return 1;
+    };
+    const lineWeight = (color, width) => alphaOf(color) * (parseFloat(width) || 0);
+
+    for (const row of document.querySelectorAll("tbody tr")) {
+      const cells = [...row.children].filter((c) => c.getBoundingClientRect().height > 0);
+      if (cells.length < 3) continue;
+
+      const rs = getComputedStyle(row);
+      const rowWeight = lineWeight(rs.borderBottomColor, rs.borderBottomWidth);
+
+      // 冻结列的边框是**结构边缘**，不是网格线 —— 规范明确豁免，它有权比行分隔线更重。
+      const verticals = cells
+        .filter((c) => getComputedStyle(c).position !== "sticky")
+        .map((c) => {
+          const s = getComputedStyle(c);
+          return Math.max(
+            lineWeight(s.borderLeftColor, s.borderLeftWidth),
+            lineWeight(s.borderRightColor, s.borderRightWidth)
+          );
+        })
+        .filter((w) => w > 0);
+
+      // 零星几条竖线是结构分隔（分组边界、分栏），不是网格；过半才算「画了网格」。
+      if (verticals.length < cells.length / 2) continue;
+
+      out.verticalGrids.push({
+        cls: (row.className || "").toString().slice(0, 55),
+        n: verticals.length,
+        of: cells.length,
+        maxV: Math.max(...verticals),
+        rowWeight,
+      });
+      break; // 一行足以代表整张表
+    }
+
+    // 字号上限：只查 h1-h3 不够 —— MetricStat 的大数字是个 <span>，
+    // 从上一版断言底下整个溜了过去。字号阶梯的天花板是 --text-data (22px)，
+    // 且仅限真实数据看板；标题另有更严的 16px 上限。任何可见文本都要落在阶梯内。
+    for (const el of document.querySelectorAll("*")) {
+      if (el.children.length || !(el.textContent || "").trim()) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.height) continue;
+      const size = parseFloat(getComputedStyle(el).fontSize);
+      if (size > 22) {
+        out.heroHeadings.push({
+          t: (el.textContent || "").trim().slice(0, 12),
+          size,
+          isHeading: /^H[1-3]$/.test(el.tagName),
+        });
+      }
+    }
+    for (const h of document.querySelectorAll("h1,h2,h3")) {
+      const r = h.getBoundingClientRect();
+      if (!r.height) continue;
+      const size = parseFloat(getComputedStyle(h).fontSize);
+      if (size > 16 && size <= 22) {
+        out.heroHeadings.push({ t: (h.textContent || "").trim().slice(0, 12), size, isHeading: true });
+      }
+    }
+
+    // 分段轨道（components.md：Tabs button 变体）：可见外框就是控件本身，只比触发器
+    // 高 4px（1px 边框 + 1px 内衬，上下各一）。内衬给到 4px 就撑出 38px 的轨道，而
+    // 38px 挨着 36px 的按钮正是 SKILL.md 点名的反模式 —— 差 2px，肉眼只看得出这排
+    // 没对齐，看不出错在哪一边。这条断言与产品选哪一档控件高无关，查的是差值。
+    // 同一条规格有两种写法：Tabs 的 tablist/tab，和 SegmentedControl 的 group + aria-pressed。
+    // 只查前者，后者就是规范里没被访问过的那一半 —— 也就是实际上没被规定。
+    for (const list of document.querySelectorAll('[role="tablist"], [role="group"]')) {
+      const listRect = list.getBoundingClientRect();
+      if (!(listRect.height > 0)) continue;
+      const style = getComputedStyle(list);
+      // line 变体没有底板（无背景无边框），它不是"轨道"，不受这条约束
+      const plated =
+        style.borderBottomWidth !== style.borderTopWidth ? false : parseFloat(style.borderTopWidth) > 0;
+      if (!plated) continue;
+      const triggers = [...list.querySelectorAll('[role="tab"], [aria-pressed]')]
+        .map((t) => t.getBoundingClientRect().height)
+        .filter((h) => h > 0);
+      if (!triggers.length) continue;
+      out.segmentedTracks.push({
+        track: listRect.height,
+        trigger: Math.max(...triggers),
+        label: (list.getAttribute("aria-label") || list.textContent || "").trim().slice(0, 12),
+      });
+    }
+
+    // 勾选类控件的标记必须待在自己的框里（components.md：Checkbox）。
+    // 用伪元素 + 绝对 px 画的勾，一旦外层被压扁就会飞到框外 —— 类名全对、lint 全过，
+    // 只有渲染是错的，所以只能靠量。
+    for (const box of document.querySelectorAll('input[type="checkbox"] + *, [class*="checkbox-box"]')) {
+      const rect = box.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      const input = box.parentElement?.querySelector('input[type="checkbox"]');
+      if (!input || !input.checked) continue;
+      const glyph = box.querySelector("svg");
+      let markRect = null;
+      if (glyph) {
+        markRect = glyph.getBoundingClientRect();
+      } else {
+        const after = getComputedStyle(box, "::after");
+        // 伪元素画的勾：用它声明的 left/top + 尺寸推算落点
+        const left = parseFloat(after.left), top = parseFloat(after.top);
+        const w = parseFloat(after.width), h = parseFloat(after.height);
+        if (Number.isFinite(left) && Number.isFinite(top) && w > 0) {
+          markRect = { x: rect.x + left, y: rect.y + top, width: w, height: h };
+        }
+      }
+      if (!markRect) continue;
+      const inside = markRect.x >= rect.x - 1 && markRect.y >= rect.y - 1
+        && markRect.x + markRect.width <= rect.x + rect.width + 1
+        && markRect.y + markRect.height <= rect.y + rect.height + 1;
+      out.checkMarks.push({
+        inside,
+        drawnAsIcon: Boolean(glyph),
+        label: (input.getAttribute("aria-label") || box.className || "").toString().slice(0, 20),
+      });
+    }
+
+    // 区块标题带（layouts-and-pages.md：Section Heading Bands）：容器的通用规则
+    // （.section-heading > div 之类）特异性 (0,1,1) 会盖掉带类子容器自己的 display，
+    // 症状是计数换到标题下一行、动作按钮堆成两行 —— 类名全对，lint 全过，只有渲染是错的。
+    for (const band of document.querySelectorAll('[class*="section-heading"], [class*="panel-heading"]')) {
+      const kids = [...band.children].filter((el) => el.getBoundingClientRect().height > 0);
+      if (kids.length < 2) continue;
+      for (const kid of kids) {
+        // 只查有自己类名的子容器：无类 div 归容器管，那是合法的堆叠组
+        if (!kid.className || typeof kid.className !== "string") continue;
+        const inner = [...kid.children].filter((el) => el.getBoundingClientRect().height > 0);
+        if (inner.length < 2) continue;
+        const ys = inner.map((el) => Math.round(el.getBoundingClientRect().top));
+        out.headingBands.push({
+          cls: kid.className.split(/\s+/)[0],
+          display: getComputedStyle(kid).display,
+          wrapped: Math.max(...ys) - Math.min(...ys) > 4,
+          label: (band.querySelector("h2, h3")?.textContent || "").trim().slice(0, 12),
+        });
+      }
+    }
+
+    // 标题权威（layouts-and-pages.md：Title Authority）：一条路由恰好一个 h1。
+    // 0 个 = 没有权威 —— 顶栏标题槽里放个加粗 <span> 看起来没差，读屏软件却落进一个
+    // 永不自报门户的页面；≥2 个 = 顶栏和 body 各拿一个，用户连着读到两遍页面名。
+    // 同名的 h2/h3 是同一个病的换装版本：标题带删了，eyebrow 留着。
+    const headings = [...document.querySelectorAll("h1")].map((h) => {
+      const r = h.getBoundingClientRect();
+      return { t: (h.textContent || "").trim().slice(0, 24), visible: r.width > 1 && r.height > 1 };
+    });
+    out.titleAuthority = {
+      total: headings.length,
+      visible: headings.filter((h) => h.visible).map((h) => h.t),
+      texts: headings.map((h) => h.t),
+      echoes: [...document.querySelectorAll("h2,h3")]
+        .filter((h) => {
+          const r = h.getBoundingClientRect();
+          if (!(r.width > 1 && r.height > 1)) return false;
+          const text = (h.textContent || "").trim();
+          return text.length > 0 && headings.some((h1) => h1.t === text.slice(0, 24));
+        })
+        .map((h) => (h.textContent || "").trim().slice(0, 24)),
+    };
+
+    // 字号下限：`--text-tiny` = 11px。更小的字在后台里读不了。
+    for (const el of document.querySelectorAll("*")) {
+      if (el.children.length || !(el.textContent || "").trim()) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.height) continue;
+      const size = parseFloat(getComputedStyle(el).fontSize);
+      if (size > 0 && size < 11) {
+        out.tinyText.push({ t: (el.textContent || "").trim().slice(0, 10), size });
+      }
+    }
+
+    out.font = getComputedStyle(document.body).fontFamily;
+    // 字体栈里**写着** Noto Sans SC ≠ 它真的被加载了。
+    // 没有 @font-face（例如没装 @fontsource），中文会静默回退到系统字体
+    // （macOS 苹方 / Windows 微软雅黑）—— 各平台渲染不一致，而字体栈看起来完全正常。
+    out.notoLoaded = [...document.fonts].some((f) => /Noto Sans SC/i.test(f.family));
+
+    // ── 容器内容居中：布局盒 + 可见墨迹 ───────────────────────
+    //
+    // 这条故意不认 .btn / .icon / .badge 等 class：只要一个外容器的
+    // 设计意图是「内容居中」，就在容器上声明 data-center-content，并把
+    // 一个或多个真正可见的目标标为 data-center-ink。文字按字体实际上/下
+    // 界量，SVG 按内部图形 bbox 量；所以「写了 align-items:center」不能代替这一关。
+    const unionRects = (rects) => {
+      const visible = rects.filter(
+        (r) => r && Number.isFinite(r.left) && Number.isFinite(r.top) && r.right > r.left && r.bottom > r.top
+      );
+      if (!visible.length) return null;
+      return {
+        left: Math.min(...visible.map((r) => r.left)),
+        right: Math.max(...visible.map((r) => r.right)),
+        top: Math.min(...visible.map((r) => r.top)),
+        bottom: Math.max(...visible.map((r) => r.bottom)),
+      };
+    };
+
+    const rectOf = (r) => ({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+
+    const svgInkRect = (svg) => {
+      try {
+        const box = svg.getBBox();
+        const matrix = svg.getScreenCTM();
+        if (!matrix || box.width <= 0 || box.height <= 0) return null;
+        const points = [
+          [box.x, box.y],
+          [box.x + box.width, box.y],
+          [box.x, box.y + box.height],
+          [box.x + box.width, box.y + box.height],
+        ].map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
+        return {
+          left: Math.min(...points.map((p) => p.x)),
+          right: Math.max(...points.map((p) => p.x)),
+          top: Math.min(...points.map((p) => p.y)),
+          bottom: Math.max(...points.map((p) => p.y)),
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    const textInkRects = (target) => {
+      const rects = [];
+      const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const raw = node.data || "";
+        const start = raw.search(/\S/);
+        if (start < 0) continue;
+        const end = raw.search(/\s*$/);
+        if (end <= start) continue;
+
+        // 嵌套的 ink 目标由它自己统计，不在父目标里重复计算。
+        const owner = node.parentElement?.closest("[data-center-ink]");
+        if (owner !== target || node.parentElement?.closest("svg")) continue;
+
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        const lineRects = [...range.getClientRects()];
+        if (!lineRects.length) continue;
+
+        // 紧凑控件不应换行。真换行时保留浏览器给出的可见行盒；单行时再用
+        // Canvas 字体度量收紧垂直墨迹，抓住 line-height 造成的偏移。
+        if (!context || lineRects.length !== 1) {
+          rects.push(...lineRects.map(rectOf));
+          continue;
+        }
+
+        const rangeRect = lineRects[0];
+        const style = getComputedStyle(node.parentElement);
+        context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        context.direction = style.direction;
+        context.textAlign = "start";
+        const metrics = context.measureText(raw.slice(start, end));
+        const fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+        if (!fontHeight || !metrics.actualBoundingBoxAscent) {
+          rects.push(rectOf(rangeRect));
+          continue;
+        }
+
+        const scaleY = rangeRect.height / fontHeight;
+        const baseline = rangeRect.top + metrics.fontBoundingBoxAscent * scaleY;
+        rects.push({
+          // 水平使用排版 advance box；单字 bearing 是字体设计，不应驱动逐字 translateX。
+          left: rangeRect.left,
+          right: rangeRect.right,
+          top: baseline - metrics.actualBoundingBoxAscent * scaleY,
+          bottom: baseline + metrics.actualBoundingBoxDescent * scaleY,
+        });
+      }
+      return rects;
+    };
+
+    const isRendered = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        parseFloat(style.opacity) > 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+
+    const isVisuallyHiddenText = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const clipped =
+        style.overflow === "hidden" ||
+        style.overflow === "clip" ||
+        style.clip !== "auto" ||
+        style.clipPath !== "none";
+      return clipped && rect.width <= 1 && rect.height <= 1;
+    };
+
+    const hasVisibleText = (host) => {
+      const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (!(node.data || "").trim() || node.parentElement?.closest("svg")) continue;
+        const parent = node.parentElement;
+        if (!parent || !isRendered(parent) || isVisuallyHiddenText(parent)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        if ([...range.getClientRects()].some((rect) => rect.width > 0 && rect.height > 0)) return true;
+      }
+      return false;
+    };
+
+    const graphicTargets = (host) =>
+      [...host.querySelectorAll("*")].filter((element) => {
+        if (element.closest('button,[role="button"]') !== host || !isRendered(element)) return false;
+        const tag = element.tagName.toLowerCase();
+        if (["svg", "img", "canvas", "video", "object", "embed"].includes(tag)) return true;
+        const style = getComputedStyle(element);
+        const hasImage = (value) => Boolean(value && value !== "none");
+        return (
+          hasImage(style.backgroundImage) ||
+          hasImage(style.maskImage) ||
+          hasImage(style.webkitMaskImage)
+        );
+      });
+
+    const explicitHosts = [...document.querySelectorAll("[data-center-content]")].map((host) => ({
+      host,
+      autoDetected: false,
+      targets: [...host.querySelectorAll("[data-center-ink]")].filter(
+        (target) =>
+          target.closest("[data-center-content]") === host &&
+          !target.parentElement?.closest("[data-center-ink]")
+      ),
+    }));
+    const explicitSet = new Set(explicitHosts.map(({ host }) => host));
+
+    const autoHosts = [...document.querySelectorAll('button,[role="button"]')]
+      .filter((host) => {
+        if (explicitSet.has(host)) return false;
+        const role = host.getAttribute("role");
+        const semanticButton = role === "button" || (host.tagName === "BUTTON" && !role);
+        return semanticButton && isRendered(host) && !hasVisibleText(host);
+      })
+      .map((host) => ({ host, autoDetected: true, targets: graphicTargets(host) }))
+      .filter(({ targets }) => targets.length > 0);
+
+    for (const { host, autoDetected, targets } of [...explicitHosts, ...autoHosts]) {
+      const hostRect = host.getBoundingClientRect();
+      if (hostRect.width <= 0 || hostRect.height <= 0) continue;
+
+      const label =
+        host.getAttribute("aria-label") ||
+        host.getAttribute("title") ||
+        (host.textContent || "").trim().replace(/\s+/g, " ").slice(0, 18) ||
+        host.tagName.toLowerCase();
+
+      if (!targets.length) {
+        out.centeredContent.push({ label, tag: host.tagName.toLowerCase(), missingInk: true, autoDetected });
+        continue;
+      }
+
+      const layoutRect = unionRects(targets.map((target) => rectOf(target.getBoundingClientRect())));
+      const inkRects = [];
+      for (const target of targets) {
+        const svgs = target.matches("svg")
+          ? [target]
+          : [...target.querySelectorAll("svg")].filter((svg) => !svg.parentElement?.closest("svg"));
+        inkRects.push(...svgs.map(svgInkRect).filter(Boolean));
+        inkRects.push(...textInkRects(target));
+
+        if (!svgs.length && !(target.textContent || "").trim()) {
+          // CSS 画出的点/块、img/canvas 等无文字目标，其元素盒就是可见几何。
+          inkRects.push(rectOf(target.getBoundingClientRect()));
+        }
+      }
+      const inkRect = unionRects(inkRects);
+
+      if (!layoutRect || !inkRect) {
+        out.centeredContent.push({
+          label,
+          tag: host.tagName.toLowerCase(),
+          missingGeometry: true,
+          autoDetected,
+        });
+        continue;
+      }
+
+      const hostX = (hostRect.left + hostRect.right) / 2;
+      const hostY = (hostRect.top + hostRect.bottom) / 2;
+      out.centeredContent.push({
+        label,
+        tag: host.tagName.toLowerCase(),
+        layoutDx: (layoutRect.left + layoutRect.right) / 2 - hostX,
+        layoutDy: (layoutRect.top + layoutRect.bottom) / 2 - hostY,
+        inkDx: (inkRect.left + inkRect.right) / 2 - hostX,
+        inkDy: (inkRect.top + inkRect.bottom) / 2 - hostY,
+        autoDetected,
+      });
+    }
+    // ── 过度滚动橡皮筋（SKILL.md：Interaction Is Quiet）───────────
+    // 文档层无条件要求 none —— macOS WKWebView（Tauri 桌面壳）的整页橡皮筋从这来。
+    // 滚动容器只查「真的在滚」的轴：给滚不动的轴也写 none 会吞掉祖先的滚动链，
+    // 所以按轴分开断言。
+    out.overscroll = { doc: [], scrollers: [], okCount: 0 };
+    for (const el of [document.documentElement, document.body]) {
+      const s = getComputedStyle(el);
+      // 弹层的 scroll-lock（react-remove-scroll 等）会临时把 body 写成
+      // overflow:hidden + overscroll-behavior:contain。此刻文档层根本不可滚，
+      // contain 出不了橡皮筋 —— 锁定期间豁免，解锁后仍要求 none。
+      const scrollLocked = s.overflow === "hidden" || s.overflowY === "hidden";
+      out.overscroll.doc.push({
+        tag: el.tagName.toLowerCase(),
+        x: scrollLocked && s.overscrollBehaviorX === "contain" ? "none" : s.overscrollBehaviorX,
+        y: scrollLocked && s.overscrollBehaviorY === "contain" ? "none" : s.overscrollBehaviorY,
+      });
+    }
+    for (const el of document.querySelectorAll("*")) {
+      if (el === document.documentElement || el === document.body) continue;
+      const s = getComputedStyle(el);
+      const scrollsY = /(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const scrollsX = /(auto|scroll)/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      if (!scrollsY && !scrollsX) continue;
+      const badY = scrollsY && s.overscrollBehaviorY !== "none";
+      const badX = scrollsX && s.overscrollBehaviorX !== "none";
+      if (badY || badX) {
+        const label =
+          typeof el.className === "string" && el.className.trim()
+            ? el.className.trim().split(/\s+/).slice(0, 3).join(".")
+            : el.tagName.toLowerCase();
+        out.overscroll.scrollers.push({ label: label.slice(0, 60), badY, badX });
+      } else {
+        out.overscroll.okCount++;
+      }
+    }
+
+    // 入口锚定（components.md → Action Anchor）：反复要点的入口，它的坐标不能由旁边
+    // 集合的数据量决定。这里只能查**声明过的**槽位——「这一坨是会随数据涨落的集合」是
+    // 业务事实，DOM 里看不出来：三个并排的 badge 既可能是数据驱动的标签组，也可能是三个
+    // 写死的状态标记，自动判定必然误伤后者。所以判据取「你声明了，但摆错了」。
+    for (const anchor of document.querySelectorAll("[data-action-anchor]")) {
+      const rect = anchor.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      const control = [...anchor.querySelectorAll('button,[role="button"],input,select,a[href]')].find(
+        isRendered
+      );
+      const label =
+        (control?.textContent || anchor.textContent || "").trim().replace(/\s+/g, " ").slice(0, 16) ||
+        "(未命名入口)";
+
+      // 两个槽互相嵌套 = 入口又回到了被数据推着走的位置，声明只是给它换了件外衣
+      const nested =
+        Boolean(anchor.querySelector("[data-anchor-collection]")) ||
+        Boolean(anchor.parentElement?.closest("[data-anchor-collection]"));
+
+      // 同一行里的集合槽——纵向对齐拿它当基准
+      const collection = [...(anchor.parentElement?.children ?? [])].find(
+        (el) => el !== anchor && el.matches?.("[data-anchor-collection]") && isRendered(el)
+      );
+      // 纵向漂移量 = 控件在自己槽里被推下去的距离，不是它与集合首项的顶边差：
+      // 按钮 36px、标签 20px，两者各自居中时顶边本来就差 8px，拿它当基准会把正确布局判错。
+      // 测控件相对**槽**的位移则与邻居的高度无关：
+      //   self-start 的槽（高 = 控件高）→ 0；
+      //   被折行集合撑高又居中的槽 → 半个撑高量，正是这条规则要抓的下沉；
+      //   撑高但 align-items: start 的槽 → 0，控件确实没动，照样放行。
+      // 少了 self-start 的页面单行时看不出来，集合折到三行才现形——「一开始都对」的那类错。
+      const drift = control
+        ? Math.round(control.getBoundingClientRect().top - rect.top)
+        : 0;
+
+      out.actionAnchors.push({
+        label,
+        nested,
+        hasCollection: Boolean(collection),
+        drift,
+        left: Math.round(rect.left),
+      });
+    }
+
+    // 同一堆叠里的兄弟行共享一条竖线。两行对不齐，就说明至少有一行的入口是骑在邻居的
+    // 数据宽度上的——这是唯一不需要改变数据量、单次渲染就能看见漂移的角度。
+    {
+      const stacks = new Map();
+      for (const anchor of document.querySelectorAll("[data-action-anchor]")) {
+        if (!isRendered(anchor)) continue;
+        const stack = anchor.parentElement?.parentElement;
+        if (!stack) continue;
+        if (!stacks.has(stack)) stacks.set(stack, []);
+        stacks.get(stack).push(anchor);
+      }
+      for (const [, anchors] of stacks) {
+        if (anchors.length < 2) continue; // 一行无从比较
+        const lefts = anchors.map((el) => Math.round(el.getBoundingClientRect().left));
+        out.anchorStacks.push({
+          count: anchors.length,
+          lefts: [...new Set(lefts)],
+          label: anchors
+            .map((el) => (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 10))
+            .join(" / ")
+            .slice(0, 60),
+        });
+      }
+    }
+
+    return out;
+  })();
+
+/** Read actual flat-color surfaces, including a translucent td over its tr. */
+const collectFrozenRowSurfaces = (row) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Canvas unavailable for frozen-column background comparison");
+  const rgba = (color) => {
+    context.clearRect(0, 0, 1, 1);
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+    return [...context.getImageData(0, 0, 1, 1).data];
+  };
+  const surface = (element) => {
+    const own = getComputedStyle(element);
+    const layers = [];
+    const unsupported = new Set();
+    let covered = false;
+    for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      // Group opacity/blending changes even an opaque descendant. Do not turn an
+      // unsupported paint model into a passing "same color" measurement.
+      if (style.opacity !== "1" || style.mixBlendMode !== "normal") unsupported.add("opacity/blend");
+      if (covered) continue;
+      if (style.backgroundImage !== "none") unsupported.add("background-image");
+      layers.unshift(style.backgroundColor);
+      covered = rgba(style.backgroundColor)[3] === 255;
+    }
+    context.clearRect(0, 0, 1, 1);
+    // The browser's default page canvas is white when no ancestor paints it.
+    context.fillStyle = "white";
+    context.fillRect(0, 0, 1, 1);
+    for (const layer of layers) {
+      context.fillStyle = layer;
+      context.fillRect(0, 0, 1, 1);
+    }
+    const composite = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+    return { raw: own.backgroundColor, alpha: rgba(own.backgroundColor)[3], composite, unsupported: [...unsupported] };
+  };
+  const cells = [...row.children]
+    .filter((cell) => cell.tagName === "TD" && cell.getBoundingClientRect().width > 0)
+    .map((cell, index) => ({ index, sticky: getComputedStyle(cell).position === "sticky", ...surface(cell) }));
+  return {
+    cells,
+    row: surface(row),
+    selected: row.matches('[aria-selected="true"], [data-state="selected"]'),
+    menuOpen: Boolean(row.querySelector('[aria-expanded="true"], [data-popup-open], button[data-state="open"]')),
+  };
+};
+
+/**
+ * A frozen column is an opaque repaint of the SAME visible row surface. Compare
+ * composited cell colors, not tr/td backgroundColor strings: a translucent td
+ * over a tinted tr paints twice even when the sticky cell uses the same token.
+ *
+ * Check representative normal/zebra/selected/menu-open rows in every visible
+ * tbody. Only hover is driven automatically; selection and menus must already be
+ * reached by the host's real interactions. This audit never clicks business UI.
+ */
+export const auditFrozenColumns = async (page, name, report) => {
+  const { fail, pass } = report;
+  const bodies = page.locator("tbody");
+  const sameColor = (a, b) => a.every((channel, index) => Math.abs(channel - b[index]) <= 1);
+  const colorText = (value) => `rgb(${value.join(", ")})`;
+
+  for (let bodyIndex = 0; bodyIndex < await bodies.count(); bodyIndex += 1) {
+    const rows = bodies.nth(bodyIndex).locator(":scope > tr");
+    const representatives = await rows.evaluateAll((elements) => {
+      const seen = new Set();
+      return elements.flatMap((row, index) => {
+        const rect = row.getBoundingClientRect();
+        const style = getComputedStyle(row);
+        if (!rect.width || !rect.height || style.visibility === "hidden") return [];
+        if (![...row.children].some((cell) => cell.tagName === "TD" && getComputedStyle(cell).position === "sticky")) return [];
+        const selected = row.matches('[aria-selected="true"], [data-state="selected"]');
+        const menu = Boolean(row.querySelector('[aria-expanded="true"], [data-popup-open], button[data-state="open"]'));
+        const key = `${index % 2}/${selected}/${menu}`;
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [index];
+      });
+    });
+    for (const rowIndex of representatives) {
+      const row = rows.nth(rowIndex);
+      const label = `${name}/表${bodyIndex + 1}/行${rowIndex + 1}`;
+      let broken = false;
+      const compare = (snapshot, state) => {
+        const reference = snapshot.cells.find((cell) => !cell.sticky) ?? snapshot.row;
+        for (const cell of snapshot.cells.filter((item) => item.sticky)) {
+          const location = `${state} 冻结列第 ${cell.index + 1} 格`;
+          if (cell.alpha !== 255) {
+            broken = true;
+            fail(label, `${location}背景 ${cell.raw} 半透明 —— 横向滚动时下层列会透出来`);
+          }
+          if (reference.unsupported.length || cell.unsupported.length) {
+            broken = true;
+            fail(label, `${location}含非纯色背景或 opacity/blend，无法自动比较实际合成色；需页面截图验证，不能记为通过`);
+          } else if (!sameColor(cell.composite, reference.composite)) {
+            broken = true;
+            fail(label, `${location}合成背景 ${colorText(cell.composite)}，同行普通格为 ${colorText(reference.composite)} —— 行高亮在冻结边界出现深浅差。检查 tr/td 是否重复叠加透明 tint，或 sticky 的 bg-* 是否压过行状态规则。`);
+          }
+        }
+      };
+
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(250); // Let existing background transitions settle.
+      const resting = await row.evaluate(collectFrozenRowSurfaces);
+      const state = [resting.selected && "selected", resting.menuOpen && "menu-open"].filter(Boolean).join("+") || "rest/zebra";
+      compare(resting, state);
+      await row.hover();
+      await page.waitForTimeout(250);
+      const hovered = await row.evaluate(collectFrozenRowSurfaces);
+      compare(hovered, `hover/${state}`);
+      const before = resting.cells.find((cell) => !cell.sticky) ?? resting.row;
+      const after = hovered.cells.find((cell) => !cell.sticky) ?? hovered.row;
+      // Selected/open state can legitimately outrank hover. An ordinary row
+      // needs a visible change; being opaque at rest alone is not a hover state.
+      if (!resting.selected && !resting.menuOpen && sameColor(before.composite, after.composite)) {
+        broken = true;
+        fail(label, `hover 数据行没有背景高亮（合成前后均为 ${colorText(after.composite)}）—— 表格必须有行 hover 态`);
+      }
+      if (!broken) pass(label, `冻结列 ${resting.cells.filter((cell) => cell.sticky).length} 格：不透明，${state} 与 hover 的合成背景均跟随同行`);
+    }
+  }
+};
+
+/**
+ * 对一个已经打开的页面跑整套契约。
+ *
+ * kind="admin"    ：后台工作台 —— 页面标题上限 16px（--text-page-title 15px），禁 hero。
+ * kind="consumer" ：顾客端页面 —— 移动端蓝图允许 22-24px 标题。
+ * kind="landing"  ：登录页 / 品牌门面 —— **不受工作台的标题上限约束**。
+ *                   规范禁止的是「后台工作页面里的 hero」，不是产品门面本身。
+ *                   但字号**下限**仍然适用：读不了的字，在哪儿都是读不了。
+ *
+ * skipFont：离线环境下 CDN 字体必然加载不上，此时跳过字体断言并由调用方明确声明跳过了。
+ *           默认 false —— 静默降级的契约不是契约。
+ */
+export async function auditPage(page, name, { kind = "admin", report, palette = KILN_PALETTE, skipFont = false } = {}) {
+  const { fail, pass } = report;
+  const d = await page.evaluate(collect, palette);
+
+  for (const b of d.buttons) {
+    const r = px(b.radius);
+    const h = px(b.height);
+
+    // 圆角只在**看得见**的时候才是一条规则。既没有背景也没有边框的按钮 —— 移动底栏
+    // 的分栏、纯文字动作 —— 圆角写 0 还是 4，渲染出来一模一样，查它等于查一个不存在
+    // 的属性，只会给每个带底栏的页面记一笔假账。（真正的 ghost 控件按规范 rest 态就得
+    // 有可见表面，所以这条豁免不会放过它们。）
+    const surfaced = !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(b.bg) || px(b.borderWidth) > 0;
+    if (!surfaced) {
+      // 圆角不查，高度照查：触摸目标和有没有表面无关。
+    } else if (b.isTab) {
+      // tab 两种变体都合法 —— button 变体 4px，line 变体 0（下划线式，无底板）
+      if (r !== 0 && r !== 4)
+        fail(name, `tab「${b.text}」圆角 ${r}px —— button 变体应 4px，line 变体应 0px`);
+    } else if (r !== 4) {
+      fail(name, `按钮「${b.text}」圆角 ${r}px，控件必须 4px`);
+    }
+
+    // 高度：普通控件下限 32px；tab trigger 28px 是 DS Tabs 规格
+    const floor = b.isTab ? 28 : 32;
+    if (h > 0 && h < floor) fail(name, `按钮「${b.text}」高 ${h}px，下限 ${floor}px`);
+  }
+  if (d.buttons.length) pass(name, `${d.buttons.length} 个按钮圆角/高度已检查`);
+
+  // ── 声明式内容居中：数学布局盒 + 可见墨迹 ────────────────
+  let centeredBroken = false;
+  for (const c of d.centeredContent) {
+    if (c.missingInk) {
+      centeredBroken = true;
+      fail(
+        name,
+        `<${c.tag}>「${c.label}」声明了 data-center-content，但没有 data-center-ink 目标`
+      );
+      continue;
+    }
+    if (c.missingGeometry) {
+      centeredBroken = true;
+      fail(
+        name,
+        `<${c.tag}>「${c.label}」的${
+          c.autoDetected ? "自动发现图形" : " data-center-ink"
+        }不可见或无法测量`
+      );
+      continue;
+    }
+
+    const layoutOff =
+      Math.abs(c.layoutDx) > CENTER_CONTRACT.layoutTolerance ||
+      Math.abs(c.layoutDy) > CENTER_CONTRACT.layoutTolerance;
+    const inkOff =
+      Math.abs(c.inkDx) > CENTER_CONTRACT.inkTolerance ||
+      Math.abs(c.inkDy) > CENTER_CONTRACT.inkTolerance;
+
+    if (layoutOff || inkOff) {
+      centeredBroken = true;
+      fail(
+        name,
+        `<${c.tag}>「${c.label}」内容未居中：` +
+          `布局盒 Δx ${c.layoutDx.toFixed(2)}px / Δy ${c.layoutDy.toFixed(2)}px，` +
+          `可见墨迹 Δx ${c.inkDx.toFixed(2)}px / Δy ${c.inkDy.toFixed(2)}px。` +
+          `不要用 align-items/place-items 的声明代替渲染几何验收。`
+      );
+    }
+  }
+  if (d.centeredContent.length && !centeredBroken) {
+    const autoCount = d.centeredContent.filter((c) => c.autoDetected).length;
+    pass(
+      name,
+      `${d.centeredContent.length} 个居中容器：布局盒与可见墨迹已检查` +
+        (autoCount ? `（${autoCount} 个纯图标按钮自动发现）` : "")
+    );
+  }
+
+  // ── 每视口至多一个 clay 填充 ───────────────────────
+  if (d.clayFills > 1) {
+    fail(name, `陶土红填充按钮 ${d.clayFills} 个 —— 每视口至多 1 个，全红 = 没有状态信号`);
+  } else {
+    pass(name, `陶土红填充 ${d.clayFills} 个（上限 1）`);
+  }
+
+  // ── 表格行内：clay 禁入，每行至多一个 ink 主动作 ────
+  const clayRows = d.rowFills.filter((r) => r.clay.length);
+  const multiFillRows = d.rowFills.filter((r) => r.fills.length > 1);
+  if (clayRows.length) {
+    fail(
+      name,
+      `表格行内有 clay 填充按钮（${clayRows.length} 行，如「${clayRows[0].clay.join("、")}」）—— ` +
+        `clay 永不进操作列：20 行 20 个红，红在整个产品里都不再是信号。行级主动作用 ink。`
+    );
+  } else if (multiFillRows.length) {
+    fail(
+      name,
+      `表格行内有 ${multiFillRows[0].fills.length} 个填充按钮（「${multiFillRows[0].fills.join("、")}」，${multiFillRows.length} 行）—— ` +
+        `每行至多一个填充动作（行级主动作），其余低权重或收进 ... 菜单。`
+    );
+  } else {
+    pass(name, `表格行内：无 clay 填充，每行至多一个 ink 主动作`);
+  }
+
+  // ── 白卡：靠阴影分层，不靠边框；圆角 6px（面板 ≤8px）──
+  for (const c of d.cards) {
+    const bw = px(c.borderWidth);
+    const r = px(c.radius);
+    if (bw > 0 && c.shadow === "none") {
+      fail(name, `白卡 .${c.cls} 有 ${bw}px 边框且无阴影 —— 白卡应无边框、靠 shadow-card 浮起`);
+    }
+    if (r > 8) fail(name, `白卡 .${c.cls} 圆角 ${r}px，超过面板上限 8px`);
+  }
+  if (d.cards.length) pass(name, `${d.cards.length} 个白色面板分层已检查`);
+
+  // ── 卡内容内缩：内容不贴卡边 ──────────────────────
+  for (const c of d.cardInsets) {
+    fail(
+      name,
+      `白卡 .${c.cls} 内「${c.text}」距${c.side}边缘 ${c.inset}px —— 卡内容不许贴边` +
+        `（底线 8px；标准内缩走 --space-4 / --space-6，相邻块对齐首个可见标签。` +
+        `full-bleed 只属于分隔线、表格、tab 轨道、图表、嵌套面板）`
+    );
+  }
+  if (d.cards.length && !d.cardInsets.length)
+    pass(name, `${d.cards.length} 个白色面板的内容内缩已检查`);
+
+  // ── 同排字段控件：一行里的输入 / 选择 / 日期触发器必须同高 ──
+  for (const row of d.fieldRows) {
+    fail(
+      name,
+      `同排控件高度不一：「${row.a}」${row.ha}px 与「${row.b}」${row.hb}px 并排 —— ` +
+        `字段控件没有「更高的那一档」，同一行只有一个 --control-height`
+    );
+  }
+  if (!d.fieldRows.length) pass(name, "同排字段控件外框同高");
+
+  // ── 原生 datalist 禁用：不可样式化也不可断言的原语 ───────────
+  for (const label of d.nativeDatalists || []) {
+    fail(
+      name,
+      `输入框「${label}」用原生 datalist 做建议下拉 —— 弹出面板是浏览器自绘的，` +
+        `样式和契约都够不着；换自绘 combobox（CreatableSelect）`
+    );
+  }
+
+  // ── 阴影必须暖黑 ───────────────────────────────────
+  const cold = d.shadows.filter((x) => isVisible(x.shadow) && !isWarmShadow(x.shadow));
+  if (cold.length) {
+    for (const c of cold) {
+      fail(name, `冷调阴影 <${c.tag} class="${c.cls}"> → ${coldPart(c.shadow)}  —— 阴影一律暖黑 rgba(54,47,42,·)`);
+    }
+  } else {
+    pass(name, `阴影全部暖黑`);
+  }
+
+  // ── 表格：行分隔线是主结构，竖线（若有）必须明显更淡 ──
+  const GRID_RATIO = 0.6;
+  for (const g of d.verticalGrids) {
+    const ratio = g.rowWeight > 0 ? g.maxV / g.rowWeight : Infinity;
+    if (g.rowWeight <= 0) {
+      fail(name, `表格画了竖向网格线，却没有行分隔线 <.${g.cls}> —— 行分隔线才是表格的结构，不能反过来`);
+    } else if (ratio > GRID_RATIO) {
+      fail(
+        name,
+        `竖向网格线太重：竖线权重 ${g.maxV.toFixed(2)}，行分隔线 ${g.rowWeight.toFixed(2)}（比值 ${ratio.toFixed(2)}，` +
+          `上限 ${GRID_RATIO}）—— 横竖同权重就是报纸网格。竖线只能是可忽略的对位辅助线。`
+      );
+    } else {
+      pass(name, `竖向网格线存在但明显淡于行分隔线（比值 ${ratio.toFixed(2)} ≤ ${GRID_RATIO}）`);
+    }
+  }
+  if (!d.verticalGrids.length) pass(name, "表格无竖向网格线（默认档）");
+
+  // ── 分段轨道：外框只比触发器高 4px ──────────────────
+  for (const track of d.segmentedTracks || []) {
+    const gap = px(track.track) - px(track.trigger);
+    if (gap !== 4) {
+      fail(
+        name,
+        `分段轨道「${track.label}」外框 ${px(track.track)}px、触发器 ${px(track.trigger)}px，` +
+          `差 ${gap}px —— 只能差 4px（1px 边框 + 1px 内衬，上下各一），否则轨道对不上同排控件`
+      );
+    }
+  }
+  for (const mark of d.checkMarks || []) {
+    if (!mark.inside)
+      fail(name, `勾选框「${mark.label}」的对勾落在框外${mark.drawnAsIcon ? "" : "（用伪元素+绝对 px 画的，外层一被压扁就会跑位；改成居中图标）"}`);
+  }
+  if (d.checkMarks?.length) {
+    pass(name, `${d.checkMarks.length} 个勾选标记均在框内`);
+  }
+
+  for (const band of d.headingBands || []) {
+    if (band.wrapped)
+      fail(
+        name,
+        `区块标题带「${band.label}」里的 .${band.cls} 换行了（display: ${band.display}）—— 容器的 > div 规则大概率盖掉了它自己的布局，用 :not([class]) 收窄容器规则`
+      );
+  }
+  if (d.headingBands?.length) {
+    pass(name, `${d.headingBands.length} 个区块标题带子组未换行`);
+  }
+
+  if (d.segmentedTracks?.length) {
+    pass(name, `${d.segmentedTracks.length} 条分段轨道外框已检查`);
+  }
+
+  // ── 入口锚定 ───────────────────────────────────────
+  // 三条判据分别对应三种翻车方式：把入口塞回集合里、忘了 self-start、以及只对了一行。
+  for (const anchor of d.actionAnchors || []) {
+    if (anchor.nested)
+      fail(
+        name,
+        `入口「${anchor.label}」与集合槽互相嵌套 —— 声明了锚点却仍排在集合的自动流里，数据一涨它照样跑`
+      );
+    // 4px 容差留给槽自己的内边距；再多就是被撑高的格子推下去的距离，不是内边距
+    if (anchor.drift > 4)
+      fail(
+        name,
+        `入口「${anchor.label}」在自己的槽里低了 ${anchor.drift}px —— 格子被折行的集合撑高后把它垂直居中了，标签与入口都要 self-start`
+      );
+  }
+  for (const stack of d.anchorStacks || []) {
+    if (stack.lefts.length > 1)
+      fail(
+        name,
+        `同一堆叠里 ${stack.count} 个入口左边缘不齐（${stack.lefts.join(" / ")}px：${stack.label}）—— 至少有一行的入口位置是跟着邻居的数据宽度走的`
+      );
+  }
+  if (d.actionAnchors?.length) {
+    pass(
+      name,
+      `${d.actionAnchors.length} 个入口已锚定（独立槽位 + 钉在行首${d.anchorStacks?.length ? "，堆叠内左边缘一致" : ""}）`
+    );
+  }
+
+  // ── 标题权威唯一 ───────────────────────────────────
+  const authority = d.titleAuthority || { total: 0, visible: [], texts: [], echoes: [] };
+  if (authority.total === 0) {
+    fail(name, "整页没有 h1 —— 路由没有标题权威（顶栏那行加粗文本不是标题）");
+  } else if (authority.total > 1) {
+    fail(
+      name,
+      `${authority.total} 个 h1（${authority.texts.join(" / ")}）—— 一条路由只能有一个标题权威`
+    );
+  } else if (authority.visible.length > 1) {
+    fail(name, `${authority.visible.length} 个可见 h1 —— 顶栏与 body 同时在报页面名`);
+  } else {
+    pass(name, `标题权威唯一${authority.visible.length ? `：${authority.visible[0]}` : "（sr-only 兜底）"}`);
+  }
+  for (const echo of authority.echoes) {
+    fail(name, `「${echo}」既是 h1 又作为 h2/h3 重复出现 —— 第二个标题带换了个标签`);
+  }
+
+  // ── 字号阶梯上限 ───────────────────────────────────
+  // 标题：后台 16px（--text-page-title 15），顾客端 24px（移动蓝图 22-24）。
+  // 其它文本：一律 ≤22px（--text-data，看板关键数字的上限）。
+  for (const h of d.heroHeadings) {
+    const cap =
+      kind === "landing"
+        ? Infinity
+        : h.isHeading
+          ? kind === "consumer" ? 24 : 16
+          : kind === "consumer" ? 24 : 22;
+    if (h.size > cap) {
+      fail(
+        name,
+        `${h.isHeading ? "标题" : "文本"}「${h.t}」${Math.round(h.size)}px —— 上限 ${cap}px` +
+          (h.isHeading ? "（禁 hero 字号）" : "（--text-data 22px 是阶梯天花板）")
+      );
+    }
+  }
+
+  // ── 字号下限 11px ──────────────────────────────────
+  if (d.tinyText.length) {
+    const sample = d.tinyText.slice(0, 3).map((x) => `「${x.t}」${Math.round(x.size)}px`).join("、");
+    fail(name, `${d.tinyText.length} 处文字小于 11px（--text-tiny 下限）：${sample}…`);
+  } else {
+    pass(name, "字号均 ≥11px");
+  }
+
+  // ── 字体 ───────────────────────────────────────────
+  if (!/Noto Sans SC/.test(d.font)) {
+    fail(name, `字体栈缺少 Noto Sans SC：${d.font.slice(0, 60)}`);
+  } else if (/Geist/.test(d.font)) {
+    fail(name, `字体栈含 Geist —— 规范禁止竞争性 webfont`);
+  } else if (skipFont) {
+    pass(name, `字体栈含 Noto Sans SC（webfont 加载断言已跳过）`);
+  } else if (!d.notoLoaded) {
+    // 这条曾经漏掉：只查字体栈，不查是否真的加载 —— 于是一个从没装过
+    // @fontsource 的项目也能「通过」，而它的中文其实一直在用系统字体。
+    fail(
+      name,
+      `Noto Sans SC 在字体栈里，但**没有加载 webfont** —— 中文会回退到系统字体，` +
+        `各平台渲染不一致。装 @fontsource/noto-sans-sc（400/500/600），或 @import kiln/tokens/fonts.css。`
+    );
+  } else {
+    pass(name, `Noto Sans SC 已加载，无竞争 webfont`);
+  }
+
+  // ── 分页条带：高度只能来自 --table-pagination-height ──
+  // 真实踩过：条带高度用 padding 拼出来，于是它和 token 分家了 —— 定高表格按 token 算行数，
+  // 条带按 padding 长，两边差几像素没人知道，且改一次 padding 就再分家一次。
+  // 高度归 token，padding 归零，控件靠 items-center 自己居中。
+  const pager = await page.evaluate(() => {
+    const bar = [...document.querySelectorAll("div")].find(
+      (d) => /^共 /.test((d.textContent || "").trim()) && d.querySelector("nav")
+    );
+    if (!bar) return null;
+    const probe = document.createElement("div");
+    probe.style.height = "var(--table-pagination-height)";
+    document.body.appendChild(probe);
+    const tokenH = Math.round(probe.getBoundingClientRect().height);
+    probe.remove();
+    return {
+      height: Math.round(bar.getBoundingClientRect().height),
+      tokenH,
+      pt: getComputedStyle(bar).paddingTop,
+      pb: getComputedStyle(bar).paddingBottom,
+    };
+  });
+  if (pager) {
+    if (Math.abs(pager.height - pager.tokenH) > 1) {
+      fail(
+        name,
+        `分页条带 ${pager.height}px，--table-pagination-height 是 ${pager.tokenH}px` +
+          `（padding ${pager.pt}/${pager.pb}）—— 高度必须来自 token，不要用 padding 拼。`
+      );
+    } else {
+      pass(name, `分页条带 ${pager.height}px = --table-pagination-height`);
+    }
+  }
+
+  // ── 分页导航的形状：箭头钉两端 + 七槽上限 + 页码 quiet ──
+  // 真实踩过：曾经的规范砍掉了上一页/下一页，理由是「相邻数字就是上下页」。
+  // 但窗口是跟着当前页滚的 —— 你刚点过的那个位置，下一秒换成了别的数字，
+  // 于是全组控件里唯一高频的动作，成了唯一落点会动的动作。
+  // 实测连点五次「下一页」：三格窗口的落点横跨 40px，钉住的箭头横跨 0。
+  const pagerShape = await page.evaluate(() => {
+    const nav = [...document.querySelectorAll("nav")].find((n) =>
+      /分页|pagination/i.test(n.getAttribute("aria-label") || "")
+    );
+    if (!nav) return null;
+    const visible = (el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    };
+    const label = (el) => (el.getAttribute("aria-label") || el.textContent || "").trim();
+    // 页码可能被一层 span 包着（窄屏要整体隐藏），所以按后代找页码，按 children 判两端
+    const kids = [...nav.children].filter(visible);
+    const numbers = [...nav.querySelectorAll("button")].filter(
+      (b) => visible(b) && /^\d+$/.test((b.textContent || "").trim())
+    );
+    const gaps = [...nav.querySelectorAll("*")].filter(
+      (el) => !el.children.length && /^…+$/.test((el.textContent || "").trim()) && visible(el)
+    ).length;
+    const current = numbers.find((b) => b.getAttribute("aria-current") === "page");
+    const transparent = (c) => c === "transparent" || /^rgba\(0, 0, 0, 0\)$/.test(c);
+    return {
+      headIsPrev: Boolean(kids[0] && kids[0].tagName === "BUTTON" && /上一页|prev/i.test(label(kids[0]))),
+      tailIsNext: Boolean(
+        kids.at(-1) && kids.at(-1).tagName === "BUTTON" && /下一页|next/i.test(label(kids.at(-1)))
+      ),
+      head: kids[0] ? label(kids[0]).slice(0, 12) : "(空)",
+      tail: kids.at(-1) ? label(kids.at(-1)).slice(0, 12) : "(空)",
+      slots: numbers.length + gaps,
+      hasCurrent: Boolean(current),
+      loud: numbers
+        .filter((b) => b !== current)
+        .map((b) => {
+          const s = getComputedStyle(b);
+          return { text: (b.textContent || "").trim(), bg: s.backgroundColor, bw: s.borderTopWidth, bc: s.borderTopColor };
+        })
+        .filter((n) => !transparent(n.bg) || (parseFloat(n.bw) > 0 && !transparent(n.bc))),
+    };
+  });
+  if (pagerShape) {
+    if (!pagerShape.headIsPrev || !pagerShape.tailIsNext) {
+      fail(
+        name,
+        `分页导航两端是「${pagerShape.head}」/「${pagerShape.tail}」，不是钉住的上一页/下一页箭头 —— ` +
+          `页码窗口会跟着当前页滚动，没有箭头就没有任何一个落点是稳定的，连续翻页每次都要重新瞄准。`
+      );
+    } else if (pagerShape.slots > 7) {
+      fail(
+        name,
+        `分页窗口 ${pagerShape.slots} 个槽位 —— 上限 7（首页 · 省略 · 当前页±1 · 省略 · 末页）。` +
+          `槽位是定值，条带宽度才不会随页码变化，它左边的控件才不会左右晃。`
+      );
+    } else if (!pagerShape.hasCurrent) {
+      fail(name, `分页窗口没有 aria-current="page" —— 当前页既是选中态信号，也是无障碍的落脚点。`);
+    } else if (pagerShape.loud.length) {
+      fail(
+        name,
+        `分页页码「${pagerShape.loud.map((n) => n.text).join("、")}」静止时有底色或边框 —— ` +
+          `非当前页码用 quiet：数字自证可点，七个方框并排会读成工具栏。箭头是图标，才留 outline。`
+      );
+    } else {
+      pass(name, `分页导航：箭头钉两端，${pagerShape.slots} 槽位（上限 7），非当前页码 quiet`);
+    }
+  }
+
+  // ── 过度滚动橡皮筋：全局禁用（SKILL.md：Interaction Is Quiet）────
+  {
+    let bounceBroken = false;
+    for (const docEl of d.overscroll.doc) {
+      if (docEl.x !== "none" || docEl.y !== "none") {
+        bounceBroken = true;
+        fail(
+          name,
+          `<${docEl.tag}> overscroll-behavior 为 ${docEl.x}/${docEl.y} —— 文档层必须 none，` +
+            `否则桌面壳（macOS WKWebView）过度滚动会出整页橡皮筋回弹`
+        );
+      }
+    }
+    for (const sc of d.overscroll.scrollers) {
+      bounceBroken = true;
+      const axes = [sc.badY ? "y" : "", sc.badX ? "x" : ""].filter(Boolean).join("+");
+      fail(
+        name,
+        `滚动容器「${sc.label}」的 ${axes} 轴在滚动却没设 overscroll-behavior: none —— ` +
+          `到边界会自己回弹，并把滚动链传给文档层`
+      );
+    }
+    if (!bounceBroken) {
+      pass(name, `橡皮筋已全局禁用：文档层 + ${d.overscroll.okCount} 个滚动容器`);
+    }
+  }
+
+  // ── 冻结列：不透明 + 跟随行状态（需要交互，放在静态收集之后）──
+  await auditFrozenColumns(page, name, report);
+}
+
+/** 统一的收尾输出。返回进程退出码，由调用方决定怎么退出。 */
+export function printReport(report, { title = "运行时设计契约" } = {}) {
+  for (const o of report.ok) console.log(`  ✓ ${o}`);
+  if (report.failures.length) {
+    console.error(`\n✗ ${title}未通过（${report.failures.length} 项）：\n`);
+    for (const f of report.failures) console.error(`  · ${f}`);
+    return 1;
+  }
+  console.log(`\n✓ ${title}通过。`);
+  return 0;
+}

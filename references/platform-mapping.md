@@ -21,12 +21,99 @@ Rules:
 - In Tailwind implementations, map `rounded-md` to the control radius (4px), `rounded-lg` to the card radius (6px), and `rounded-xl` or larger utilities to the panel cap (8px). Do not use `rounded-2xl` or larger visual language unless it is an explicit device preview or special panel.
 - If shadcn or a preset ships fixed slot radii, add shared slot-level overrides for common primitives instead of fixing radius page by page: buttons, inputs, textareas, select triggers, tabs, cards, popovers, dialogs, badges, and dropdown menus should all resolve back to the same 4 / 6 / 8px ladder.
 - If an existing shadcn button component maps its `default` variant to `bg-primary`, change `default` to solid/ink and add an explicit `primary` variant for the flow's single key action and for selected/current/active/focus-like filled states. Then audit business code: ordinary Save/Confirm/Generate actions stay default; the one key action per page (e.g. the one "新建…" entry on a management page), selected tabs, active filters, date endpoints, and current-state buttons use `primary`.
-- If an existing shadcn button component maps `ghost` to transparent text with only hover affordance, change it to a neutral soft surface for admin/workbench use, or ban it from page, toolbar, detail, edit, follow-up, call, close, and reset actions. A visible command should have a weak border, subtle muted background, or a deliberate inline-link treatment before hover.
+- If an existing shadcn button component maps `ghost` to transparent text with only hover affordance, change it to a neutral soft surface for admin/workbench use, or ban it from page, toolbar, detail, edit, follow-up, call, close, and reset actions. A visible standalone command should have a weak border, subtle muted background, or a deliberate inline-link treatment before hover. Do not force that resting surface onto contextual quiet controls defined in `components.md`, including the shell topbar return action and embedded input icons. Use a scoped chrome/quiet variant or modifier: transparent background/border at rest, no resting shadow for shell return chrome, and a muted hover surface; preserve the product's focus policy.
+- Map icon sizes by their action group. A detail-header more trigger uses `size="icon"` beside `size="default"` text actions; both consume `--control-height`. Keep `size="icon-sm"` with `--control-height-sm` for explicitly compact groups such as table operation cells, not for every dropdown trigger.
 - Repeated class groups become shared components or class constants.
 - Do not use naked hex values in business pages.
 - Do not copy shadcn internals into business pages.
 - Use DataTableDock for table scrolling, frozen columns, and pagination.
 - Use shared DropdownMenu for row action menus.
+
+For a detail header, keep menu behavior independent from trigger size and surface:
+
+```tsx
+<div className="flex items-center gap-[var(--space-2)]">
+  <Button variant="outline" size="default" onClick={sell}>出售</Button>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="ghost" size="icon" aria-label="更多操作">
+        <MoreHorizontal aria-hidden="true" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>{/* Record actions */}</DropdownMenuContent>
+  </DropdownMenu>
+</div>
+```
+
+The shell return button uses the host's shared chrome treatment from [Icon Button](components.md#shell-navigation-chrome), outside this business-action group. Verify transparent rest styling on the actual shell button and equal outer heights for the detail actions; an icon centered inside a shorter button does not satisfy the height rule.
+
+### Tag / Badge mapping
+
+Keep form and tone as separate inputs in a shared primitive: `variant="soft" | "outline" | "status"`, `tone="neutral" | "teal" | "peacock" | "blue" | "amber" | "olive" | "rose" | "clay"`, and a static default or compact size. The contract is in [Badge / Status / Tag](components.md#badge--status--tag); [`examples/tags.css`](../examples/tags.css) is the plain CSS implementation and [`examples/tags.html`](../examples/tags.html) is the interactive reference.
+
+For plain HTML, load the kiln tokens and the reference stylesheet, then declare form and tone directly:
+
+```html
+<span class="tag" data-variant="soft" data-tone="blue">
+  <span class="tag-label">线上咨询</span>
+</span>
+<span class="badge" data-variant="status" data-tone="teal">
+  <span class="tag-dot" aria-hidden="true"></span>
+  <span class="tag-label">已完成</span>
+</span>
+```
+
+For Tailwind, map all eight token families in the host's existing theme bridge, or select them through a static map of component-private `--_tag-*` slots. Both approaches reference the same upstream tokens without copying their values. The blue family illustrates the theme-bridge pattern; each other tone receives the same suffix mappings:
+
+```css
+@theme inline {
+  --color-tag-surface: var(--tag-surface);
+  --color-tag-blue-bg: var(--tag-blue-bg);
+  --color-tag-blue-border: var(--tag-blue-border);
+  --color-tag-blue-fg: var(--tag-blue-fg);
+  --color-tag-blue-hover: var(--tag-blue-hover);
+}
+```
+
+- A soft blue tag consumes `bg-tag-blue-bg border-tag-blue-border text-tag-blue-fg`; outline replaces its background with `bg-tag-surface`. Status uses a transparent surface/border plus the text tone and a `--tag-dot-size` dot. Define class choices in a static tone map so the Tailwind scanner sees every class; do not construct utility names from an unchecked string at runtime.
+- Use `h-[var(--tag-height)]` for a static Tag and `h-[var(--tag-height-sm)]` for a compact Badge. Text, weight, leading, font, and radius map to `--text-meta`, `--weight-medium`, `--leading-tight`, `--font-sans`, and `--radius-control`. Interactive and removable compositions use `--control-height-sm`, including the remove button's target box.
+- Selection uses `aria-pressed`, the tone's `-hover` surface, its `-fg` border, and a stable check slot. Removal belongs to a separate named button inside a non-button tag container. Preserve the host's focus policy and use its shared ring mapping for `--ring-focus`.
+- Carry the dedicated `-fg` token through the shared component instead of substituting `text-success`, `text-warning`, or the base tag hue. Verify normal text at 4.5:1 against the rendered light/dark, hover, and selected surfaces; assess disabled controls separately. The tag dark overrides respond to `.dark` / `[data-theme="dark"]` without supplying a global dark theme.
+- Retain established Badge variant names through a shared adapter: `default` / `secondary` / `neutral` → soft neutral; `outline` → outline neutral; `success` → soft teal; `info` → soft peacock; `warning` → soft amber; existing `danger` / `destructive` → soft clay. Preserve business meaning and avoid forcing every existing caller to change. New callers can select form and tone independently.
+- Resolve explicit `tone` before the legacy variant's inferred tone, and derive the form independently. Generate one resolved tone's classes so two competing CSS variable sets cannot make cascade order choose the color. Preserve the host's extra aliases, slot/ref/event forwarding, accessibility attributes, and supported class overrides. A CSS pseudo-element may render the decorative status dot when adding a sibling would break an `asChild` single-child slot.
+- Size removable compositions in the shared component, including legacy `span` + button callers. An explicit remove slot or a selector scoped to the badge's direct remove button can apply `--control-height-sm` to the container and both target dimensions, neutralize conflicting compact button sizing, and keep the target visible. Put text truncation on the label; do not let the badge's static `overflow-hidden` rule crop the remove target or focus feedback. Keep these rules inside the Tag component rather than styling unrelated containers by element type.
+- Plain CSS retains `.badge-success`, `.badge-info`, `.badge-warning`, and `.badge-danger` as compatibility tone aliases. Component-private `--_tag-*` slots select existing tokens; they are not new global design tokens or permission to invent local values.
+- Audit semantic callers after updating the shared adapter: old `default` / `secondary` choices may conceal distinct completed, pending, and neutral business states. Put the named mapping in one product presentation helper and reuse it across views; see [Business meaning](components.md#business-meaning). Verify one real consuming page and the installed package, not only the standalone gallery.
+
+### Focus policy mapping
+
+All focus mappings below assume the default `keyboard` policy. When a product explicitly chooses the `pointer-first` policy from `SKILL.md`, have the application root install one document capture-phase listener instead of adding per-control `tabIndex` patches or stripping selection state:
+
+```tsx
+useEffect(() => {
+  const preventTabTraversal = (event: KeyboardEvent) => {
+    if (event.key !== "Tab") return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  document.addEventListener("keydown", preventTabTraversal, true)
+  return () => document.removeEventListener("keydown", preventTabTraversal, true)
+}, [])
+```
+
+```css
+:root {
+  --ring: transparent;
+  --sidebar-ring: transparent;
+  --ring-focus: none;
+  --shadow-primary-focus: none;
+}
+
+*:focus,
+*:focus-visible { outline: none !important; }
+```
+
+Keep the source Kiln tokens unchanged; this is a consumer-root override of focus-only aliases. Do not suppress `aria-selected`, `aria-current`, `data-state="active"`, or menu highlight states: they communicate selection, current state, and pointer navigation rather than Tab focus. Verify that `Tab` and `Shift+Tab` leave `document.activeElement` unchanged, that programmatic focus has no ring, and that a clicked text input still accepts text.
 
 ### Existing shadcn / Tailwind Migration Checklist
 
@@ -47,6 +134,9 @@ Use this checklist when a project already has many `rounded-*`, `variant="defaul
    - `ghost` is not transparent or hover-only for visible commands.
    - Detail/header actions such as Edit, Follow-up, Call, Close, Reset, Refresh, and toolbar commands have a default-state neutral surface.
    - Local overrides such as `border-transparent`, `text-primary`, or hover-only backgrounds are not used to hide ordinary commands.
+   - Embedded input icon controls, such as password visibility toggles, use a scoped quiet modifier: transparent and borderless at rest, muted on hover, with stable dimensions and the active focus policy preserved.
+   - Shell topbar return controls use scoped navigation chrome: transparent background and border, no resting shadow, a default icon hit box, and muted hover feedback. Ordinary business-action ghost buttons retain their visible rest surface.
+   - Detail-header more triggers match adjacent default text actions through `icon` sizing. Compact table-row sizing stays confined to compact groups.
 7. Audit fonts: load the bundled Noto Sans SC webfont (400/500/600) as the primary CJK family with the system stack as fallback; remove competing webfonts.
 8. Validate in the browser or with computed styles. Minimum checks: a normal button is 4px and solid/ink, an outline/ghost action is visible at rest, an input/select is 4px, a card/panel/dialog is 6px, cards separate by shadow rather than border, and the key action / active / selected / focus / error state uses primary.
 9. If a page still feels inconsistent, sample computed `border-radius`, `background-color`, `border-color`, `font-family`, and dimensions from controls and panels before making more changes. Do not tune by eye alone.
@@ -70,7 +160,7 @@ When composing DS bundle components inside a Design Component template:
   ```
 
   Scope by a wrapper class on the strip; never override globally (toolbar selects at the top should keep dropping down).
-- The compiled Select trigger **and Input/Textarea** write their hover border as **solid ink** via inline style (Select does not always reset it) — a direct violation of the no-pure-black-line rule. Neutralize globally per page:
+- In the `keyboard` focus policy, the compiled Select trigger **and Input/Textarea** write their hover border as **solid ink** via inline style (Select does not always reset it) — a direct violation of the no-pure-black-line rule. Neutralize globally per page:
 
   ```css
   .sc-host-x > div > div[role="button"],
@@ -85,6 +175,17 @@ When composing DS bundle components inside a Design Component template:
   ```
 
   (Select triggers are the only `div[role="button"]` inside DS mounts; real Buttons render `<button>` and are unaffected. Click-focus on inputs keeps the clay ring — that is a signal, not a black line.)
+- In the `pointer-first` policy, keep the hover and open-Select handling above, then append this **after** the keyboard focus rule so pointer-focused fields return to their quiet base surface rather than receiving its clay ring:
+
+  ```css
+  .sc-host-x input:focus,
+  .sc-host-x textarea:focus {
+    border-color: var(--input) !important;
+    box-shadow: var(--shadow-input) !important;
+  }
+  ```
+
+  The open Select trigger remains an open-state signal, not a Tab focus ring.
 - Array/object props (Tabs `items`, Select `options`, handlers) come from `renderVals()` holes; keep `hint-size` on every mount.
 
 ## Plain CSS / Other Web Projects
@@ -164,6 +265,36 @@ When porting to mobile apps or mini programs:
 
 ## Reuse Guide
 
+### Fixed / Variable / Residue
+
+Split kiln into three layers before copying any of it. A port that skips the split fails in one of two directions: it clones kiln so literally that the target cannot carry its own brand, or it keeps the colors, drops the structure, and ends up warm-tinted but shapeless.
+
+**Fixed — the system itself. Change any of these and the result is no longer kiln:**
+
+- The radius ladder and its role mapping (control / card / panel).
+- Separation order: whitespace and soft warm shadow first, border last; white surfaces borderless by default.
+- One filled key action per viewport, and no clay fill inside a table row.
+- The three-layer hierarchy and the typography budget.
+- A type scale with both a floor and a ceiling, with hero type banned from workbench pages.
+- Structure carried by layout, grid, and spacing rather than by heavier shadow, larger cards, or more color.
+- Both contract gates. A port without them is a screenshot of a design system.
+
+**Variable — the target owns these, and kiln expects them to change:**
+
+- The primary hue. Clay red is kiln's anchor, not the rule; the rule is that there is exactly **one** anchor. Replace it and recalculate primary subtle, ring, sidebar active, and destructive **together** — a brand color swapped into one token and not the other four is the most common way a port starts drifting on its first day.
+- Status hue assignments, as long as they stay semantic and stay distinguishable from the anchor.
+- The font family, provided the CJK family loads as a webfont on every platform.
+- The default density, when the target's job is genuinely lighter or denser than an operations workbench.
+- Page blueprints and status vocabulary, which follow the target's domain.
+
+**Residue — kiln's own product history. Do not port these as rules:**
+
+- Blueprints for domains the target does not have: payroll batches, external integration panels, resource packages.
+- The specific Chinese labels, example copy, and seeded data used in this skill's examples.
+- Component specs for primitives the target does not ship.
+
+Carrying residue across is what turns a design system into a copy of someone else's product. When unsure which pile a rule belongs to, ask whether it would still make sense if the target sold something completely different.
+
 Minimum portable package:
 
 1. Color tokens.
@@ -184,10 +315,8 @@ Porting steps:
 6. Add Dialog, Sheet, form flows, and mobile cards.
 7. Add target-project page blueprints and status language.
 
-Adaptation:
+Domain adaptation, after the Fixed / Variable / Residue split:
 
-- Replace page blueprints when the target domain differs, but keep token/component/layout rules.
-- Brand color can replace clay, but recalculate primary subtle, ring, sidebar active, and destructive.
 - CRM/ERP projects should preserve table and sidebar rules.
 - Content-production projects should preserve resource cards and editor rules.
 - Mobile-first projects should prioritize card and bottom sheet patterns.

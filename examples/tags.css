@@ -1,0 +1,116 @@
+/* kiln Tag / Badge 共享参考实现。颜色仅引用 tokens/tags.css；--_tag-* 是组件私有槽位。 */
+.tag, .badge {
+  --_tag-bg: var(--tag-neutral-bg);
+  --_tag-border: var(--tag-neutral-border);
+  --_tag-fg: var(--tag-neutral-fg);
+  --_tag-hover: var(--tag-neutral-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex: none;
+  gap: var(--space-1);
+  max-width: 100%;
+  height: var(--tag-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--_tag-border);
+  border-radius: var(--radius-control);
+  background: var(--_tag-bg);
+  color: var(--_tag-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+.badge, .tag[data-size="sm"] { height: var(--tag-height-sm); }
+.tag[data-tone="neutral"], .badge[data-tone="neutral"] {
+  --_tag-bg: var(--tag-neutral-bg);
+  --_tag-border: var(--tag-neutral-border);
+  --_tag-fg: var(--tag-neutral-fg);
+  --_tag-hover: var(--tag-neutral-hover);
+}
+.tag[data-tone="teal"], .badge[data-tone="teal"], .badge-success {
+  --_tag-bg: var(--tag-teal-bg);
+  --_tag-border: var(--tag-teal-border);
+  --_tag-fg: var(--tag-teal-fg);
+  --_tag-hover: var(--tag-teal-hover);
+}
+.tag[data-tone="peacock"], .badge[data-tone="peacock"], .badge-info {
+  --_tag-bg: var(--tag-peacock-bg);
+  --_tag-border: var(--tag-peacock-border);
+  --_tag-fg: var(--tag-peacock-fg);
+  --_tag-hover: var(--tag-peacock-hover);
+}
+.tag[data-tone="blue"], .badge[data-tone="blue"] {
+  --_tag-bg: var(--tag-blue-bg);
+  --_tag-border: var(--tag-blue-border);
+  --_tag-fg: var(--tag-blue-fg);
+  --_tag-hover: var(--tag-blue-hover);
+}
+.tag[data-tone="amber"], .badge[data-tone="amber"], .badge-warning {
+  --_tag-bg: var(--tag-amber-bg);
+  --_tag-border: var(--tag-amber-border);
+  --_tag-fg: var(--tag-amber-fg);
+  --_tag-hover: var(--tag-amber-hover);
+}
+.tag[data-tone="olive"], .badge[data-tone="olive"] {
+  --_tag-bg: var(--tag-olive-bg);
+  --_tag-border: var(--tag-olive-border);
+  --_tag-fg: var(--tag-olive-fg);
+  --_tag-hover: var(--tag-olive-hover);
+}
+.tag[data-tone="rose"], .badge[data-tone="rose"] {
+  --_tag-bg: var(--tag-rose-bg);
+  --_tag-border: var(--tag-rose-border);
+  --_tag-fg: var(--tag-rose-fg);
+  --_tag-hover: var(--tag-rose-hover);
+}
+.tag[data-tone="clay"], .badge[data-tone="clay"], .badge-danger {
+  --_tag-bg: var(--tag-clay-bg);
+  --_tag-border: var(--tag-clay-border);
+  --_tag-fg: var(--tag-clay-fg);
+  --_tag-hover: var(--tag-clay-hover);
+}
+
+.tag[data-variant="outline"], .badge[data-variant="outline"] { background: var(--tag-surface); }
+.tag[data-variant="status"], .badge[data-variant="status"] {
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 0;
+}
+.tag-dot {
+  width: var(--tag-dot-size);
+  height: var(--tag-dot-size);
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+.tag-label { overflow: hidden; text-overflow: ellipsis; }
+button.tag, a.tag, .tag-removable {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+}
+button.tag, a.tag, .tag-remove {
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+button.tag:hover:not(:disabled), a.tag:hover { background: var(--_tag-hover); }
+.tag[aria-pressed="true"] { background: var(--_tag-hover); border-color: var(--_tag-fg); }
+.tag-check { width: var(--space-3); height: var(--space-3); visibility: hidden; }
+.tag[aria-pressed="true"] .tag-check { visibility: visible; }
+.tag:focus-visible, .tag-remove:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+.tag:disabled { opacity: .5; cursor: not-allowed; }
+.tag-removable { padding-right: 0; gap: 0; }
+.tag-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none;
+  width: var(--control-height-sm); height: var(--control-height-sm);
+  padding: 0; border: 0;
+  border-radius: var(--radius-control);
+  background: transparent; color: inherit;
+}
+.tag-remove:hover { background: var(--_tag-hover); }
+.tag-remove svg { width: var(--space-3); height: var(--space-3); }

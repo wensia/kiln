@@ -85,6 +85,35 @@ Rules:
 | `--input` | `#DCD7D0` | Input border |
 | `--ring` | `#B6533C` | Focus ring |
 
+### Tag Glaze Tokens
+
+`tokens/tags.css` owns this component palette. The anchors below stay unchanged in light and dark contexts; each tone has its own background, border, foreground, and hover tokens. Tag text uses the derived foreground, not the anchor itself. These tokens do not replace the global status tokens above.
+
+| Tone | Anchor token | Value | Use |
+| --- | --- | --- | --- |
+| Neutral | `--tag-neutral` | `var(--palette-muted-ink)` | Uncategorized attributes and quiet metadata |
+| Teal | `--tag-teal` | `var(--palette-teal)` | Success states or a consistently assigned category |
+| Peacock | `--tag-peacock` | `var(--palette-peacock)` | Info states or a consistently assigned category |
+| Blue | `--tag-blue` | `#5276A4` | Category identity |
+| Amber | `--tag-amber` | `var(--palette-amber)` | Warning states or a consistently assigned category |
+| Olive | `--tag-olive` | `#7D8650` | Category identity |
+| Rose | `--tag-rose` | `#AF657D` | Category identity |
+| Clay | `--tag-clay` | `var(--palette-clay)` | Danger / destructive states or a consistently assigned category |
+
+For each `{tone}` above, the following table mirrors the exact sRGB derivation. `tone` means `var(--tag-{tone})`, `white` means `var(--palette-white)`, and `ink` means `var(--palette-ink)`. The omitted second percentage is the remainder to 100%, as in CSS `color-mix`.
+
+| Token family | Light value | Dark value | Use |
+| --- | --- | --- | --- |
+| `--tag-surface` | `var(--palette-white)` | `var(--palette-ink)` | Opaque outline-tag surface |
+| `--tag-{tone}-bg` | tone 14% + white | tone 25% + ink | Soft default surface |
+| `--tag-{tone}-border` | tone 32% + white | tone 50% + ink | Whole thin boundary |
+| `--tag-{tone}-fg` | tone 58% + ink | tone 42% + white | Readable label, state dot, and selected border |
+| `--tag-{tone}-hover` | tone 22% + white | tone 32% + ink | Interactive hover and selected surface |
+
+The concrete families are `--tag-neutral-*`, `--tag-teal-*`, `--tag-peacock-*`, `--tag-blue-*`, `--tag-amber-*`, `--tag-olive-*`, `--tag-rose-*`, and `--tag-clay-*`, each with `bg`, `border`, `fg`, and `hover` suffixes. `.dark` and `[data-theme="dark"]` activate the dark derivations for tags only; they do not turn on or define the host application's global dark theme.
+
+Normal tag text must reach at least 4.5:1 against its rendered surface in both themes and in hover/selected states. A transparent `status` variant is checked against its actual ancestor surface. Disabled controls are assessed separately. Stable category assignments and state mappings live in [Badge / Status / Tag](components.md#badge--status--tag); the interactive reference is [examples/tags.html](../examples/tags.html).
+
 ### Table Surface Tokens
 
 | Token | Light Value | Use |
@@ -134,7 +163,8 @@ Color rules:
 - At most one clay-filled action per viewport. When a viewport contains both an ordinary submit and a stateful signal, keep the submit ink-solid and reserve clay for the selected/active/focus/error signal. If everything is red, nothing reads as state.
 - Beyond the single key action, prefer primary text, a thin whole border/ring, or a subtle tint for selected and active states over clay fills, unless the component spec explicitly calls for `bg-primary` (active nav plate, selected date endpoints).
 - Do not use local purple, Tailwind emerald/amber/sky status colors, or naked hex in business UI.
-- Apply status color to badges, dots, values, whole thin borders/rings, or subtle tints (`--success-bg` / `--info-bg` / `--warning-bg` / `--destructive-bg`). Avoid heavy row fills.
+- Apply status color to dots, values, whole thin borders/rings, or subtle tints (`--success-bg` / `--info-bg` / `--warning-bg` / `--destructive-bg`). Tags and badges use the corresponding `--tag-{tone}-bg` / `-border` / `-fg` family so small text gets its own readable foreground. A soft clay danger badge is allowed; avoid heavy row fills or opaque primary tag fills.
+- Category tags may use the additional blue, olive, and rose tag tones with stable assignments. These category colors do not change the global success, info, warning, or destructive meanings.
 - Do not use status color as a one-sided border accent by thickening or tinting only `border-left`, `border-right`, `border-top`, or `border-bottom`. One-sided borders are allowed only for real structural edges such as frozen columns, split panes, timelines, or table dividers.
 
 ## Spacing
@@ -154,22 +184,25 @@ Fixed sizes:
 
 | Token | Value | Use |
 | --- | --- | --- |
+| `--tag-height` | `24px` | Default static Tag |
+| `--tag-height-sm` | `20px` | Compact static Tag / Badge |
+| `--tag-dot-size` | `6px` | Leading state dot in a status marker |
 | `--nav-item-height` | `36px` | Sidebar nav item |
 | `--table-row-height` | `48px` | Data table row baseline (the DS `Table` component renders airy 52px rows with 16px cell padding — both are sanctioned; do not go below 48px) |
 | `--table-pagination-height` | `40px` | Pagination strip (a tertiary strip: 32px controls plus breathing room). Anything computing a table's fitted height must consume this, not re-derive it from a control height. |
 | `--toolbar-control` | `32px` | Compact toolbar control (32-36) |
 | `--control-height` | `36px` | Default button, input, select |
-| `--control-height-sm` | `32px` | Small button, inline control |
+| `--control-height-sm` | `32px` | Small button, inline control, selectable/linked/removable Tag and its remove target |
 | `--field-rhythm` | `12px` | Form field gap (8-12) |
 
 ## Radius
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `--radius-control` | `4px` | Buttons, inputs, nav items |
+| `--radius-control` | `4px` | Buttons, inputs, nav items, Tags and Badges |
 | `--radius-card` | `6px` | Card, popover, dialog |
 | `--radius-panel` | `8px` | Large panel, resource card |
-| `--radius-pill` | `999px` | Explicit tag/chip only |
+| `--radius-pill` | `999px` | Circular state dots and explicitly documented pill exceptions |
 
 Rules:
 
@@ -177,7 +210,7 @@ Rules:
 - Cards and popovers use 6px.
 - Large panels and resource cards use at most 8px.
 - Exact 4/6/8 ladder — never derive fractional pixels from a multiplier.
-- Status badges default to 4px; avoid pills unless the element is explicitly a tag/chip.
+- Tags and status badges use `--radius-control`; the component's tag/chip name alone does not authorize a pill. Its state dot uses `--radius-pill`.
 - Avoid radius above 12px except for explicit device previews or special panels.
 
 shadcn bridge (from the DS `tokens/radius.css`): `--radius: 0.375rem`, `--radius-sm/md: 0.25rem`, `--radius-lg: 0.375rem`, `--radius-xl: 0.5rem` — i.e. `rounded-md` → controls 4px, `rounded-lg` → cards 6px, `rounded-xl` → panels 8px.

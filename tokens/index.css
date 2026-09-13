@@ -17,6 +17,7 @@
    ============================================================ */
 
 @import "./colors.css";
+@import "./tags.css";
 @import "./typography.css";
 @import "./spacing.css";
 @import "./radius.css";

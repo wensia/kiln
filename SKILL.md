@@ -1,7 +1,6 @@
 ---
 name: kiln
-description: Use this skill whenever the user asks to design, implement, review, port, or document a Chinese admin / workbench UI — SaaS backends, CRM, ERP, operations dashboards, data tables, sidebar navigation, form controls, date pickers — or when they mention kiln, clay-red workbench styling, or a reusable design spec. kiln turns a warm ceramic-glaze design language into concrete layout, token, component, and QA decisions. Do not use it for marketing pages unless the user explicitly wants the admin workbench visual language applied.
-version: 3.1.0
+description: Use this skill whenever the user asks to design, implement, review, port, or document a Chinese admin / workbench UI — SaaS backends, CRM, ERP, operations dashboards, data tables, sidebar navigation, form controls, date pickers — or the non-workbench surfaces of the same product: login, empty states, 404, report covers, release notes, system email, the product's front door. Also use it when they mention kiln, clay-red workbench styling, a paper/zine-like admin front page, or a reusable design spec. kiln turns a warm ceramic-glaze design language into concrete layout, token, component, and QA decisions across two layers, workbench and paper. Do not use it for selling/marketing composition unless the user explicitly wants this visual language applied.
 allowed-tools: [Read, Write, Edit, Glob, Grep]
 ---
 
@@ -42,7 +41,7 @@ Declare this font decision before starting UI work:
 
 ## Reference Files
 
-Read this file first for intent and workflow, then load the reference whose job matches the task. Do not preload all references.
+Read this file first for intent and workflow, then load only what your mode requires (see Request Modes below). Do not preload all references.
 
 | File | Read it when | What's inside |
 | --- | --- | --- |
@@ -50,6 +49,63 @@ Read this file first for intent and workflow, then load the reference whose job 
 | `references/components.md` | Building buttons, inputs, password fields, date/time pickers, selects, badges, tabs, tables, pagination, resource cards, dialogs, sheets, dropdowns, feedback, or empty/loading states | Per-component specs, states, and QA |
 | `references/layouts-and-pages.md` | Designing shells, sidebar (including the collapsed rail), toolbar, data table docks, editor layouts, overlays, or specific page types | Desktop/mobile shell, navigation, DataTableDock, editor shell, overlays, page blueprints |
 | `references/platform-mapping.md` | Porting to React/Tailwind, plain CSS, design tools, dark mode, mini programs, or another project | Implementation and cross-project reuse mapping |
+| `references/paper.md` | Designing login, empty states, 404, report covers, release notes, system email, or the product's front door | The paper layer: what it inherits, what it inverts, page blueprints, and its own contract |
+
+## Request Modes
+
+Route the request before reading anything else. These four modes take different inputs, load different references, and end on different definitions of done. Running the design workflow against an audit request is the most common way this skill produces confident, useless output.
+
+| Mode | Trigger | Load | Deliverable |
+| --- | --- | --- | --- |
+| **Design** | A new page, flow, or component with no existing implementation | `tokens.md`, `components.md`, `layouts-and-pages.md` | Blueprint: shell, density, hierarchy, tokens, components, states, QA list |
+| **Migrate** | An existing shadcn / Tailwind / admin project adopting kiln globally | All four references, then the Migration Gate below | Ordered migration steps, acceptance criteria, and both contract gates wired |
+| **Audit** | A surface that already claims to be kiln, or a "this looks off, why" request | `components.md` plus the reference owning that surface | Evidence-based, ranked violation list, each finding citing the rule it breaks |
+| **Port** | Deriving another product, brand, or platform from kiln | `platform-mapping.md`, `tokens.md` | Fixed / variable / residue split, then the mapped implementation |
+| **Paper** | A surface in the product that carries no repeated work: login, empty state, 404, report cover, release notes, system email, front door | `paper.md`, `tokens.md` | Sheet composition: one subject, the whitespace budget, the single anchor, print material |
+
+When a request spans modes — "switch us to kiln and redesign the records page" — run them in sequence and say which one you are in. Do not fold audit findings into a redesign: the user loses the ability to tell what was broken from what was merely changed.
+
+### Design
+
+1. Identify the page type and the primary user job.
+2. Choose density before composing controls.
+3. Apply the three-layer hierarchy.
+4. Pick tokens from `references/tokens.md`.
+5. Build with components from `references/components.md`.
+6. Use shell and page structure from `references/layouts-and-pages.md`.
+7. Check Anti-Patterns before finishing.
+8. Verify text fit, table scrolling, focus states, action grouping, mobile recomposition, and computed token/radius/color output when relevant.
+
+### Migrate
+
+Run the Existing shadcn / Tailwind Migration Gate below, map implementation through `references/platform-mapping.md`, and finish by wiring both gates from Make the spec machine-checkable. A migration that cannot fail has not been verified, only asserted.
+
+### Audit
+
+1. **Collect evidence before judging.** Read what is actually rendered — the live page, a screenshot, or the component source — and record control heights, radii, fill colors, border usage, and copy. An audit that opens with a verdict is a preference, not a finding.
+2. **Sort what you found into three piles.** Only the first is yours to report:
+   - **Violation** — it breaks a rule this skill owns.
+   - **Local decision** — the host product's own brand, domain, or business choice that kiln does not govern. Leave it alone; adopting kiln is not surrendering every decision to it.
+   - **Residue** — an artifact of this one screen (placeholder copy, seeded data, a half-built feature) that must not be generalized into a rule for the product.
+3. **Rank by blast radius, not by how much it bothers the eye.** A shared component variant outranks a page blueprint, which outranks one screen. A wrong shared `ghost` mapping is worth more than five drifting content insets.
+4. **Cite the rule.** Every finding names the file and rule it breaks, so the fix is checkable and the finding is arguable. An uncited finding is taste.
+5. Do not claim visual QA passed from lint or build alone.
+
+### Port
+
+1. Split the system before copying it — see Fixed / Variable / Residue in `references/platform-mapping.md`. Skipping the split produces one of two failures: a clone that cannot carry the target's own brand, or a dilution that keeps kiln's colors and loses its structure.
+2. Map implementation through `references/platform-mapping.md`.
+3. Re-run both contract gates inside the target project, against the target's own token file.
+
+### Paper
+
+1. Confirm the surface really carries no repeated work. A login page with a live data table on it is a workbench page wearing paper clothes — split it before styling it.
+2. Load `references/paper.md`, and load `tokens/paper.css` **in addition to** `tokens/index.css`. Paper tokens are a second, explicit layer; a workbench page must not have them.
+3. Decide the one subject before anything else. Everything else on the sheet is its footnote.
+4. Spend the whitespace budget as continuous blocks, not as loosened line-height.
+5. Place exactly one high-saturation anchor. It may change form — a block, a rule, a stamp, one red character — but never change count.
+6. Use print material only: grain, rule, crease. No soft shadow — paper does not float on paper.
+7. Verify with `npm run verify:paper` at both a desktop and a mobile viewport. The mobile band is the tight one, and that is not an artifact of the measurement: a narrow viewport is where a sheet quietly turns back into a shrunken workbench.
 
 ## Existing shadcn / Tailwind Migration Gate
 
@@ -72,13 +128,19 @@ Required implementation checks:
 Prose cannot enforce itself, and a human eye cannot audit a whole app. In a real port, wire two gates:
 
 1. **Token contract** (build-time). Assert that every token the design system declares is defined, that nobody invented a token, and that business code contains no raw hex, no Tailwind palette colors (`bg-green-100`, `text-red-500`…), and no page-specific hard-coded pixel heights. Values must come from the design system, not from someone's reading of a paragraph.
-2. **Rendered-style contract** (runtime). Drive the real pages and assert the browser's computed styles: the radius ladder, control heights, at most one clay-filled action per viewport, no clay and at most one fill inside a table row, white cards separated by shadow rather than border, warm-black shadows only, the font stack, the type-scale floor and ceiling, vertical grid lines markedly lighter than the row divider, and frozen columns that follow the row's highlight (this one requires actually hovering — a static computed-style sweep cannot see it).
+2. **Rendered-style contract** (runtime). Drive the real pages and assert the browser's computed styles: the radius ladder, control heights, centered layout and visible-ink geometry for declared content groups, automatic centering coverage for semantic pure icon `button` / `[role="button"]` controls even when their author forgot the declaration, at most one clay-filled action per viewport, no clay and at most one fill inside a table row, white cards separated by shadow rather than border, warm-black shadows only, the font stack, the type-scale floor and ceiling, vertical grid lines markedly lighter than the row divider, and frozen columns that follow the row's highlight (this one requires actually hovering — a static computed-style sweep cannot see it).
+
+kiln ships both, and runs them on itself: `scripts/verify.mjs` is the token contract, and `npm run verify:examples` drives `examples/workbench.html` — a page built only from `tokens/*.css` — through the rendered-style contract. Use that page as the reference for what these rules actually look like when followed, and as proof that they are implementable rather than merely stated.
+
+The assertions themselves live in one place, `scripts/lib/runtime-contract.mjs`, exported as `kiln/contract/runtime`. The host template in `scripts/templates/` only declares which routes to visit and how to log in. Do not copy the rules into a project — the copy starts drifting from kiln the moment it is made, which is the same failure mode as restating a token value in prose.
 
 The second gate is not optional polish — it is the **only** thing that catches composition errors. A component whose surface is a semi-transparent mix (a button-tab track, the topbar) is context-dependent: nest it in a white card instead of the canvas it was designed for and its contrast quietly collapses, while the tokens and the class names all still look correct. Cover **every** page and every tab; whatever the assertions do not visit is, in practice, unspecified.
 
 ## Product Position
 
-kiln is for **production tools, not landing pages**. Whatever product adopts it, the UI should feel like a work surface:
+kiln has two layers, and every rule in this file belongs to one of them.
+
+**Workbench layer** — production tools. Whatever product adopts it, the UI should feel like a work surface:
 
 - Compact, readable, and built for repeated operational use.
 - Strong at scanning, comparing, filtering, editing, and auditing data.
@@ -86,6 +148,12 @@ kiln is for **production tools, not landing pages**. Whatever product adopts it,
 - Reusable design decisions captured as tokens, components, and page blueprints.
 
 Avoid marketing composition, oversized hero sections, decorative illustration, gratuitous gradients, and card-heavy section stacking.
+
+**Paper layer** (`references/paper.md`) — everything in the same product that is *not* a workbench: login, empty states, 404, report covers, release notes, system email, the product's own front door. These surfaces used to be out of scope, so every product sourced them from somewhere else, and the style broke at the door between the login page and the first data table.
+
+The paper layer inherits the glaze palette, the single-anchor rule, and the anti-decoration list unchanged. It inverts density, material, and the type ceiling: the ban is on **selling composition**, not on the product having a front door. Which layer a surface belongs to has one test — does it carry work the user repeats? Yes is workbench, no is paper.
+
+The two layers load separately (`tokens/index.css` vs `tokens/paper.css`) so that their contracts stay sharp. Merge them and the workbench inherits a display type scale while paper inherits a 22px ceiling, which disarms both.
 
 ## Design Philosophy
 
@@ -111,7 +179,11 @@ A thin visible border is not a generic rung on this ladder — reserve it for in
 
 ### Color Is Signal
 
-The default canvas is warm near-white, the main surface is white, and the primary signal is clay red. Teal, peacock, and amber are semantic status colors. Color should encode state, focus, or the key action, not decorate the page.
+The default canvas is warm near-white, the main surface is white, and the primary signal is clay red. Teal, peacock, and amber are semantic status colors. Color should encode state, category identity, focus, or the key action, not decorate the page.
+
+Tags have their own restrained glaze tones in `tokens/tags.css`: neutral, teal, peacock, blue, amber, olive, rose, and clay. Choose a stable color for a named category; do not distribute colors randomly. Blue, olive, and rose extend category identity without changing global status semantics. Keep tag form (`soft`, `outline`, or `status`) independent from tone, and use each tone's dedicated foreground for readable small text. Soft clay is permitted for danger labels; opaque primary fills retain their existing action and state rules. See Badge / Status / Tag in `references/components.md` and the interactive reference in `examples/tags.html`.
+
+When porting Tags, preserve old Badge APIs in one shared adapter and let explicit tone override the legacy inferred tone. Audit the business mappings as well: high interest is not danger, and unassigned or ordinarily closed is not failure. A removable tag remains an interactive composition even when its root is a `span`; size the container and remove target with `--control-height-sm` and keep the target and focus feedback unclipped. Completion requires the installed package and a real consuming page to use the rules; updating only the gallery or upstream files is not a completed product port.
 
 Do not encode state by strengthening or tinting only one side of a border. Use icons, badges, whole-border/ring states, subtle tint, or text color instead. Reserve one-sided borders for real structural boundaries such as frozen table edges, split panes, or timeline rails.
 
@@ -127,9 +199,21 @@ Chinese admin UI should stay compact and precise:
 
 The type scale has both a floor and a ceiling. Nothing goes below `--text-tiny`; nothing goes above `--text-data`, and that ceiling belongs to real dashboard numbers only. A 32px metric or a 40px page title is a hero, and this is not a landing page.
 
-### Copy Must Earn Its Place
+### Every Element Must Earn Its Place
 
-Workbench copy should help the user decide, act, or understand a state. Do not add filler text just because a component has a subtitle slot.
+Every visible element in a workbench needs a task reason. This applies equally to components, copy, icons, badges, cards, dividers, decorative marks, and hover layers. An element qualifies only when it helps the user:
+
+- identify or scan the object they are working with;
+- make a decision or perform an action;
+- understand a state, consequence, or next step;
+- recover information deliberately hidden by a compact layout; or
+- prevent a likely error.
+
+Run the **counterfactual deletion test** before adding or approving it: remove the element and repeat the task. If task capability, state visibility, decision quality, consequence understanding, and error prevention are all unchanged, the element has not earned a place. Delete it; if it carries real but tertiary value, demote it into existing nearby context instead of creating another component or layer to host it.
+
+An empty component slot, spare whitespace, a component-library default, or the fact that an element is easy to render is never a qualification. Do not add a subtitle because the card API accepts one, an icon because the metric looks bare, a badge because a status variant exists, a divider because two blocks happen to be adjacent, or a tooltip because a trigger already has hover state.
+
+Workbench copy follows the same gate: it should help the user decide, act, or understand a state. Do not add filler text just because a component has a subtitle slot.
 
 No emoji, and no decorative Unicode glyphs as content.
 
@@ -160,7 +244,7 @@ When a visual decision appears more than once, turn it into one of these:
 
 Avoid one-page visual patches that cannot travel.
 
-Pagination is the canonical case: it is **one** shared global component that every data table consumes. A hand-rolled PREV/NEXT pair inside some panel is not a local convenience, it is a second source of truth that will drift.
+Pagination is the canonical case: it is **one** shared global component that every paginated data table consumes. A pager hand-rolled inside some panel is not a local convenience, it is a second source of truth that will drift. Every data table still uses DataTableDock; a genuinely short, fixed list may explicitly disable page controls without replacing the dock or inventing another footer.
 
 ## Craft Rules
 
@@ -203,14 +287,18 @@ Interaction states should be visible and stable:
 
 - Transitions run about 120-200ms ease and act on background, color, border, shadow, and the tab underline / metric marker — see the Motion table in `references/tokens.md`.
 - Hover changes background, border, or text color. The **only** sanctioned hover lift is the resource card: shadow rises to `--shadow-card-hover` plus a 1px rise; nothing else lifts or scales.
-- Focus has a clear ring in production code. **Design mocks / demo pages disable global Tab focus traversal** (document-level `keydown` intercept on `Tab` + `*:focus/:focus-visible { outline: none }`); click-to-focus for typing is unaffected. If the product itself ever adopts this, revisit the focus-ring rule and keyboard accessibility explicitly first.
+- Declare one focus policy per product before implementation:
+  - **`keyboard` (default):** retain native `Tab` / `Shift+Tab` traversal and a clear `:focus-visible` ring.
+  - **`pointer-first` (explicit product opt-in):** have the application root install one `document` capture-phase `keydown` handler. For `event.key === "Tab"` (covering both `Tab` and `Shift+Tab`), call `preventDefault()` and `stopPropagation()` so neither the browser nor a component library can move focus. Suppress shared `:focus` / `:focus-visible` outline and ring styles at the root rather than patching individual controls. Pointer/click focus for typing and text selection remains available; preserve component-specific `Arrow`, `Enter`, `Space`, `PageUp`, and `PageDown` protocols and all selected/active/menu-highlight states. Verify that `Tab` and `Shift+Tab` leave `document.activeElement` unchanged and that programmatic focus has no outline or ring. This opt-in supersedes ordinary visible-focus-ring QA in this skill and its references.
 - Loading disables repeat actions and uses short Chinese progress text.
 - Text action buttons use the shared full-size/default button unless the layout has an explicit compact requirement such as a dense toolbar, table operation cell, inline chip, or embedded input adornment.
-- `ghost` and other weak button variants must still be visible at rest in admin/workbench UI. If an action is important enough to render as a button, its default state needs a discoverable neutral surface such as a weak border, subtle muted background, or established inline-link styling. Do not make page, toolbar, detail, edit, follow-up, call, or close actions rely on hover-only affordance.
-- Pure icon buttons next to default-height inputs, search inputs, selects, or date triggers must use the same 36px outer box and control radius. Use 32px `icon-sm` only when the whole control group is compact or embedded.
+- `ghost` and other weak button variants must still be visible at rest in admin/workbench UI. Standalone commands need a discoverable neutral surface such as a weak border, subtle muted background, or established inline-link styling. Do not make page, toolbar, detail, edit, follow-up, call, or close commands rely on hover-only affordance. Contextual controls stay quiet (transparent and borderless at rest): shell navigation chrome such as the topbar return button; overlay chrome such as dialog/sheet header close controls; icon-only controls embedded inside an input boundary such as password visibility toggles; table operation menu triggers; and non-current pagination page numbers. Their stable location and icon, surrounding container, or digit sequence already provide the affordance. Shell return controls also have no resting shadow: use a scoped chrome variant or modifier, preserving ordinary `ghost` surfaces. Hover may add a muted surface, and the active focus policy still applies. See Icon Button, Dialog, Password Input, and DataTable Pagination in `references/components.md`.
+- Pure icon buttons next to default-height text actions, inputs, search inputs, selects, or date triggers use the same `--control-height` outer box and control radius. A detail-header more menu beside Edit or Sell uses `icon`, matching the text actions' `default` size; being a menu does not make it compact. Use `icon-sm` with `--control-height-sm` only when the whole control group is compact or embedded, including table operation cells.
 - Adjacent controls in the same toolbar row must share the same visible outer height. Measure segmented filters and button groups by the outer track, not by the child trigger: a default toolbar segmented track is 36px outside (`1px` border + `p-px` + 32px triggers), and sibling refresh/action/select/search controls must also be 36px unless the whole toolbar is explicitly compact.
 - In a workbench viewport, do not show two same-semantics refresh/sync/reload controls at different levels. Keep one authority, usually the page or toolbar action. If a nested panel truly needs its own refresh, label it with a distinct object and make the scope visually and textually explicit; icon-only duplicates are not acceptable.
 - Hover and focus must not change control dimensions.
+- Neither may data change their **position**. A control the user reaches for repeatedly must not have its coordinates decided by how much data sits beside it: an entry point queued behind a collection (tags, selected items, granted scopes) inherits that collection's width and line count, so it lands somewhere new every time the data changes. Give the action its own layout slot and pin it to the row's top — see Action Anchor in `references/components.md`.
+- In the `keyboard` focus policy, a visible focus ring must also survive composition. When an input, select, or button sits flush against an ancestor with `overflow-hidden`, `overflow-clip`, or a scrollport edge, do not let an outward ring be cropped: add a ring-width gutter or use an inset focus ring locally. Do not remove the ring, and do not weaken structural overflow just to hide the symptom. Verify all four ring edges on the rendered page, not only the component in isolation.
 - Pagination in table workspaces stays pinned to the bottom of the visible work area, independent of table/form data volume.
 - The app shell owns the page bottom breathing gap. Data-table and workbench route roots should not add one-off `pb-*`, margins, or spacer divs to tune the final panel's distance from the browser bottom.
 - Dialog content workspaces for detail, configuration, selector, import preview, and other data-heavy flows use a fixed height; header/footer stay fixed and only the body viewport scrolls.
@@ -219,6 +307,7 @@ Interaction states should be visible and stable:
 - Data table body rows keep visible bottom dividers, including the final data row.
 - Frozen far-right operation columns stay content-sized, not spacer-sized. A single `...` dropdown trigger normally needs only a 56px column: 32px trigger plus symmetric cell padding. Do not use an oversized operation column or a reserved scrollbar gutter to create right-side breathing room; the sticky cell's right edge should close against the table container edge.
 - Adjacent metric, summary, filter, and reason strips inside the same panel or dialog header must share the same outer width and horizontal content inset. Do not mix one strip at `px-2` with neighboring strips at `px-3` or `px-4`; align the first visible label and preserve matching right padding before claiming visual QA passed.
+- Overscroll never rubber-bands — on any platform, macOS WKWebView (Tauri desktop shells) included. `tokens/base.css` sets `overscroll-behavior: none` at the document layer; every scroll container repeats it on the axes it actually scrolls, which kills both the container's own elastic bounce and scroll chaining out of it. Do not set `none` on an axis a container cannot scroll — that silently swallows the ancestor's chained scroll instead. The rendered-style contract checks every scrollable element.
 - Avoid bounce, scale hover, scroll-jacking, decorative animation, and layout shifts.
 
 ### Data-Dense Variety
@@ -240,7 +329,7 @@ Metric and summary strips should earn every visible glyph. If an icon only repea
 
 ## Output Contract
 
-When using this skill, make concrete decisions:
+In Design and Migrate modes, make these decisions concrete (Audit and Port have their own deliverable shapes — see Request Modes):
 
 - Shell: desktop workbench, mobile shell, editor shell, dialog, sheet, or connection panel.
 - Page pattern: overview, resource management, data table, editor, payroll, external integration, or mobile card list.
@@ -250,22 +339,13 @@ When using this skill, make concrete decisions:
 - States: default, hover, focus, disabled, loading, empty, error, mobile, and narrow-height.
 - QA: which viewports and interactions must be checked.
 
-## Workflow
-
-1. Identify the page type and primary user job.
-2. Choose density before composing controls.
-3. Apply the three-layer hierarchy.
-4. Pick tokens from `references/tokens.md`.
-5. Build with components from `references/components.md`.
-6. Use shell/page structure from `references/layouts-and-pages.md`.
-7. If porting or editing an existing Tailwind/shadcn project, run the Existing shadcn / Tailwind Migration Gate and map implementation through `references/platform-mapping.md`.
-8. Check anti-patterns before finishing.
-9. Verify text fit, table scrolling, focus states, action grouping, mobile recomposition, and computed token/radius/color output when relevant.
-
 ## Anti-Patterns
+
+This list is also the Audit mode checklist: each entry is a finding you can cite.
 
 Avoid:
 
+- Components, copy, icons, badges, cards, dividers, decorative marks, or hover layers that fail the counterfactual deletion test — especially elements added only to fill a slot or blank area, repeat nearby information, or expose a component-library feature. If removing it changes no task capability, state visibility, decision, consequence understanding, or error prevention, remove or demote it.
 - Purple-dominant themes, decorative gradients, floating blobs, or arbitrary stock backgrounds.
 - Cards inside cards, especially around data tables; data tables and their pagination wrapped in card chrome.
 - Heavy or cold (slate/blue-tinted) shadows; shadow color stays warm black `rgba(54,47,42,·)`. **Never hard-code a shadow inside a component — always consume an elevation token.**
@@ -274,6 +354,9 @@ Avoid:
 - Local hex colors in business UI, and Tailwind palette colors (`bg-green-100`, `text-red-500`, `text-neutral-600`…) used as status colors. Status goes through the semantic tokens, or the same "success" ends up a different green on every page.
 - Hero type in an admin page: a page title above 16px, or a metric above `--text-data`.
 - Class names that no stylesheet defines. A dead class silently does nothing, and the value you believed it carried was never applied to anything.
+- A check mark, chevron, or any other glyph drawn as a pseudo-element with hard-coded `top`/`left` offsets instead of a centered icon. The offsets encode one particular box model, so the first density override that zeroes the wrapper's padding or height throws the mark outside its box — with no lint, typecheck, or token-contract failure to catch it. Center a real glyph with flex. See Checkbox and Restyling a Shared Control in `references/components.md`.
+- A container rule that styles children by tag or position rather than by their own class — `.some-panel > div { display: grid }` and friends. Its `(0,1,1)` specificity outranks any single-class child, so the child's own `display`/layout is silently discarded while every class name still reads correctly. Scope such rules with `:not([class])` (or give the target a class of its own); raising the victim's specificity patches one child and leaves the trap for the next. See Section Heading Bands in `references/layouts-and-pages.md`.
+- Card body content flush against the card edge — a search field, a form, or a list row whose visible text or control starts at the panel's border while the heading band above it carries its own inset. **A heading band's padding belongs to the band, not to the card**: every content block inside a white card owns an inset on the same ladder (`--space-4` for narrow panels and rows, `--space-6` for standard bands), and adjacent blocks align their first visible label. Edge-to-edge is reserved for true full-bleed structure: dividers, tables, tab tracks, charts, nested panels. See Card Content Inset in `references/layouts-and-pages.md`.
 - One-sided border accents such as thicker or colored `border-left`, `border-right`, `border-top`, or `border-bottom` used as a generic status signal. Unless it marks a real structural edge, it reads as artificial; use icon, badge, whole-border/ring, subtle tint, or text color instead.
 - Solid pure-ink (`--solid`) 1px borders as hover/active/open feedback on controls. 非必要不用纯黑实线：hover stays soft (`border-foreground/25`), open/focus uses the clay-tinted border + soft ring; strong dark lines are reserved for real structural edges.
 - Embossed / 3D button treatments — inner top highlights, bevel rim borders, offset press shadows, pill-relief CTAs. 项目只用平铺填充；depth belongs to surface shadows, not control bevels.
@@ -281,19 +364,35 @@ Avoid:
 - **Any clay fill inside a table row**, or more than one filled button in a row. A row-level key action is ink, exactly one per row; clay repeated down twenty rows destroys the signal everywhere in the product. Conversely, a table page whose work is entirely per-row and which therefore has *no* clay is fine — do not invent a page-level clay button to fill the void.
 - Resource package selection cards with thick primary borders, clay-filled corners, CTA-style selected badges, heavy shadows, or strong tinted backgrounds. Selected package cards should stay quiet: one thin selected signal plus a small check indicator is enough.
 - Short field comparison or imported declaration values displayed as large grid cards with only a label, a few Chinese characters, and a status badge. Use compact inline field groups inside the relevant detail row instead.
-- Multiple icon buttons in a data table action column. Use one `...` dropdown trigger when there are two or more row actions.
-- A 32px icon-only button sitting beside 36px inputs, search boxes, selects, or date triggers in the same toolbar. Match the default control height, or make the entire group explicitly compact.
+- Any **non-key** action rendered directly in a data table operation column — icon buttons side by side, or a bare text/outline button. Secondary row actions go in one `...` dropdown trigger **regardless of count, one included**; a label rendered in the cell makes the column's width depend on the longest Chinese action name, which either clips the button or bloats the column. The one sanctioned direct action is the ink-filled row-level key action defined in `references/components.md`; it sits beside, not inside, that menu.
+- Mixed leading-icon grammar inside one dropdown menu — for example, an Edit item with a pencil icon beside a text-only Enable/Disable item. Icons are optional, but one opened menu must use them on every actionable item or on none; conditional and destructive rows do not create exceptions.
+- A compact icon-only button sitting beside default-height text actions, inputs, search boxes, selects, or date triggers in the same action group. Detail-header more menus follow their adjacent text buttons' height; a table operation menu's compact size does not carry over to detail headers.
 - A 38px segmented/filter track (`32px` child controls plus `p-0.5` and a border) sitting beside a 32px or 36px sibling button. The track's visible outer box is the control, so set the track to the toolbar height and adjust padding before claiming sibling controls are aligned.
 - Duplicate refresh/sync/reload controls in the same viewport, especially a page-level text refresh plus a nested icon-only refresh whose scope is not obvious.
-- Transparent or hover-only `ghost` buttons for visible page/detail actions such as edit, follow-up, call, close, reset, or toolbar commands. Use a neutral soft/outline surface at rest instead.
+- Transparent or hover-only `ghost` buttons for visible page/detail actions such as edit, follow-up, call, close, reset, or toolbar commands. Use a neutral soft/outline surface at rest instead. (Exempt and quiet by design: shell topbar return chrome, dialog/sheet header close chrome, icon-only controls embedded inside an input boundary, table operation menu triggers, and non-current pagination page numbers. A pagination strip's prev/next arrows are not exempt — being icon-only, they keep the outline surface.)
+- A filled, bordered, or shadowed rectangle around the shell topbar return button at rest. Its arrow and stable navigation slot carry the affordance; ordinary business-action `ghost` styling must not leak into shell chrome.
 - An "全部xxx / 不限" option used as the way to clear a filter select. Clearing lives in the trigger: placeholder = unfiltered, and choosing a value swaps the chevron for an X (`span[role=button]`, not a nested `<button>`). An edit form's "暂不选择 / 保持原状态" is the opposite case — that is a real value, not a filter clear, and it stays an option.
+- Form fields that inherit their column's full width regardless of payload — a full-width numeric input, a settings toggle stretched edge to edge, a placeholder padded out to justify the box. A control's width is a claim about its content; size it to the longest legitimate value (see Field Width in `references/components.md`).
+- An add/edit/select entry point trailing a wrapping collection — a "添加员工" button queued after the tags it adds to, so every tag added shifts it right and every wrapped line re-centers it downward. The action gets its own layout slot, pinned to the row's top, next to the label rather than exiled to the container's far edge (see Action Anchor in `references/components.md`).
+- A native `<input list>` / `<datalist>` as a suggestion dropdown. The popup it opens is drawn by the browser/OS, not by the page: no popover shadow, no item highlight tokens, no radius — CSS cannot reach it, and the rendered contract cannot see it (the panel never enters the DOM). An unstylable, unassertable primitive has no place in a token-governed system; use the self-drawn combobox instead (see Creating a new record from a select in `references/components.md` — the shared `CreatableSelect` covers both "pick or create" and plain "free text with suggestions").
 - Password fields without a show/hide button.
 - Date strings typed manually when a date picker is expected.
+- A date field trigger that is taller, rounder, or a different surface than the `Input` beside it in the same form row. The date trigger is an ordinary control and has no tall variant. This one lived in `references/components.md` as a sanctioned 40px exception while this file simultaneously required pure icon buttons to match "date trigger height" at 36px — an exception granted in one file and forbidden in another is worse than either rule alone, because both readings look compliant right up until the two controls share a row.
+- A date picker whose year is reachable only by opening the month panel first. Year and month are peer entries side by side in the header; the long-range jump is the move the component exists for.
+- A date popup with a visible title that names the field that opened it, stacked above a header row already showing the year and month. Keep the title `sr-only`.
+- A date picker that pre-selects today into an empty field — the trigger must still show its placeholder and commit nothing until the user picks one. What guarantees "I chose this" over "the form guessed" is the empty *value*, not the cell's color: today's cell carries the same solid clay a selected day does, and the two are told apart by glyph (今 versus a number). An earlier version of this rule kept today at label weight to protect that distinction, and cost every product a findable anchor to protect something the value was already protecting.
+- Date cells built out of the product's `ghost` button variant. A workbench `ghost` is required to stay visible at rest, so it carries a resting surface and border; multiply that by 42 cells and the day grid becomes one continuous slab with no gaps left to read. Style date cells from tokens: transparent at rest, `--space-1` apart, `--radius-control`, hover `--muted`.
+- A month container sized `7 × --control-height` in a grid that also has `--space-1` between columns. The gaps have to be in the arithmetic (`7 × cell + 6 × gap`) or the last column hangs outside the container, at the one edge of the popup nobody inspects.
+- The current month or year in a picker panel rendered with the day grid's solid clay fill. The panel is showing where the display cursor sits, not a value the user chose — that is a tinted chip (`--primary-subtle` + `--primary` text and border), and solid stays reserved for an actual selection.
 - Huge explanatory copy that repeats visible controls; emoji or decorative Unicode as content.
 - Filler subtitles that describe implementation details, data source mechanics, or fetch limits instead of helping the user decide or act.
+- A route with no `h1` at all — a bolded `span` in the topbar title slot is decoration, not a title authority — or a route that names itself twice, once in the shell topbar and again in a body header band or eyebrow. Equally: one product whose routes disagree about which band owns the page name (or the key action), so the topbar title slot is a route name on some pages and a leftover constant on others. See Title Authority in `references/layouts-and-pages.md`.
+- A standalone record-detail route with a second body header band that only repeats shell context — an eyebrow/breadcrumb plus a generic “详情” title — or owns a duplicate body back button. Put the single visible back action in the global topbar, let the primary record surface own the entity name/status/business metadata, and keep only one visible title/context authority plus one shell/body top-gap owner. See `references/layouts-and-pages.md`.
+- Overscroll rubber-banding anywhere — the document or a scroll container bouncing at its boundary (macOS WKWebView's elastic scroll included): a scrolling axis without `overscroll-behavior: none`. The document layer comes from `tokens/base.css`; containers own their scrolling axes. Equally wrong is `none` on an axis the container cannot scroll — it silently swallows the ancestor's chained scroll.
 - Table pages that resize with row count instead of using a stable scroll dock.
 - Page-level data-table or workbench roots that add ad hoc bottom padding, margins, or spacer divs instead of inheriting the shell's bottom gap token.
-- Pagination that moves up, down, or disappears based on table/form data count instead of staying fixed at the screen/workspace bottom. A hand-rolled PREV/NEXT pager anywhere in the app.
+- Pagination that moves up, down, or disappears based on table/form data count instead of staying fixed at the screen/workspace bottom. A pager rebuilt by hand anywhere in the app instead of consuming the shared component — the shared one already carries prev/next arrows, so what is banned is the second implementation, never the arrows.
+- A page-number window that scrolls without pinned prev/next arrows, or that enumerates every page in a Select. Both make the repeated action — one page forward — the one control whose position or cost grows with the collection. See DataTable Pagination in `references/components.md`.
 - Data-heavy dialogs whose outer height changes when switching tabs, loading data, showing empty states, or changing row count.
 - Dialog or AlertDialog frames that touch the viewport edge in split-screen, DevTools, mobile, or narrow-height contexts; ordinary dialogs must keep shared left/right and top/bottom breathing space, while true fullscreen workflows should use a Sheet or an explicit fullscreen exception.
 - Data tables that use only `min-height` and let row count or empty/loading content resize the table instead of a fixed viewport.

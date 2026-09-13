@@ -10,7 +10,7 @@
     {
       "id": 2,
       "prompt": "设计一个日期区间选择器，要求桌面弹窗、移动端贴底，能选开始日期和结束日期。",
-      "expected_output": "Output should use the Date / Time Picker reference: outline trigger, compact dialog, selection summary, month nav, 7-column calendar grid, selected/in-range/outside-month states, and automatic start/end normalization.",
+      "expected_output": "Output should use the Date / Time Picker reference: outline trigger, compact dialog, selection summary, an in-place day-to-month-to-year view stack whose day/month title buttons expose the current value while the year interval stays non-interactive, a stable content height across all three views, month and decade/year grids, selection-preserving browsing, PageUp/PageDown and Shift+PageUp/PageDown keyboard paging, min/max propagation across all views, a 7-column day grid with selected/in-range/outside-month states, automatic start/end normalization, and desktop/mobile interaction QA.",
       "files": []
     },
     {
@@ -41,6 +41,60 @@
       "id": 7,
       "prompt": "规范说白卡靠阴影分层，但我把 button-tab 放进白卡后选中态就看不出来了。为什么？",
       "expected_output": "Output should identify that the tab track uses a semi-transparent muted mix, so its contrast depends on what sits underneath: on the canvas the track and the active plate differ clearly, but inside a white card they collapse to ~2 tonal steps. The fix is to put the tabs on the canvas (or give the active plate the white --card surface), and the general lesson is that semi-transparent surfaces are context-dependent and only computed-style assertions catch this.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "两个冻结操作列表格怎么处理：配置表每行只有一个普通的“编辑”操作；认领队列每行有一个主动作“认领”和一个普通操作“查看”？",
+      "expected_output": "Output should put even the single ordinary Edit action inside one fixed-width MoreHorizontal / ... menu, never render it as a bare text or outline button, and keep the operation column content-sized. In the claim queue, the one true row-level key action may remain outside as an ink-filled small button, while the ordinary View action still lives in the adjacent ... menu; clay never enters either row.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "接口一次返回全部 50 条配置且没有 page/size；另一个固定 6 条的名单显式 showPagination=false，但支持多选且当前选中 0 条。可以改用裸 table，并一直显示禁用的批量操作栏和“已选 0 条”吗？",
+      "expected_output": "Output should keep the shared DataTableDock instead of falling back to a bare table and slice the 50-row result client-side into the shared pagination contract. The fixed six-row table may hide page controls, but because it supports bulk actions it keeps the fixed footer slot for the total and later contextual actions. With zero selected rows, keep row/header selection controls but mount neither disabled bulk actions nor an '已选 0 条' placeholder; selection must not add footer height or shift the viewport.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "一个债务列表点击后进入独立 /debts/:id 详情页。全局 topbar 已显示“个人账本”，正文又有返回按钮、“个人往来 / 债务详情”两行标题和 divider；删掉标题后还留下额外 padding。请按 kiln 修正桌面与移动端结构。",
+      "expected_output": "Output should move the sole visible return action to the detail route's leading slot in the global topbar without displacing a shell-owned menu/sidebar trigger, keep the existing shell context unless it has a separate product reason to change, and give the action an accessible destination label. It should resolve to a stable parent-list destination while preserving restorable list state, using either a canonical parent URL or history-back with a canonical parent fallback for direct entry/reload/no usable in-app history. It should remove the body header band, duplicate parent/generic-detail copy, divider, reserved height, and leftover padding; start at useful record identity/status/business content; keep one visible return authority and one shell/body top-gap owner on desktop and mobile; and preserve record-specific page naming through a visible entity h1, a route-specific topbar h1, or an sr-only fallback plus synchronized document title, without rebuilding a visible duplicate band.",
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "用户明确要求这个后台产品全局禁用 Tab 切换焦点，但点击输入框仍要能输入。请按 kiln 实现并给出验收。",
+      "expected_output": "Output should declare the explicit pointer-first focus policy rather than changing the keyboard default, install one capture-phase document keydown handler that prevents and stops Tab or Shift+Tab traversal, suppress shared root focus outline/ring styles without changing Kiln source tokens, preserve pointer typing plus Arrow/Enter/Space/PageUp/PageDown component protocols and selected/active/menu-highlight states, and verify that both Tab directions leave document.activeElement unchanged while clicked input remains editable.",
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "资源包表格的行操作菜单里，“编辑资源包”有铅笔图标，“停用资源包”只有文字；启用状态下又会把文案切成“启用资源包”。请按 kiln 修正并给出防回归规则。",
+      "expected_output": "Output should choose one menu-wide icon grammar: either add meaningful leading icons to every rendered action, including both conditional Enable and Disable branches, or remove all leading icons from that menu. It should reject mixed icon/text-only rows, including destructive or conditional exceptions, preserve shared DropdownMenu spacing, and recommend a static guard over DataTable action definitions and direct DropdownMenu items so future menus cannot mix the two grammars.",
+      "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "密码输入框右侧的显示密码眼睛按钮继承了全局 ghost 的浅灰底和边框，看起来像输入框里又嵌了一个按钮框。请按 kiln 修正并说明它与页面 ghost 按钮的边界。",
+      "expected_output": "Output should classify the password visibility button as an embedded input adornment and a scoped quiet exception: transparent background and border at rest, muted surface on hover, stable icon box and input padding, show/hide aria-label semantics, and focus behavior matching the product policy. It should keep the visible-rest neutral surface requirement for standalone page, toolbar, detail, and other ordinary ghost commands rather than making ghost globally transparent.",
+      "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "给这个后台产品做登录页，要和工作台是同一套视觉，但别做成一个缩水的表格页。再给个空状态和 404。",
+      "expected_output": "Output should route to the paper layer (references/paper.md) rather than reusing workbench density: same glaze palette and single-anchor rule inherited unchanged, but inverted density (large continuous whitespace, not loosened line-height), print material instead of soft shadow (no box-shadow at all — paper does not float on paper), the workbench type ceiling lifted to --text-display/--text-title, and paper tokens loaded as an explicit second layer (tokens/paper.css alongside tokens/index.css). It should place exactly one high-saturation anchor across the sheet, keep the type-size floor, and cite the paper-layer contract (ink-coverage band per viewport, zero box-shadow, one hue cluster) as the acceptance criteria.",
+      "files": []
+    },
+    {
+      "id": 15,
+      "prompt": "我们的登录页现在是一张白卡片浮在灰底上，卡片里字很密，右上角还有个绿色的「新版本」角标。请按 kiln 判断问题。",
+      "expected_output": "Output should identify three paper-layer violations: the floating white card with soft shadow (paper does not float on paper — layer via --paper/--paper-deep, rules and creases instead), workbench density applied to a sheet (should be large continuous whitespace with one subject), and a second high-saturation anchor competing with the submit button (only one anchor per sheet, form may change but count may not). It should separate these from any legitimate host-product decision, and should not prescribe workbench component specs for this surface.",
+      "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "审查一个紧凑后台：侧栏图标下已经显示“日历”，鼠标悬浮又弹出“日历 / 个人账本”；指标卡为了不显得空，每个数字都配了重复含义的图标、徽标、分隔线和副标题；一个禁用按钮没有解释，长编号被截断。请按 kiln 给出保留、删除或降级结论和验收方法。",
+      "expected_output": "Output should apply the general Every Element Must Earn Its Place rule across components, copy, icons, badges, cards, dividers, and hover layers, not treat this as a tooltip-only cleanup. It should run the counterfactual deletion test and remove or demote anything whose removal leaves task capability, state visibility, decisions, consequence understanding, and error prevention unchanged, including filler-slot and decorative elements. It should remove the sidebar hover card because the label is already visible, while preserving tooltips for a truly icon-only rail, a useful disabled reason, and the complete value of text that is actually truncated. It should reject 'the component library provides it' as justification and require default-surface plus hover/focus QA.",
       "files": []
     }
   ]

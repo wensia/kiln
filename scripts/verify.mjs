@@ -41,7 +41,10 @@ for (const m of css.matchAll(/(--[a-z0-9\\.-]+)\s*:\s*([^;]+);/gi)) {
 
 // ── 1 & 2. 契约 ──────────────────────────────────────────────
 const contract = JSON.parse(readFileSync(join(ROOT, "contract/tokens.json"), "utf8"));
-const allowed = new Set(contract.tokens);
+// 工作台 token 继承自上游 DS；纸面层（paperTokens）是本仓库自己长出来的一层。
+// 合并成一个白名单来查「有没有定义 / 有没有自造」，但契约里分开列 —— 来源不同这件事
+// 必须一直看得见，否则下一次同步上游时没人分得清哪些该跟着走。
+const allowed = new Set([...contract.tokens, ...(contract.paperTokens ?? [])]);
 const known = new Set(Object.keys(contract.knownDeviations ?? {}));
 
 for (const t of allowed) {
@@ -72,11 +75,16 @@ for (const m of specTable.matchAll(
 }
 
 // ── 4. 其它散文不得重述 hex ───────────────────────────────────
+// README 长期不在这张表里 —— 而画布色那次事故，第一套错值正是写在 readme 里的。
+// 首页是最多人读、最少人校的散文；双语之后它还变成了两份，各自都能漂。
 const PROSE = [
   "SKILL.md",
+  "README.md",
+  "README.zh-CN.md",
   "references/components.md",
   "references/layouts-and-pages.md",
   "references/platform-mapping.md",
+  "references/paper.md",
 ];
 // 允许在「反面教材」里引用坏值：带 ✗ / 不要 / never / drift 等上下文的行豁免
 const isCounterExample = (line) =>

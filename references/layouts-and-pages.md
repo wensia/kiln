@@ -15,22 +15,113 @@ Specs:
 - Root fills `100svh`.
 - Main content uses `min-h-0 min-w-0 overflow-hidden`.
 - Real scrolling belongs to page work areas or table viewports.
-- Topbar is 48-56px tall (the DS template uses 56px): translucent white (`--topbar`) + backdrop blur + 1px bottom border + white top highlight (`--shadow-topbar`). Title 15px / 600 with a short clay tick mark.
+- Those scroll regions never rubber-band: `overscroll-behavior: none` on every axis that actually scrolls (the document layer is already covered by `tokens/base.css`). macOS WKWebView — a Tauri desktop shell — bounces wherever this is left unset, and one bouncing dock breaks the workbench feel for the whole app.
+- Topbar is 48-56px tall (the DS template uses 56px): translucent white (`--topbar`) + backdrop blur + 1px bottom border + white top highlight (`--shadow-topbar`). Title 15px / 600 with a short clay tick mark — that title slot is the default route `h1`, so read Title Authority below before putting a page name anywhere else.
 - The canvas is a single warm near-white plane (`--background`) — no gradients, textures, or decorative backgrounds. White surfaces float on it via shadow, not borders.
 - Normal content padding is 16-24px.
 - Business pages should not patch layout with one-off large margins.
 - The app shell owns the page bottom breathing gap. In React/Tailwind implementations, expose it as a shell token such as `--app-content-bottom-gap` and apply it on the shell content container, not on every route root.
 - Page-level data-table/workbench roots inside a padded shell should not add `pb-*`, ad hoc margins, or spacer divs to tune the final card's distance from the browser bottom. The final primary card or panel should inherit the same bottom distance from the shell across pages.
 
+## Title Authority
+
+A route has exactly one title authority, and by default it is the shell topbar's route `h1` — the topbar
+spec above already gives it a size, a weight, and a clay tick, and `examples/workbench.html` implements it.
+Every other title-shaped thing on the route (body header band, eyebrow, section title) is a footnote to it.
+
+Choose the owner **once per product**, not once per route:
+
+| Owner | Topbar carries | Route body carries |
+| --- | --- | --- |
+| Topbar (default) | the route name as the page `h1` | no title band; the body starts at its first working surface |
+| Route body | a product or workspace constant, or nothing | the route name as the page `h1`, following Page Header Rhythm |
+
+Rules that hold under either choice:
+
+- **One `h1` per route, and it is visible unless the owner genuinely cannot render one.** A route with no
+  `h1` has no title authority — a bolded `span` in the topbar is decoration, not a heading, and a screen
+  reader lands on a page that never says where it is. When the owning band truly cannot show text
+  (icon-only chrome, a full-bleed canvas route), use an `sr-only h1` and synchronize the document title.
+- **The non-owner does not repeat the route name** — not as a heading, not as an eyebrow, not as a label.
+  A product constant in the topbar (the workspace or ledger name) is not a route title and may stay.
+- **Routes of one product must not disagree about the owner.** This is the failure the section exists to
+  prevent, and it is invisible from inside any single route: each page looks defensible alone, while the
+  product ends up with some routes naming themselves in the topbar and others naming themselves in the
+  body. On the second kind, the topbar's title slot silently degrades into a constant, and the user reads
+  the page name three times — sidebar current item, topbar, body — because the sidebar already marks the
+  current page in clay.
+- **The route's single clay key action follows the same discipline.** Pick topbar actions or the toolbar
+  for the whole product (the Toolbar and Resource Management blueprints assume the toolbar) and keep it
+  there. Two routes of one product must not put the same kind of key action in different bands.
+- **Accessibility never justifies a second visible band.** If semantics are the only reason a band exists,
+  delete the band and move the `h1` to the owner, or fall back to `sr-only`.
+- **Record routes are the one sanctioned exception, and they are consistent too.** On a drill-down route the
+  page name is the record, so the primary record surface holds the `h1` (see Standalone Record Detail) and
+  the topbar drops back to a product constant plus the return action — never a generic "详情" route title,
+  which names a template instead of a record. So a product has two settled answers, not per-route
+  improvisation: collection routes name themselves in the owning band, record routes name themselves in the
+  record. A shell that renders its title slot as a heading unconditionally will produce two `h1`s on exactly
+  these routes; render the constant as plain text and let the heading appear only when a route claims the slot.
+- Helper copy under a title faces the counterfactual deletion test like anything else. Copy that narrates
+  what the screen obviously is ("configure the accounts that money moves through") changes no decision;
+  copy that states a consequence ("nothing is written to the ledger until you confirm") earns its place.
+
 ## Page Header Rhythm
 
-Use this when placing a page title directly under the shell topbar or breadcrumb bar.
+Use this when the route body owns the title (see Title Authority) and it sits directly under the shell
+topbar or breadcrumb bar. When the topbar owns the title, the body has no header band to rhythm — it
+starts at its first working surface.
 
 - The visual gap from the bottom of the topbar/breadcrumb bar to the page title should be about 16-24px total.
 - If the shell content container already provides top padding, the page body must not add a second full top padding layer.
 - Prefer `pt-0` or an optical `pt-1/pt-2` on the page body when it is nested inside a padded shell container.
 - Keep the gap from the page title row to the first business panel at 12-16px for dense admin workbenches.
 - Do not let page headers float in a large blank band. Extra vertical space belongs inside scrollable work areas, table docks, or empty states, not above the title.
+
+## Section Heading Bands
+
+A section heading band (a panel's own `h3` row, with a count/subtitle beside it and its actions on the
+right) is the most common place a shared layout rule quietly eats a child's own layout.
+
+- The band is a flex row: title group on the left, actions on the right.
+- The title group and the action group each own their internal layout — the title row is a baseline-aligned
+  flex row (`h3` + count/status), the action group is a centered flex row (view switcher + primary action).
+- **Never scope the band's default child layout with a bare descendant selector.** `.section-heading > div
+  { display: grid }` reads as "stack the title over its subtitle", but its `(0,1,1)` specificity silently
+  outranks every single-class child (`.section-title-row`, `.section-heading-actions` — `(0,1,0)`), so those
+  children's own `display: flex` never applies. The symptom is not a CSS error: the count wraps under the
+  title, the action buttons stack into two rows, and the class names all still look correct in review.
+- Scope it so it cannot reach a child that has its own identity: `.section-heading > div:not([class])`,
+  or give the stacking group a real class of its own. Raising the child's specificity instead
+  (`.section-heading > .section-heading-actions`) fixes one child and leaves the trap armed for the next one.
+- This is the general rule, not a heading-band quirk: **a container may only style children that have no
+  class of their own.** The moment a child carries a class, that class is its layout contract, and a
+  descendant selector from the parent must not be able to outrank it.
+- Verify it rendered, not just that it is declared: assert that the title and its count share a `y`, and
+  that every control in the action group shares a `y` and an outer height. A wrapped heading band is
+  invisible to lint, typecheck, and the token contract.
+
+## Card Content Inset
+
+A white card is a container with an edge, and its content acknowledges that edge. The most common
+failure looks harmless in code review: the heading band carries `padding`, so the top of the card
+looks finished — and then a search field, a form grid, or a list row below it is mounted bare and
+runs edge to edge, because nothing between the band and the card told it not to.
+
+- **Every content block inside a card owns a horizontal inset.** The heading band's padding is the
+  band's own; it insets nothing else. A block mounted directly into the card — a filter stack, a
+  form, a checklist group, a textarea — brings its own inset or is wrapped by something that does.
+- The inset ladder is the token pair `--space-4` (narrow panels, compact rows) and `--space-6`
+  (standard bands and body blocks). Do not invent intermediate values per block.
+- **Adjacent blocks align their first visible label.** A heading at `--space-6` over rows at
+  `--space-3` reads as a ragged left edge, not as hierarchy — pick the rung once per card and hold
+  it. (This is the same rule the metric/summary strips already follow in `SKILL.md`.)
+- Edge-to-edge is reserved for **true full-bleed structure**: dividers, table row backgrounds, tab
+  tracks, charts and media, and nested panels that carry their own contract. A form control is
+  never full-bleed.
+- The rendered contract enforces the floor, not the taste: visible text and form controls inside a
+  white card must sit ≥8px from the card's left and right edges. The ladder above is prose because
+  choosing the rung is design; being off the ladder entirely is a defect the machine can catch.
 
 ## Sidebar
 
@@ -53,15 +144,18 @@ Brand row:
 - Logo mark: 32px — the clay rounded square (9px radius) with the canvas-colored clipboard-list glyph (`assets/logo-mark.svg`). Never the source repo's purple favicon.
 - Title: 13px / 600.
 - Subtitle: 11px, muted sidebar foreground.
-- Collapsed state hides brand text and logo container.
+- Collapsed state hides only the brand text. Keep the 32px logo mark in the same header slot and at the same vertical coordinate as the expanded state.
+- In collapsed state, the logo mark owns the expand trigger. At rest it renders the unchanged product mark; on pointer hover, swap only the glyph and surface in place to `PanelLeftIcon`. Under the `keyboard` focus policy, keyboard focus performs the same swap. The 32px box, header height, top inset, rail width, and main-content geometry must not change.
 
 Collapse trigger:
 
-- Use SidebarTrigger.
+- In expanded state, use SidebarTrigger at the trailing edge of the brand row.
+- In collapsed state, reuse the logo box as SidebarTrigger instead of adding a second top-row control.
 - Visual: ghost icon-sm, 32px box, 4px radius.
 - Icon: `PanelLeftIcon`, 16px.
 - Expanded label: `折叠侧边栏`.
 - Collapsed label: `展开侧边栏`.
+- Hover or focus only reveals the expand icon; click or the shell shortcut expands the rail. Do not auto-expand on hover.
 - Toggle only changes sidebar state. It does not change route, current nav, or scroll.
 
 Collapse behaviour (shell-owned):
@@ -75,9 +169,10 @@ Collapsed rail:
 
 A bare icon column is not navigable — a user cannot tell pages apart by icon alone. These are contract, not polish:
 
-- Tooltip on hover **and** on keyboard focus, in a fixed two-line shape: page name, then group name in low-noise small text. Not a one-line `分组 / 页面` prefix — one shape keeps the spec checkable.
+- This tooltip contract applies only to a **truly icon-only** rail. If a compact sidebar keeps page names, group names, or subtitles persistently visible beside or beneath its icons, those labels already restore the meaning; do not open a tooltip or hover card that repeats them.
+- In the default `keyboard` focus policy, tooltip on hover **and** on keyboard focus, in a fixed two-line shape: page name, then group name in low-noise small text. In the explicit `pointer-first` policy, keep the same tooltip on hover and retain the `aria-label`; Tab never reaches the rail. Not a one-line `分组 / 页面` prefix — one shape keeps the spec checkable.
 - `aria-label` is the **sole** accessible name, formatted `${分组}：${页面}` (degrades to the page name when there is no group). Do not also render an `sr-only` label — a screen reader would announce the item twice. The icon is `aria-hidden`.
-- The group boundary stays visible: a divider plus the group's **full** title. Never slice a short label out of it and never keep a second `shortLabel` field — `教管部→教务` invents a group that does not exist. The marker is `aria-hidden`; the group is already in every item's accessible name.
+- The group boundary stays visible. In a truly icon-only rail, the persistent marker is the divider and the tooltip's second line restores the group's **full** title. In a wider label-bearing compact sidebar, render that full title persistently and do not repeat it in a tooltip. Never keep a second `shortLabel` field — `教管部→教务` invents a group that does not exist. The marker is `aria-hidden`; the group is already in every item's accessible name.
 - Active survives hover and focus: the current item stays clay under the pointer and does not fall back to the hover accent. Active items carry `aria-current="page"`.
 - Nothing resizes. Hover, focus, and an open tooltip must not change item height or rail width; the tooltip is a floating layer, so opening it never shifts the main content.
 - Known limitation: touch devices have no hover, so a sighted touch user on a collapsed rail has only icons. Screen-reader users still get the `aria-label`. Accept it, or keep the rail expanded on touch — do not rewire the tooltip to fire on tap, which turns every nav item into a two-step interaction.
@@ -140,7 +235,7 @@ Anatomy:
 1. Optional toolbar.
 2. Table viewport: `flex-1 overflow-auto`.
 3. Optional frozen action shadow.
-4. Footer pagination and bulk actions — always the shared global pagination component (see components.md), pinned to the work-area bottom.
+4. Footer region — shared pagination controls when enabled, with contextual bulk actions sharing the same fixed slot; pinned to the work-area bottom.
 
 Rules:
 
@@ -152,6 +247,7 @@ Rules:
 - Large tables have min-width and horizontal scroll.
 - Frozen action columns show left border and the scroll-affordance shadow (see `components.md`).
 - Empty state stays inside the table viewport.
+- **An endpoint that returns everything at once is not a reason to drop the dock.** When the API takes no `page`/`size` (aggregates, config lists, summaries), slice client-side and keep consuming the shared pagination component — `data` is the current page, `total` is the full row count. Falling back to a bare `<table>` because "there is no pagination anyway" breaks two contracts at once: the viewport starts resizing with row count, and the footer strip disappears, so the page silently stops looking like every other table in the product. If a table genuinely should not paginate (a short, fixed config set), keep the dock and turn page controls off explicitly — that is a deliberate table-level `showPagination={false}`, not a row-count heuristic or a different table implementation. A non-selectable table with no footer actions may omit the slot and its height token; a bulk-capable table retains the fixed slot for its total and contextual actions. Filters, loading, row-count changes, and selection never toggle the configured mode or resize the outer dock.
 
 React / Tailwind implementation shape:
 
@@ -214,10 +310,22 @@ Replace the blueprints when the domain differs; keep the token / component / lay
 
 - Desktop uses the DataTableDock; mobile recomposes into cards.
 - Toolbar: search, filters, refresh. Total counts live in the pagination, not duplicated above.
-- Frozen far-right operation column with a single `...` menu when a row has two or more actions.
+- Frozen far-right operation column collapses every secondary row action into a single `...` menu, whatever their count — one included. A genuine row-level key action may sit beside it as the one ink-filled small button defined by the operation-column rule.
 - Multi-select defaults to current-page scope, and the scope must be stated.
 
-### Detail / Editor
+### Standalone Record Detail
+
+Use this for a drill-down route from a list, table, or card to one record. It is not the multi-pane editor shell below.
+
+- The shell topbar owns the detail route's single return action. Put it in the route-navigation leading slot — after any shell-owned menu/sidebar trigger and before the route title or context — and give it an accessible label that names the destination, such as `返回债务列表`. The action must resolve to a stable parent destination without losing restorable list state: use a canonical parent URL (including URL-backed filters/page when applicable), or history-back with a canonical parent fallback for direct entry, reload, or no usable in-app history. It must never send the user outside the app.
+- Render that return action as shell navigation chrome: transparent background and border, no resting shadow, and a stable `icon` hit box using `--control-height`. Hover may use `--muted`; retain the product's focus policy. Use a scoped shared treatment rather than changing all ordinary `ghost` commands (see Icon Button in `components.md`).
+- The primary record surface's action group uses one control height. An icon-only more menu beside default text actions such as Edit or Sell uses `icon` with `--control-height`; do not copy the table-row menu's `icon-sm` sizing into the detail header. Align and measure the outer button boxes, and keep the whole group consistent when it wraps on narrow screens.
+- Do not add a body-level header band merely to hold that back action or repeat a parent/section eyebrow, breadcrumb, or generic “详情” label. Do not duplicate the back action inside the page body. The primary record surface owns the entity name, status, and business metadata.
+- Start the body at the first useful business surface. Removing a redundant header band means removing its wrapper, divider, reserved height, and padding too. The shell content container and route body share one top-gap budget; when the shell already supplies it, the body stays at `pt-0` or uses only an optical correction (see Page Header Rhythm). Apply the same ownership on desktop and mobile.
+- Keep a visible body title only when it adds record-specific information or anchors real actions that are not already carried by the topbar or primary record surface. Page naming still stays record-specific: prefer the visible entity name in the primary record surface as the page `h1`; if the topbar already carries a route-specific `h1`, do not duplicate it; otherwise use an `sr-only` `h1` fallback and synchronize the document/route title. Do not rebuild a second visible band for semantics alone. Keep helper copy only when it changes a decision or prevents a mistake.
+- On mobile, the back action stays in the sticky topbar rather than moving into the first card or content row. Each viewport has one visible back authority.
+
+### Complex Detail / Editor
 
 - Left outline or palette, center canvas as the primary scroll region, right inspector.
 - The editor topbar replaces the global navigation content.

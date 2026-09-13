@@ -152,7 +152,7 @@ size: { default: "h-9", sm: "h-8", lg: "h-10", icon: "h-9 w-9", "icon-sm": "h-8 
 
 | 组件 | 要点 |
 |---|---|
-| **Badge** | 7 变体：default / secondary / outline / success / info / warning / neutral。**没有 destructive**——失效态用 neutral/outline + 危险色文字 |
+| **Tag / Badge** | `variant`（soft / outline / status）与 `tone` 正交，消费 `tokens/tags.css` 的专属背景、边界和文字色。旧 Badge API 在共享层兼容，显式 tone 优先；业务映射跨视图复用，高意向不等于危险。可移除组合即使是 span，也须给外框和关闭按钮完整的 `--control-height-sm` 点击区域，不能被紧凑外框裁切。验收覆盖实际安装包与真实业务页，不能只改示例。见 [组件规则](references/components.md#badge--status--tag) 与 [可交互示例](examples/tags.html)。 |
 | **Pagination** | **一个全局共享组件**。无上一页/下一页按钮（相邻页码本身就是上下页），3 页码窗口 + 「第 x 页」Select，当前页 clay 填充。不渲染「1–15 / 512」这种范围串 |
 | **DropdownMenu** | 行操作 ≥2 个必须收进单个 `...` 触发器。宽度由内容决定，别绑 trigger 宽度 |
 
@@ -239,18 +239,70 @@ export const Route = createFileRoute('/design-probe')({
 按 `document.querySelectorAll("button")` 收集控件，会把 Radix 的 Checkbox / Radio / Switch
 一起吃进来——它们渲染成 `<button role="checkbox">`，但**不是按钮**：勾选框就该是 16px 见方，
 32px 的控件下限和 4px 圆角都不适用。**只认标签、不认角色**，于是每个带选择列的表格都会报一串
-假的「按钮高 16px」。模板里已经按 `role` 豁免了这三类。
+假的「按钮高 16px」。契约里已经按 `role` 豁免了这三类。
+
+**网格的格子是同一个洞的另一半。** 可点的日历格子、月份格、年份格都是 `<button>`，但它铺满一格、
+与邻格共享网格线——给它 4px 圆角会把整张网格切成碎片，所以那里的圆角本来就该是 0。一个真实项目
+接上契约的第一次运行，84 项违规里 84 项都是月视图的日期格。判据要取「**谁是格子**」而不是
+「谁在网格里」：格子是 `[role=grid]` / `[role=row]` 的直接子元素，或自报 `gridcell`；表格操作列
+里的按钮嵌在单元格**内部**，仍然要按控件查——否则豁免一扩大，真正该抓的漏检也跟着进来了。
+
+**第三类：属性在这个元素上根本看不见。** 移动底栏的分栏是 `<button>`，但 `border: 0` +
+`background: transparent` —— 圆角写 0 还是 4，渲染出来一模一样。查它不是查错了对象，是查了一个
+不存在的属性，而每个带底栏的页面都会因此记一笔假账。契约因此只在控件**有表面**（有背景或有边框）
+时查圆角；高度照查，触摸目标和有没有表面无关。（真正的 ghost 控件按规范 rest 态就得有可见表面，
+所以这条豁免放不过它们。）
+
+判断这类报告是 violation 还是收集面的洞，标准只有一个：**规则本来是写给谁的**。控件圆角写给控件，
+不写给网格；勾选框下限写给按钮，不写给 16px 的方框；圆角写给看得见圆角的表面，不写给透明的分栏。
+凡是「规则套错了对象、或那个属性在这里不可见」，修契约；凡是「对象对了、值不对」，修产品。
 
 ---
 
-## 五、给 AI 用（Claude Code）
+## 五、给 AI 用（**两处，缺一不可**）
+
+### 5.1 软链 —— 让 kiln 出现在技能列表
+
+**路径按 agent 区分，装错等于没装**：
+
+| Agent | 读取位置 |
+| --- | --- |
+| Claude Code | `~/.claude/skills/kiln` |
+| Codex / Droid / opencode | `~/.agents/skills/kiln` |
 
 ```bash
-ln -s "$(pwd)/node_modules/kiln" ~/.agents/skills/kiln
-# 或 clone kiln 仓库后 ln -s 过去
+mkdir -p ~/.claude/skills ~/.agents/skills
+ln -s "$(pwd)/node_modules/kiln" ~/.claude/skills/kiln   # Claude Code
+ln -s "$(pwd)/node_modules/kiln" ~/.agents/skills/kiln   # 其它 agent
+# 或 clone kiln 仓库后把两个软链都指过去
 ```
 
-之后 Claude 做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
+装好后 agent 做后台 UI 时会自动读 `SKILL.md`，按需加载 `references/`。
+
+> **缺软链不会报错**，这是本节存在的全部理由。agent 不会说"我找不到 kiln"，
+> 它只会安然按通用审美把整个页面写完 —— token 用错、开关铺满通栏、装三位数的
+> 输入框横跨整屏。而你会以为它读过规范。
+>
+> 本文档此前只写了 `~/.agents/skills/`，标题却是「给 Claude Code 用」，于是
+> Claude Code 那一侧始终是空的。**已经有项目照着做，然后一整轮 UI 都是盲写的**，
+> 直到有人问"这开关为什么占一整行"才发现 agent 根本不知道 kiln 存在。
+
+自检：让 agent 回答"kiln 是什么"。答不上来就是软链没生效。
+
+### 5.2 项目规则 —— 让路径短到一跳
+
+软链负责自动触发，项目规则负责兜底：技能没被触发时，规则还在。
+
+在项目里**改前端必读的那份规则文件**（`FRONTEND_RULES.md` / `CONTRIBUTING.md` /
+`AGENTS.md` / `CLAUDE.md`，看项目用哪个），把 kiln 写成**第一条硬前置**：
+
+> 改 UI 前先加载 `kiln` skill。颜色、字号、圆角、阴影、间距、按钮语义、组件规格、
+> 页面布局全部以它为准；数值只认 `node_modules/kiln/tokens/*.css`，规则只认
+> `SKILL.md` + `references/*.md`。
+
+**别把它埋在第三跳。** 一条真实的失败链：`AGENTS.md` → `FRONTEND_RULES.md` →
+`DESIGN.md` → kiln。四份文档写得都对，但要连读三跳才知道 kiln 存在，而且没有
+任何一跳是强制的 —— 结果 agent 一跳都没走。
 
 ---
 
@@ -275,6 +327,7 @@ Dialog / Sheet / DataTableDock / 行操作菜单 / 资源卡 / 指标卡）。
 
 | 坑 | 肉眼能发现吗 |
 |---|---|
+| **软链装错位置，agent 全程不知道 kiln 存在** | **不能**（页面能跑、能看，只是全按通用审美写的） |
 | shadcn 8 个组件全带冷调阴影 | **不能** |
 | 半透明的 tab 轨道被塞进白卡，激活态糊掉 | 只能看出「不对劲」，看不出为什么 |
 | 从散文推导阴影数值，6 个全错 | **不能**（推错的值和查对的值长得一样） |
@@ -283,4 +336,6 @@ Dialog / Sheet / DataTableDock / 行操作菜单 / 资源卡 / 指标卡）。
 | 32px 的 hero 指标数字 | 能 |
 | 手搓的 PREV/NEXT 分页 | 能，但没人觉得是问题 |
 
-**前四项占了 bug 的绝大多数，而它们全都需要机器才能抓到。** 这就是第四节存在的理由。
+**前五项占了 bug 的绝大多数，而它们全都不是肉眼能抓的。** 后四项靠第四节的两道门，
+第一项靠第五节的自检（问 agent"kiln 是什么"）—— 它甚至更靠前，因为软链没装时，
+两道门拦下的是 agent 已经写错的代码，而不是让它一开始就写对。
