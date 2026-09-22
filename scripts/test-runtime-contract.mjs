@@ -351,6 +351,75 @@ try {
   await page.evaluate(() => document.getElementById("affix-probe")?.remove());
 
   console.log("✓ runtime field row: catches the tall date trigger, exempts in-boundary affixes");
+  // 汇总条：正样本在宽屏与窄屏（折成两列）都要过；负样本各注回一种知余真实踩过或
+  // 最容易写出来的走样。只动渲染样式，不碰 class 名。
+  const stripFailures = (report) => report.failures.filter((failure) => failure.includes("汇总条"));
+  const stripAudit = async (label) => {
+    const report = createReport();
+    await auditPage(page, label, { kind: "admin", report, skipFont: true });
+    return report;
+  };
+  const stripProbe = (css) =>
+    page.evaluate((text) => {
+      let style = document.getElementById("strip-probe-style");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "strip-probe-style";
+        document.head.appendChild(style);
+      }
+      style.textContent = text;
+    }, css);
+
+  const stripWide = await stripAudit("summary-strip-wide");
+  assert.deepEqual(stripFailures(stripWide), [], `示范页汇总条宽屏应当通过：\n${stripWide.failures.join("\n")}`);
+  assert.ok(stripWide.ok.some((item) => item.includes("条汇总条已检查")), "示范页必须声明 data-summary-strip");
+
+  await page.setViewportSize({ width: 600, height: 900 });
+  const stripNarrow = await stripAudit("summary-strip-narrow");
+  assert.deepEqual(stripFailures(stripNarrow), [], `示范页汇总条折成两列后应当通过：\n${stripNarrow.failures.join("\n")}`);
+
+  // 1) 折行后首项还挂着 item + item 的左竖线、第二行没有顶线
+  await stripProbe(".summary-item + .summary-item { border-left: 1px solid var(--border) !important; } .summary-item { border-top: 0 !important; }");
+  const stripHanging = await stripAudit("summary-strip-hanging");
+  assert.ok(
+    stripFailures(stripHanging).some((failure) => failure.includes("首项却挂着左竖线")),
+    `折行首项的悬空竖线必须被拒绝：\n${stripHanging.failures.join("\n")}`
+  );
+  assert.ok(
+    stripFailures(stripHanging).some((failure) => failure.includes("没有顶部分隔线")),
+    `折行后缺顶线必须被拒绝：\n${stripHanging.failures.join("\n")}`
+  );
+  await stripProbe("");
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  // 2) 一项的数值字号单独放大 + 丢掉等宽数字 + 允许折行
+  await stripProbe(".summary-item:first-child .summary-value { font-size: var(--text-data); font-variant-numeric: normal; white-space: normal; }");
+  const stripValue = await stripAudit("summary-strip-value");
+  for (const needle of ["几种字号", "tabular-nums", "允许折行"])
+    assert.ok(
+      stripFailures(stripValue).some((failure) => failure.includes(needle)),
+      `数值走样（${needle}）必须被拒绝：\n${stripValue.failures.join("\n")}`
+    );
+
+  // 3) 描边的卡片、各项内距不一、装饰图标
+  await stripProbe(".summary-strip { border: 1px solid var(--border); } .summary-item:last-child { padding-inline: var(--space-2); }");
+  await page.evaluate(() => {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.id = "strip-probe-icon";
+    icon.setAttribute("width", "14");
+    icon.setAttribute("height", "14");
+    document.querySelector("[data-summary-strip] .summary-label").prepend(icon);
+  });
+  const stripChrome = await stripAudit("summary-strip-chrome");
+  for (const needle of ["自己带了边框", "内边距不一致", "里有图标"])
+    assert.ok(
+      stripFailures(stripChrome).some((failure) => failure.includes(needle)),
+      `汇总条外观走样（${needle}）必须被拒绝：\n${stripChrome.failures.join("\n")}`
+    );
+  await stripProbe("");
+  await page.evaluate(() => document.getElementById("strip-probe-icon")?.remove());
+
+  console.log("✓ runtime summary strip: wide + wrapped pass; hanging dividers, mixed values, and chrome are rejected");
 } finally {
   await browser.close();
 }

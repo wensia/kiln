@@ -377,6 +377,8 @@ Avoid:
 - Vertical grid lines carrying the same visual weight as the row divider — the newspaper grid. The row divider is the structure; a column line, where a data-dense table earns one, must be markedly lighter (≤60% of its weight) or absent entirely. (Structural edges — a frozen column edge, a pivot table's group boundary in the header — are edges, not a grid, and are exempt.)
 - Stacked metric/filter/reason strips whose left or right content inset visibly drifts between rows.
 - Decorative icons in metric cards, statistic strips, summary strips, or filter strips when the label and value already communicate the meaning.
+- A table's summary built as a row of separate floating KPI tiles, or a summary strip whose values outshout the table beneath it (`--text-data` above a list instead of `--text-section-title`). One strip, one surface, 1px dividers; see Summary strip anatomy in `references/components.md`.
+- Summary strip dividers that ignore wrapping: a left divider left hanging on the first item of a wrapped row, or a second row with no top divider. Also: every value in a strip colored, so color stops meaning direction.
 - Oversized frozen operation columns or right-sticky action cells that stop short of the table container edge, leaving a blank gutter to their right.
 - Operation columns that do not intercept row click/key events.
 - Frozen-column shadows painted as a `box-shadow` on the cell (silently dropped under `border-collapse`) or shown permanently regardless of scroll position, instead of a gradient pseudo-element that only appears while hidden content remains on that side.

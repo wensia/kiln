@@ -837,6 +837,25 @@ Use summary strips for aggregated table context and compact reason/filter strips
 - If a strip scrolls horizontally, keep the same left/right padding on the scroll container rather than moving padding to only the children.
 - QA should include checking for decorative `svg`/icon elements inside compact metric or summary strips; keep them only when the icon has a clear scan or interaction purpose.
 
+### Summary strip anatomy
+
+The default summary strip sits above a table and answers "what does this list add up to" in one glance. It is one surface, not a row of cards.
+
+- **Surface:** one full-width `--card` block on `--radius-card` and `--shadow-card`, borderless like every other white surface. Do not split it into per-metric cards with gaps between them. Four floating tiles read as four navigable objects; one strip with dividers reads as one fact with four facets.
+- **Items:** equal share of the width (`flex: 1`, `min-width: 0`), each item a two-line stack: label on top, value below, `--space-1` apart, content vertically centered. Horizontal inset is the same on every item (`--space-4` in page panels, per the inset rule above), so the first label lines up with the table's first column text below.
+- **Dividers:** a 1px `--border` line between neighbors, on the item that follows (`item + item`). The first item on each visual row carries no left divider. The strip's own edge is the card edge; a divider there is a double line.
+- **Label:** `--text-meta`, `--muted-foreground`, regular weight. It names the metric; it does not repeat the unit the value already shows.
+- **Value:** one line, `tabular-nums`, `--leading-tight`, `--weight-semibold`, overflowing with an ellipsis rather than wrapping. Size is chosen once per strip and is the same for every item:
+  - A **table-context strip** (debts, bills, orders above their list) uses `--text-section-title`. The table is the page's content; the strip is its caption and must not outshout it.
+  - An **overview strip** on a real dashboard or statistics page may step up to `--text-data`, the ceiling. Nothing goes above it.
+- **Semantic color is earned by direction, not by position.** Color the value `--success` when it is money or work coming to the user (receivable, income, a positive balance they want) and `--destructive` when it is owed, overdue, or negative. A value whose sign carries no verdict — a net figure the user reads either way, a plain count — stays `--foreground`. A risk count (overdue, failed) is neutral at zero and turns `--destructive` only when non-zero. Never color every item: if all four values are colored, none of them is a signal.
+- **No decoration.** No icons, no delta line by default, no sparkline. A comparison (`较昨日 +4`) is added only when the user's decision depends on the trend; then it is a third line in `--text-tiny` `--muted-foreground` on every item, not some.
+- **Loading:** each value renders `—` in the same slot, so the strip keeps its height and the table below does not jump when data arrives.
+- **Trailing count (optional):** a scope count that is not itself a metric (`12 项启用计划`) may sit after the items as a content-sized `--text-meta` muted aside with the same horizontal inset. It carries no divider and does not take an equal share.
+- **Narrow layouts:** at the mobile breakpoint the strip wraps into two columns (`flex-wrap: wrap`, items `min-width: 50%`, inset `--space-3`). The first item on each row drops its left divider, and every item from the second row on gets a 1px `--border` top divider instead. A trailing count takes a full row, right-aligned. A four-item strip squeezed into one 375px row truncates every value to `¥5…`, which is worse than two rows.
+
+Declare it for the runtime contract: put `data-summary-strip` on the strip container. Its direct children are the items; mark a trailing count `data-summary-aside` so it is excluded. The contract then checks the surface is borderless, dividers follow the visual rows (none on a row's first item, a top line on every wrapped row), every item shares one horizontal inset, the value outranks the label, values use one size per strip and stay on one line with tabular numbers, and nothing decorative (`svg`) is inside.
+
 ## Resource Card
 
 Resource cards answer: what it is, status, recent change, next action.

@@ -119,23 +119,39 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
   overflow: hidden;
 }
 
-/* ---- 指标条：不加装饰图标，靠字号/颜色/对齐建立层级 ---- */
-.metrics { display: flex; }
-.metric {
+/* ---- 汇总条（components.md → Summary strip anatomy）----
+   一张通栏白卡，各项等分、竖线分隔；标签在上，数值在下。它是下面那张表的
+   说明文字，字号用 --text-section-title，不抢表格的戏（看板页才升到 --text-data）。
+   不加装饰图标，靠字号/颜色/对齐建立层级。 */
+.summary-strip { display: flex; }
+.summary-item {
   flex: 1;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
-  border-left: 1px solid var(--border);
 }
-.metric:first-child { border-left: 0; }
-.metric-label { font-size: var(--text-meta); color: var(--muted-foreground); }
-.metric-value {
-  display: block;
-  font-size: var(--text-data);         /* 字号阶梯的天花板，只有真实看板数字够得着 */
+.summary-item + .summary-item { border-left: 1px solid var(--border); }
+.summary-label { font-size: var(--text-meta); color: var(--muted-foreground); }
+.summary-value {
+  overflow: hidden;
+  font-size: var(--text-section-title);
   font-weight: var(--weight-semibold);
   line-height: var(--leading-tight);
-  margin-top: var(--space-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.metric-delta { font-size: var(--text-tiny); color: var(--muted-foreground); }
+/* 颜色看方向不看位置：进账/完成用 success，欠着/超时用 destructive，无所谓好坏的保持墨色 */
+.summary-value.is-positive { color: var(--success); }
+.summary-value.is-negative { color: var(--destructive); }
+/* 窄屏折成两列：折行后的首项去掉左竖线，改由顶线接住 */
+@media (max-width: 640px) {
+  .summary-strip { flex-wrap: wrap; }
+  .summary-item { min-width: 50%; padding: var(--space-3); }
+  .summary-item:nth-child(odd) { border-left: 0; }
+  .summary-item:nth-child(n + 3) { border-top: 1px solid var(--border); }
+}
 
 /* ---- 控件基座 ---- */
 .btn {
@@ -499,21 +515,22 @@ h2.section-title {
 
     <div class="content">
       <!-- 总数只有一个权威，它在分页坞里（规范：Total counts live in pagination）。 -->
-      <section class="panel metrics">
-        <div class="metric">
-          <span class="metric-label">待接单</span>
-          <span class="metric-value tabular">23</span>
-          <span class="metric-delta">较昨日 +4</span>
+      <section class="panel summary-strip" aria-label="工单汇总" data-summary-strip>
+        <div class="summary-item">
+          <span class="summary-label">待接单</span>
+          <span class="summary-value tabular">23</span>
         </div>
-        <div class="metric">
-          <span class="metric-label">处理中</span>
-          <span class="metric-value tabular">61</span>
-          <span class="metric-delta">较昨日 -2</span>
+        <div class="summary-item">
+          <span class="summary-label">处理中</span>
+          <span class="summary-value tabular">61</span>
         </div>
-        <div class="metric">
-          <span class="metric-label">今日完成</span>
-          <span class="metric-value tabular">44</span>
-          <span class="metric-delta">较昨日 +11</span>
+        <div class="summary-item">
+          <span class="summary-label">今日完成</span>
+          <span class="summary-value tabular is-positive">44</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">已超时</span>
+          <span class="summary-value tabular is-negative">3 单</span>
         </div>
       </section>
 

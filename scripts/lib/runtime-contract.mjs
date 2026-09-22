@@ -79,7 +79,7 @@ export const collect = (palette) =>
       buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [], nativeDatalists: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
-      actionAnchors: [], anchorStacks: [], fieldRows: [],
+      actionAnchors: [], anchorStacks: [], summaryStrips: [], fieldRows: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
     };
     const CLAY = palette.clay;
@@ -812,6 +812,71 @@ export const collect = (palette) =>
       }
     }
 
+    // 汇总条（components.md → Summary strip anatomy）：一张卡、竖线等分、标签在上数值在下。
+    // 「这一排是汇总条」是设计意图，DOM 看不出来（一排按钮、一组 tab 也是等分的横排），
+    // 所以只查声明过的 data-summary-strip。直接子元素是各项，data-summary-aside 是尾注计数。
+    // 分隔线按**视觉行**判，不按 DOM 顺序：窄屏折成两列后，第二行首项还挂着 item + item
+    // 的左竖线，DOM 里它仍是「第三个」，只有量几何才看得出它悬在卡片边上。
+    for (const strip of document.querySelectorAll("[data-summary-strip]")) {
+      const sr = strip.getBoundingClientRect();
+      if (!sr.width || !sr.height) continue;
+      const ss = getComputedStyle(strip);
+      const lineOf = (color, width) => (parseFloat(width) || 0) > 0 && !/rgba\([^)]*,\s*0\)$|^transparent$/.test(color);
+      const items = [...strip.children].filter((el) => {
+        if (el.matches("[data-summary-aside]")) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(el).display !== "none";
+      });
+      const texts = (item) => {
+        const nodes = [];
+        const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (!n.textContent.trim() || !n.parentElement) continue;
+          const r = n.parentElement.getBoundingClientRect();
+          if (!r.width || !r.height) continue;
+          nodes.push(n.parentElement);
+        }
+        return nodes;
+      };
+      const tops = [...new Set(items.map((el) => Math.round(el.getBoundingClientRect().top)))].sort((a, b) => a - b);
+      const facts = items.map((el) => {
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        const row = tops.indexOf(Math.round(r.top));
+        const leftNeighbor = items.some((o) => {
+          const or = o.getBoundingClientRect();
+          return o !== el && Math.round(or.top) === Math.round(r.top) && or.right <= r.left + 1;
+        });
+        const owners = texts(el);
+        const sized = owners.map((o) => ({ o, size: parseFloat(getComputedStyle(o).fontSize) }));
+        const value = sized.reduce((a, b) => (b.size > a.size ? b : a), sized[0] || { o: null, size: 0 });
+        const label = sized[0] || value;
+        const vs = value.o ? getComputedStyle(value.o) : null;
+        return {
+          text: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 12),
+          row,
+          leftNeighbor,
+          leftLine: lineOf(s.borderLeftColor, s.borderLeftWidth),
+          topLine: lineOf(s.borderTopColor, s.borderTopWidth),
+          padLeft: Math.round(parseFloat(s.paddingLeft) || 0),
+          padRight: Math.round(parseFloat(s.paddingRight) || 0),
+          labelSize: label.size,
+          valueSize: value.size,
+          sameNode: !value.o || value.o === label.o,
+          tabular: vs ? /tabular-nums/.test(vs.fontVariantNumeric) : true,
+          wraps: vs ? vs.whiteSpace !== "nowrap" && vs.whiteSpace !== "pre" : false,
+          svg: [...el.querySelectorAll("svg")].some((g) => g.getBoundingClientRect().width > 0),
+        };
+      });
+      out.summaryStrips.push({
+        label: strip.getAttribute("aria-label") || facts.map((f) => f.text).join(" / ").slice(0, 30),
+        bordered: ["Top", "Right", "Bottom", "Left"].some((k) => lineOf(ss[`border${k}Color`], ss[`border${k}Width`])),
+        shadow: ss.boxShadow !== "none",
+        items: facts,
+        stripSvg: [...strip.querySelectorAll("[data-summary-aside] svg")].some((g) => g.getBoundingClientRect().width > 0),
+      });
+    }
+
     return out;
   })();
 
@@ -1188,6 +1253,40 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
       `${d.actionAnchors.length} 个入口已锚定（独立槽位 + 钉在行首${d.anchorStacks?.length ? "，堆叠内左边缘一致" : ""}）`
     );
   }
+
+  // ── 汇总条 ─────────────────────────────────────────
+  for (const strip of d.summaryStrips || []) {
+    const at = `汇总条「${strip.label}」`;
+    if (!strip.items.length) {
+      fail(name, `${at}声明了 data-summary-strip，但没有可见的项`);
+      continue;
+    }
+    if (strip.bordered) fail(name, `${at}自己带了边框 —— 它是一张白卡，靠 --shadow-card 浮起，不描边`);
+    if (!strip.shadow) fail(name, `${at}没有卡片阴影 —— 汇总条是一整张 --card 表面，不是贴在画布上的一行字`);
+    for (const item of strip.items) {
+      if (!item.leftNeighbor && item.leftLine)
+        fail(name, `${at}的「${item.text}」是第 ${item.row + 1} 行的首项却挂着左竖线 —— 折行后的首项要去掉 item + item 的分隔线`);
+      if (item.leftNeighbor && !item.leftLine)
+        fail(name, `${at}的「${item.text}」和左邻之间没有 1px 分隔线`);
+      if (item.row > 0 && !item.topLine)
+        fail(name, `${at}的「${item.text}」在折出来的第 ${item.row + 1} 行，却没有顶部分隔线接住`);
+      if (item.row === 0 && item.topLine)
+        fail(name, `${at}的「${item.text}」在首行却画了顶线 —— 卡片边缘就是边，再画一条是双线`);
+      if (item.sameNode || item.valueSize <= item.labelSize)
+        fail(name, `${at}的「${item.text}」数值不比标签大（${item.valueSize}px ≤ ${item.labelSize}px）—— 标签在上用 --text-meta，数值在下要压过它`);
+      if (!item.tabular) fail(name, `${at}的「${item.text}」数值没有 tabular-nums，相邻几项的数字对不齐`);
+      if (item.wraps) fail(name, `${at}的「${item.text}」数值允许折行 —— 值只占一行，放不下用省略号`);
+      if (item.svg) fail(name, `${at}的「${item.text}」里有图标 —— 标签已经说清了是什么，图标只是装饰`);
+    }
+    const sizes = [...new Set(strip.items.map((i) => i.valueSize))];
+    if (sizes.length > 1) fail(name, `${at}的数值用了 ${sizes.join(" / ")}px 几种字号 —— 一条汇总条只选一档`);
+    const pads = [...new Set(strip.items.flatMap((i) => [i.padLeft, i.padRight]))];
+    if (pads.length > 1)
+      fail(name, `${at}各项的左右内边距不一致（${pads.join(" / ")}px）—— 首个标签要和下方表格对齐，每项同一档内距`);
+    if (strip.stripSvg) fail(name, `${at}的尾注里有图标`);
+  }
+  if (d.summaryStrips?.length)
+    pass(name, `${d.summaryStrips.length} 条汇总条已检查（单卡无描边、分隔线跟随视觉行、数值单行等宽）`);
 
   // ── 标题权威唯一 ───────────────────────────────────
   const authority = d.titleAuthority || { total: 0, visible: [], texts: [], echoes: [] };
