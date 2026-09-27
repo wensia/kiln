@@ -16,7 +16,13 @@ Not a design system for landing pages. One for tools people work in.
 
 ![kiln workbench example page](docs/workbench.png)
 
-> The example image is rendered from `examples/workbench.html` by `npm run screenshots` — never captured by hand. That same page is the assertion target of the runtime contract, so the picture, the spec, and the check cannot drift apart.
+### Tags
+
+Eight restrained glaze tones, readable light/dark text, and separate category, status, selection, and removal treatments. [Open the interactive reference](examples/tags.html).
+
+![kiln tag palette and interactions](docs/tags.png)
+
+> These images are rendered from `examples/*.html` by `npm run screenshots` — never captured by hand. Those same pages are the assertion target of the runtime contract, so the picture, the spec, and the check cannot drift apart.
 
 ---
 
@@ -87,6 +93,8 @@ To land it in a real codebase, follow **[ADOPTING.md](./ADOPTING.md)**: the full
 ```bash
 npm run verify           # static: token contract, spec-table mirror, no values in prose
 npm run verify:examples  # rendered: runtime contract against examples/workbench.html
+npm run verify:tags      # tags: contrast, sizing, keyboard, and narrow wrapping
+npm run verify:themes    # theme matrix: 2 themes × 4 brands × 4 surfaces, rendered contrast + negative probes
 npm run screenshots      # regenerate the images in this README
 ```
 

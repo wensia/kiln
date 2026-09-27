@@ -14,6 +14,10 @@
  *   3. references/tokens.md 是 CSS 的**镜像** —— 它重述的每个数值都必须与 CSS 一致
  *   4. 其它散文（SKILL.md / components.md / layouts-and-pages.md / platform-mapping.md）
  *      **不得重述** hex 值：它们只该命名 token
+ *   5. tokens/index.css 必须 @import dark.css（与 tags.css），且暗色层排在亮色层之后
+ *   6. tokens/*.css 与 examples/ 里每个 var(--x) 引用都必须有定义（带 fallback 与外部前缀除外）
+ *
+ * 这里只做静态契约，不模拟级联；作用域是否真的生效由 npm run verify:themes 在渲染后断言。
  *
  * 用法：node scripts/verify.mjs
  */
@@ -100,6 +104,63 @@ for (const file of PROSE) {
   });
 }
 
+// ── 5. 入口必须接上暗色层与标签层 ─────────────────────────────
+// dark.css / tags.css 单独存在不等于生效：入口漏 import，暗色选择器根本不会出现在页面里，
+// 而 1-3 条只看「定义过没有」，会照样通过。顺序也是契约：暗色层与亮色层同为单类选择器，
+// 靠排在 colors.css / elevation.css 之后胜出（见 tokens/index.css 注释）。
+// 这里不模拟级联 —— 作用域是否真的接管，由 npm run verify:themes 在渲染后断言。
+const entry = readFileSync(join(cssDir, "index.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const imports = [...entry.matchAll(/@import\s+(?:url\()?\s*["']\.\/([^"')]+)["']/g)].map((m) => m[1]);
+const cssFiles = new Set(readdirSync(cssDir).filter((f) => f.endsWith(".css")));
+for (const required of ["dark.css", "tags.css"]) {
+  if (required === "tags.css" && !cssFiles.has(required)) continue;
+  if (!imports.includes(required)) {
+    fail(`入口漏接：tokens/index.css 没有 @import "./${required}" —— 文件存在但对消费方不生效。`);
+  }
+}
+if (imports.includes("dark.css")) {
+  for (const light of ["colors.css", "elevation.css"]) {
+    if (imports.includes(light) && imports.lastIndexOf(light) > imports.lastIndexOf("dark.css")) {
+      fail(`入口顺序：tokens/index.css 里 ${light} 排在 dark.css 之后 —— 同优先级下亮色值会盖掉暗色层。`);
+    }
+  }
+}
+
+// ── 6. var() 引用必须有定义 ──────────────────────────────────
+// 引用一个不存在的 token，浏览器不会报错：整条声明在计算期失效，颜色静默回退成继承值或初始值。
+// 带 fallback 的 var(--x, …) 自己兜了底，放行；示范页可以引用本文件内自定义的私有属性。
+// 白名单（外部前缀，由宿主或工具链注入，kiln 不定义）：
+const EXTERNAL_PREFIXES = [
+  "--tw-", // Tailwind 运行时变量（ring / shadow 组合），由 Tailwind 生成
+];
+const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "");
+const tokenDefs = new Set();
+for (const f of cssFiles) {
+  for (const m of stripComments(readFileSync(join(cssDir, f), "utf8")).matchAll(/(--[a-zA-Z0-9_\\.-]+)\s*:/g)) {
+    tokenDefs.add(m[1].replace(/\\/g, ""));
+  }
+}
+const REFERENCE_SOURCES = [
+  ...[...cssFiles].map((f) => `tokens/${f}`),
+  ...readdirSync(join(ROOT, "examples"))
+    .filter((f) => f.endsWith(".css") || f.endsWith(".html"))
+    .map((f) => `examples/${f}`),
+];
+let referenceCount = 0;
+for (const file of REFERENCE_SOURCES) {
+  const text = stripComments(readFileSync(join(ROOT, file), "utf8"));
+  const local = file.startsWith("examples/")
+    ? new Set([...text.matchAll(/(--[a-zA-Z0-9_\\.-]+)\s*:/g)].map((m) => m[1].replace(/\\/g, "")))
+    : new Set();
+  for (const m of text.matchAll(/var\(\s*(--[a-zA-Z0-9_\\.-]+)\s*(,)?/g)) {
+    referenceCount++;
+    const name = m[1].replace(/\\/g, "");
+    if (m[2] || tokenDefs.has(name) || local.has(name)) continue;
+    if (EXTERNAL_PREFIXES.some((prefix) => name.startsWith(prefix))) continue;
+    fail(`悬空引用：${file} 引用 var(${name})，但 tokens/*.css 与本文件都没有定义它 —— 这条声明会在计算期静默失效。`);
+  }
+}
+
 // ── 报告 ─────────────────────────────────────────────────────
 if (failures.length) {
   console.error(`\n✗ kiln 自检未通过（${failures.length} 项）：\n`);
@@ -109,5 +170,5 @@ if (failures.length) {
 }
 console.log(
   `✓ kiln 自检通过：${allowed.size} 个 token 全部定义、无自造值；` +
-    `规格表与 CSS 一致；散文未重述数值。`
+    `规格表与 CSS 一致；散文未重述数值；入口接上 dark/tags；${referenceCount} 处 var() 引用均有定义。`
 );

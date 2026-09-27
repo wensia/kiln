@@ -1,0 +1,163 @@
+/* ============================================================
+   kiln — Dark theme（夜窑）
+   亮色是源主题，暗色是它在夜里的同一件器物：不是反色，而是
+   「暖炭黑的坯体 + 提亮的釉色」。
+
+   · 表面：四级暖炭黑阶梯（衬底 < 主表面 < 浮层 < 填充），
+     越靠近用户越亮 —— 暗色里「浮起来」靠提亮，不靠投影。
+   · 釉色：陶土红 / 窑青绿 / 孔雀蓝 / 暖琥珀在 OKLCH 里提亮度、保持色相，
+     彩度只做小幅收敛（陶土红 .134 → .120，其余三色基本不变）；不和白色混
+     （和白混会发粉、发灰、变泥）。
+     提亮后作实心底时，前景字用衬底深色，不用白字。
+   · 分离：暗面上阴影几乎失效，改由「表面台阶 + 1px 暖白发丝环」
+     承担；发丝环写进阴影 token 本身，组件不必另加边框。
+   · 阴影色仍是暖黑，只加深不变冷。
+
+   启用方式：宿主在根元素（或任一局部容器）加 `.dark` 或
+   `[data-theme="dark"]`。跟随系统由宿主用 prefers-color-scheme
+   决定何时加类，kiln 只提供外观，不替产品决定开关。
+   局部容器也能生效：本文件重新声明了所有派生 token，
+   不依赖「根上的 var() 会重新计算」。
+   ============================================================ */
+
+:root {
+  /* ---- Dark palette base（暖炭黑，OKLCH 色相 ≈ 62°，彩度 ≈ .009） ---- */
+  --palette-dark-canvas: #16120f;    /* 页面衬底：最深 */
+  --palette-dark-surface: #1d1915;   /* 主表面：卡片 / 面板 / 表格 / 侧栏 / 顶栏 */
+  --palette-dark-raised: #24201c;    /* 浮层：popover / dropdown / dialog / toast */
+  --palette-dark-fill: #2a2622;      /* muted / 浅填充面（悬停 / 选中等必要反馈） */
+  --palette-dark-line: #49443f;      /* strong border（输入框 / 必要分隔） */
+  --palette-dark-ink: #ebe5de;       /* primary text：暖米白，不用纯白 */
+  --palette-dark-muted-ink: #a39d97; /* secondary text：主表面上 6.5:1 */
+
+  /* ---- Dark glazes（OKLCH 提亮度、保色相，彩度小幅收敛；主表面上均 ≥ 6:1） ---- */
+  --palette-dark-clay: #de816b;
+  --palette-dark-teal: #69b5a5;
+  --palette-dark-peacock: #6eb1bd;
+  --palette-dark-amber: #e09e5b;
+
+  /* ---- Dark solid：普通实心命令用的暖灰米，比 ink 低一档，避免米白光斑压过品牌信号 ---- */
+  --palette-dark-solid: #b4aca5;
+  /* ---- 控件识别轮廓：canvas / surface / raised / fill 上均 ≥3:1 ---- */
+  --palette-dark-boundary: #7d756d;
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ---- Palette derived ---- */
+  --palette-primary-soft: color-mix(in srgb, var(--palette-dark-clay) 14%, var(--palette-dark-surface));
+
+  /* ---- Semantic surfaces ---- */
+  --background: var(--palette-dark-canvas);
+  --foreground: var(--palette-dark-ink);
+  --card: var(--palette-dark-surface);
+  --card-foreground: var(--palette-dark-ink);
+  --popover: var(--palette-dark-raised);
+  --popover-foreground: var(--palette-dark-ink);
+  --muted: var(--palette-dark-fill);
+  --muted-foreground: var(--palette-dark-muted-ink);
+  --accent: color-mix(in srgb, var(--palette-dark-fill) 70%, var(--palette-dark-surface));
+  --accent-foreground: var(--palette-dark-ink);
+
+  /* ---- Brand inputs（暗色默认）：提亮釉色作底，深色前景 ---- */
+  --kiln-brand-fill: var(--palette-dark-clay);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-dark-clay);
+  --kiln-brand-fill-hover: color-mix(in srgb, var(--kiln-brand-fill) 88%, var(--palette-dark-solid));
+
+  /* ---- Primary (brand)：在暗色边界重新解析，局部暗色容器才会拿到暗色值 ---- */
+  --primary: var(--kiln-brand-fill);
+  --primary-foreground: var(--kiln-brand-on-fill);
+  --primary-text: var(--kiln-brand-text);
+  --primary-hover: var(--kiln-brand-fill-hover);
+  --primary-subtle: color-mix(in srgb, var(--kiln-brand-fill) 14%, var(--palette-dark-surface));
+
+  /* ---- Secondary (surface) ---- */
+  --secondary: color-mix(in srgb, var(--palette-dark-fill) 70%, var(--palette-dark-surface));
+  --secondary-foreground: var(--palette-dark-ink);
+
+  /* ---- Solid action：暖灰米实心、深色字；hover 保持中性，不染品牌色 ---- */
+  --solid: var(--palette-dark-solid);
+  --solid-hover: color-mix(in srgb, var(--palette-dark-solid) 92%, var(--palette-dark-ink));
+  --solid-foreground: var(--palette-dark-canvas);
+
+  /* ---- Borders / inputs / ring ---- */
+  --border: color-mix(in srgb, var(--palette-dark-line) 40%, var(--palette-dark-surface));
+  --border-visible: var(--palette-dark-line);
+  --input: color-mix(in srgb, var(--palette-dark-line) 78%, var(--palette-dark-surface));
+  --ring: var(--kiln-brand-text);
+  --control-boundary: var(--palette-dark-boundary);
+
+  /* ---- Semantic status：提亮釉色；浅底改为「釉色 × 主表面」 ---- */
+  --success: var(--palette-dark-teal);
+  --success-bg: color-mix(in srgb, var(--palette-dark-teal) 16%, var(--palette-dark-surface));
+  --info: var(--palette-dark-peacock);
+  --info-bg: color-mix(in srgb, var(--palette-dark-peacock) 16%, var(--palette-dark-surface));
+  --warning: var(--palette-dark-amber);
+  --warning-bg: color-mix(in srgb, var(--palette-dark-amber) 16%, var(--palette-dark-surface));
+  --destructive: var(--palette-dark-clay);
+  --destructive-foreground: var(--palette-dark-canvas);
+  --destructive-bg: color-mix(in srgb, var(--palette-dark-clay) 15%, var(--palette-dark-surface));
+
+  /* ---- Chart series ---- */
+  --chart-1: var(--palette-dark-clay);
+  --chart-2: var(--palette-dark-teal);
+  --chart-3: var(--palette-dark-peacock);
+  --chart-4: var(--palette-dark-amber);
+  --chart-5: color-mix(in srgb, var(--palette-dark-ink) 55%, var(--palette-dark-fill));
+
+  /* ---- Table surfaces：公式与亮色一致，重新声明以便局部暗色容器生效 ---- */
+  --table-header: color-mix(in srgb, var(--muted) 94%, var(--card));
+  --table-header-border: color-mix(in srgb, var(--border) 86%, var(--card));
+  --table-row-alt: color-mix(in srgb, var(--muted) 24%, var(--card));
+  --table-row-hover: color-mix(in srgb, var(--muted) 72%, var(--card));
+  --table-row-selected: color-mix(in srgb, var(--primary) 12%, var(--card));
+
+  /* ---- Sidebar ---- */
+  --sidebar: var(--palette-dark-surface);
+  --sidebar-foreground: var(--palette-dark-ink);
+  --sidebar-primary: var(--kiln-brand-fill);
+  --sidebar-primary-foreground: var(--kiln-brand-on-fill);
+  --sidebar-accent: color-mix(in srgb, var(--palette-dark-fill) 70%, var(--palette-dark-surface));
+  --sidebar-accent-foreground: var(--palette-dark-ink);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--kiln-brand-text);
+
+  /* ---- Segmented control：暗色里 token 感知不到所在容器，用半透明前景提亮，
+     叠在 canvas / card / popover / fill 上都「比轨道亮一级」。亮度差只负责材质，
+     选中身份由 --segment-active-mark 的勾选标记承担（组件必须渲染它）。 ---- */
+  --segment-track-bg: color-mix(in srgb, var(--muted) 40%, transparent);
+  --segment-hover-bg: color-mix(in srgb, var(--foreground) 3%, transparent);
+  --segment-active-bg: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --segment-active-fg: var(--foreground);
+  --segment-active-mark: var(--primary-text);
+  --segment-active-shadow: 0 0 0 1px rgba(235, 229, 222, 0.08);
+
+  /* ---- Topbar ---- */
+  --topbar: color-mix(in srgb, var(--palette-dark-surface) 82%, transparent);
+
+  /* ---- Elevation：暖黑加深 + 1px 暖白发丝环（暗面上替代阴影做分离） ---- */
+  --shadow-xs: 0 1px 2px rgba(8, 6, 4, 0.32);
+  --shadow-card:
+    0 0 0 1px rgba(235, 229, 222, 0.05),
+    0 2px 8px rgba(8, 6, 4, 0.32),
+    0 1px 2px rgba(8, 6, 4, 0.24);
+  --shadow-card-hover:
+    0 0 0 1px rgba(235, 229, 222, 0.08),
+    0 6px 18px rgba(8, 6, 4, 0.42),
+    0 2px 5px rgba(8, 6, 4, 0.28);
+  /* 输入框：去掉亮色里的内高光（暗面上会变成一道灰边） */
+  --shadow-input: 0 1px 2px rgba(8, 6, 4, 0.24);
+  --shadow-primary-focus:
+    0 0 0 1px color-mix(in srgb, var(--primary) 32%, transparent),
+    0 10px 24px rgba(8, 6, 4, 0.36);
+  --ring-focus: 0 0 0 1px var(--primary);
+  --shadow-popover:
+    0 0 0 1px rgba(235, 229, 222, 0.08),
+    0 12px 32px rgba(8, 6, 4, 0.52),
+    0 2px 6px rgba(8, 6, 4, 0.32);
+  --shadow-topbar: 0 1px 0 rgba(235, 229, 222, 0.05);
+  --shadow-sticky-edge: rgba(0, 0, 0, 0.45);
+}

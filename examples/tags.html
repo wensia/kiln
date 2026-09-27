@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kiln — Tag 标签设计</title>
+<link rel="stylesheet" href="../tokens/fonts.css">
+<link rel="stylesheet" href="../tokens/index.css">
+<link rel="stylesheet" href="tags.css">
+<style>
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: var(--text-body); }
+main { width: min(100%, 1120px); margin: auto; padding: var(--space-8); }
+.page-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+h1 { margin: 0; font-size: var(--text-page-title); font-weight: var(--weight-semibold); }
+h1 span { margin-right: var(--space-3); color: var(--primary); }
+h2 { margin: 0; font-size: var(--text-section-title); font-weight: var(--weight-semibold); }
+p { margin: 0; color: var(--muted-foreground); line-height: var(--leading-normal); }
+a { color: var(--muted-foreground); text-underline-offset: var(--space-1); }
+.sheet { background: var(--card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
+.section-head { padding: var(--space-6) var(--space-6) var(--space-3); display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+.section-head p { font-size: var(--text-meta); }
+.palette { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0 var(--space-6) var(--space-6); gap: 0 var(--space-6); }
+.tone { min-width: 0; padding: var(--space-4) 0; border-bottom: 1px solid var(--border); }
+.tone-name { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3); font-weight: var(--weight-medium); }
+.tone-name small { color: var(--muted-foreground); font-size: var(--text-tiny); font-weight: var(--weight-regular); }
+.tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.dark-strip { padding: var(--space-4) var(--space-6); background: var(--tag-surface); color: var(--tag-neutral-fg); }
+.dark-strip .dark-label { font-size: var(--text-meta); margin-bottom: var(--space-3); }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-top: var(--space-6); }
+.demo { padding: var(--space-6); }
+.demo h2 { margin-bottom: var(--space-4); }
+.demo p { font-size: var(--text-meta); margin-top: var(--space-3); }
+.status-strip { display: flex; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border); }
+.demo-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); margin-bottom:var(--space-4); }
+.demo-head h2 { margin:0; }
+.reset { height:var(--control-height-sm); padding:0 var(--space-2); border:1px solid var(--border-visible); border-radius:var(--radius-control); background:var(--card); color:var(--foreground); font:inherit; cursor:pointer; }
+.reset:disabled { opacity:.5; cursor:not-allowed; }
+.reset:hover:not(:disabled) { background:var(--muted); }
+.reset:focus-visible { outline:none; box-shadow:var(--ring-focus); }
+.removable-tags { min-height:var(--control-height-sm); }
+footer { padding-top:var(--space-4); font-size:var(--text-meta); color:var(--muted-foreground); }
+@media (max-width: 800px) { main { padding:var(--space-6); } .palette { grid-template-columns:repeat(2,minmax(0,1fr)); } .columns { grid-template-columns:1fr; } }
+@media (max-width: 440px) { main { padding:var(--space-4); } .page-head { align-items:flex-start; flex-direction:column; gap:var(--space-2); } .palette { gap:0 var(--space-3); padding-inline:var(--space-4); } .section-head,.dark-strip,.demo { padding-inline:var(--space-4); } .tone-name { flex-direction:column; gap:var(--space-1); } }
+</style>
+</head>
+<body>
+<main>
+  <header class="page-head"><h1><span>kiln / 窑</span>Tag 标签</h1><a href="workbench.html">查看工作台中的用法</a></header>
+  <section class="sheet" aria-labelledby="palette-title">
+    <div class="section-head"><h2 id="palette-title">八种釉色</h2><p>柔和底色，清晰文字。浅底与描边两种层次。</p></div>
+    <div class="palette">
+      <div class="tone"><div class="tone-name">砂灰<small>普通信息</small></div><div class="tags"><span class="tag" data-tone="neutral">未分类</span><span class="tag" data-tone="neutral" data-variant="outline">未分类</span></div></div>
+      <div class="tone"><div class="tone-name">窑青<small>完成 · 有效</small></div><div class="tags"><span class="tag" data-tone="teal">续费学员</span><span class="tag" data-tone="teal" data-variant="outline">续费学员</span></div></div>
+      <div class="tone"><div class="tone-name">孔雀<small>信息 · 进行中</small></div><div class="tags"><span class="tag" data-tone="peacock">线上渠道</span><span class="tag" data-tone="peacock" data-variant="outline">线上渠道</span></div></div>
+      <div class="tone"><div class="tone-name">霁蓝<small>分类 · 分组</small></div><div class="tags"><span class="tag" data-tone="blue">初中班</span><span class="tag" data-tone="blue" data-variant="outline">初中班</span></div></div>
+      <div class="tone"><div class="tone-name">琥珀<small>等待 · 提醒</small></div><div class="tags"><span class="tag" data-tone="amber">待复核</span><span class="tag" data-tone="amber" data-variant="outline">待复核</span></div></div>
+      <div class="tone"><div class="tone-name">橄榄<small>来源 · 类别</small></div><div class="tags"><span class="tag" data-tone="olive">自然到访</span><span class="tag" data-tone="olive" data-variant="outline">自然到访</span></div></div>
+      <div class="tone"><div class="tone-name">胭脂<small>关注 · 人群</small></div><div class="tags"><span class="tag" data-tone="rose">重点关注</span><span class="tag" data-tone="rose" data-variant="outline">重点关注</span></div></div>
+      <div class="tone"><div class="tone-name">陶土<small>异常 · 风险</small></div><div class="tags"><span class="tag" data-tone="clay">已逾期</span><span class="tag" data-tone="clay" data-variant="outline">已逾期</span></div></div>
+    </div>
+    <div class="dark-strip" data-theme="dark" aria-label="深色背景标签"><div class="dark-label">深色背景</div><div class="tags">
+      <span class="tag" data-tone="neutral">未分类</span>
+      <span class="tag" data-tone="teal">续费学员</span>
+      <span class="tag" data-tone="peacock">线上渠道</span>
+      <span class="tag" data-tone="blue">初中班</span>
+      <span class="tag" data-tone="amber">待复核</span>
+      <span class="tag" data-tone="olive">自然到访</span>
+      <span class="tag" data-tone="rose">重点关注</span>
+      <span class="tag" data-tone="clay">已逾期</span>
+    </div></div>
+  </section>
+  <div class="columns">
+    <section class="sheet demo" aria-labelledby="filter-title">
+      <h2 id="filter-title">可选择的分类</h2>
+      <div class="tags" role="group" aria-label="选择分类">
+        <button class="tag" type="button" data-tone="blue" data-select-tag aria-pressed="true"><svg class="tag-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 8 3.2 3.2L13 4.5"/></svg><span>初中班</span></button>
+        <button class="tag" type="button" data-tone="olive" data-select-tag aria-pressed="false"><svg class="tag-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 8 3.2 3.2L13 4.5"/></svg><span>自然到访</span></button>
+        <button class="tag" type="button" data-tone="rose" data-select-tag aria-pressed="false"><svg class="tag-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 8 3.2 3.2L13 4.5"/></svg><span>重点关注</span></button>
+        <button class="tag" type="button" data-tone="neutral" aria-pressed="false" disabled>已停用</button>
+      </div>
+      <p id="selection-summary" role="status">已选 1 个分类</p>
+    </section>
+    <section class="sheet demo" aria-labelledby="remove-title">
+      <div class="demo-head"><h2 id="remove-title">可移除的标签</h2><button type="button" class="reset" id="restore-tags" disabled>恢复标签</button></div>
+      <div class="tags removable-tags" id="removable-tags">
+        <span class="tag tag-removable" data-tone="blue"><span class="tag-label">初中班</span><button type="button" class="tag-remove" aria-label="移除初中班"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></span>
+        <span class="tag tag-removable" data-tone="teal"><span class="tag-label">续费学员</span><button type="button" class="tag-remove" aria-label="移除续费学员"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></span>
+        <span class="tag tag-removable" data-tone="rose"><span class="tag-label">重点关注</span><button type="button" class="tag-remove" aria-label="移除重点关注"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></span>
+      </div>
+      <p id="remove-summary" role="status">3 个标签</p>
+    </section>
+  </div>
+  <section class="sheet" style="margin-top:var(--space-6)" aria-labelledby="status-title">
+    <div class="section-head"><h2 id="status-title">状态轻一些，语义更清楚</h2><p>状态点用于进度与结果，分类标签保持纯文字。</p></div>
+    <div class="status-strip">
+      <span class="tag" data-tone="teal" data-variant="status"><span class="tag-dot" aria-hidden="true"></span>已完成</span>
+      <span class="tag" data-tone="peacock" data-variant="status"><span class="tag-dot" aria-hidden="true"></span>处理中</span>
+      <span class="tag" data-tone="amber" data-variant="status"><span class="tag-dot" aria-hidden="true"></span>待复核</span>
+      <span class="tag" data-tone="clay" data-variant="status"><span class="tag-dot" aria-hidden="true"></span>已逾期</span>
+      <span class="tag" data-tone="neutral" data-variant="status"><span class="tag-dot" aria-hidden="true"></span>已归档</span>
+    </div>
+  </section>
+  <div class="tags" style="margin-top:var(--space-4)" aria-label="紧凑标签"><span style="color:var(--muted-foreground);font-size:var(--text-meta)">紧凑密度</span><span class="badge" data-tone="blue">初中班</span><span class="badge" data-tone="teal">续费学员</span><span class="badge" data-tone="amber" data-variant="outline">待复核</span></div>
+  <footer>分类用色固定对应同一类对象；状态仍按成功、信息、提醒、异常的含义用色。</footer>
+</main>
+<script>
+const selectedTags = document.querySelectorAll('[data-select-tag]');
+selectedTags.forEach(button => button.addEventListener('click', () => {
+  button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
+  const count = [...selectedTags].filter(tag => tag.getAttribute('aria-pressed') === 'true').length;
+  document.getElementById('selection-summary').textContent = `已选 ${count} 个分类`;
+}));
+const removableTags = document.getElementById('removable-tags');
+const originalTags = removableTags.innerHTML;
+const restore = document.getElementById('restore-tags');
+removableTags.addEventListener('click', event => {
+  const button = event.target.closest('.tag-remove');
+  if (!button) return;
+  const remaining = [...removableTags.querySelectorAll('.tag-remove')];
+  const index = remaining.indexOf(button);
+  button.closest('.tag').remove();
+  const count = removableTags.children.length;
+  document.getElementById('remove-summary').textContent = count ? `${count} 个标签` : '暂无标签';
+  restore.disabled = false;
+  const buttons = removableTags.querySelectorAll('.tag-remove');
+  (buttons[Math.min(index, buttons.length - 1)] || restore).focus();
+});
+restore.addEventListener('click', () => {
+  removableTags.innerHTML = originalTags;
+  document.getElementById('remove-summary').textContent = '3 个标签';
+  restore.disabled = true;
+  removableTags.querySelector('.tag-remove').focus();
+});
+</script>
+</body>
+</html>

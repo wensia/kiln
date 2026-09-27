@@ -1,12 +1,14 @@
 {
   "name": "kiln",
-  "version": "3.15.0",
+  "version": "3.16.0",
   "description": "kiln — 窑。中文后台工作台设计系统：陶土釉色、紧凑布局、暖黑阴影分层。",
   "type": "module",
   "scripts": {
     "test": "node scripts/test-runtime-contract.mjs",
     "verify": "node scripts/verify.mjs",
     "verify:examples": "node scripts/verify-examples.mjs",
+    "verify:tags": "node scripts/verify-tags.mjs",
+    "verify:themes": "node scripts/verify-themes.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
   "exports": {

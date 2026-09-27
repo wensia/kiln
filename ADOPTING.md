@@ -152,7 +152,7 @@ size: { default: "h-9", sm: "h-8", lg: "h-10", icon: "h-9 w-9", "icon-sm": "h-8 
 
 | 组件 | 要点 |
 |---|---|
-| **Badge** | 7 变体：default / secondary / outline / success / info / warning / neutral。**没有 destructive**——失效态用 neutral/outline + 危险色文字 |
+| **Tag / Badge** | `variant`（soft / outline / status）与 `tone` 正交，消费 `tokens/tags.css` 的专属背景、边界和文字色。旧 Badge API 在共享层兼容，显式 tone 优先；业务映射跨视图复用，高意向不等于危险。可移除组合即使是 span，也须给外框和关闭按钮完整的 `--control-height-sm` 点击区域，不能被紧凑外框裁切。验收覆盖实际安装包与真实业务页，不能只改示例。见 [组件规则](references/components.md#badge--status--tag) 与 [可交互示例](examples/tags.html)。 |
 | **Pagination** | **一个全局共享组件**。无上一页/下一页按钮（相邻页码本身就是上下页），3 页码窗口 + 「第 x 页」Select，当前页 clay 填充。不渲染「1–15 / 512」这种范围串 |
 | **DropdownMenu** | 行操作 ≥2 个必须收进单个 `...` 触发器。宽度由内容决定，别绑 trigger 宽度 |
 
@@ -315,9 +315,12 @@ Dialog / Sheet / DataTableDock / 行操作菜单 / 资源卡 / 指标卡）。
 小程序 / 移动端：保留语义色、字号阶梯、组件角色；高频触控控件放大到 40–44px；
 表格变卡片；侧栏换底部导航；对话框多数改成底部 sheet。
 
-暗色模式：kiln 是 light-only。要做暗色**不要简单反色**——重新检查侧栏、表格、弹窗、徽章的
-对比度；陶土红要用 color-mix 提亮，否则发浑；**阴影在深色表面上失去分离力，那里（且只有那里）
-才该改用边框和表面色阶**。
+暗色模式：kiln 自带暗色层 `tokens/dark.css`（由 `tokens/index.css` 引入），宿主只负责**开关**——
+在根元素加 `.dark` / `[data-theme="dark"]`，跟随系统时自己监听 `prefers-color-scheme`，首帧前用
+`<head>` 内联脚本定好类名。**宿主 `:root` 里不要重复声明 kiln 语义 token 的亮色值**：同为单类
+优先级且排在后面，会静默盖掉暗色层；偏离项用语义 token 表达，确属亮色的值在宿主自己的 `.dark`
+里重声明。细则见 `references/platform-mapping.md` 的 Dark Mode 与 `references/tokens.md` 的
+Dark Theme Tokens。
 
 ---
 

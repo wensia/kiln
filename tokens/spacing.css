@@ -14,6 +14,14 @@
   --space-8: 32px;
   --space-12: 48px;
 
+  /* ---- Static tag heights / status marker ---- */
+  --tag-height: 24px;
+  --tag-height-sm: 20px;
+  --tag-dot-size: 6px;
+
+  /* ---- Search fields ---- */
+  --search-width: 320px;
+
   /* ---- Control heights ---- */
   --nav-item-height: 36px;     /* 侧边导航项 */
   --table-row-height: 48px;    /* 表格行基线 */

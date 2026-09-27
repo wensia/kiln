@@ -351,6 +351,245 @@ try {
   await page.evaluate(() => document.getElementById("affix-probe")?.remove());
 
   console.log("✓ runtime field row: catches the tall date trigger, exempts in-boundary affixes");
+
+  // 弹窗表单列：补一次真实事故 —— 一只弹窗里两项选择框停在中号上限、金额停在数字上限、
+  // 日期却撑满整列，五行三条右缘。每个控件单看都「按载荷定宽」，只有把整列摆在一起量才现形。
+  const columnPositive = createReport();
+  await auditPage(page, "form-column-positive", { kind: "admin", report: columnPositive, skipFont: true });
+  assert.ok(
+    columnPositive.ok.some((item) => item.includes("弹窗表单列右缘一致")),
+    `示范页那只弹窗的每一行应当收在同一条右缘上：\n${columnPositive.failures.join("\n")}`
+  );
+  assert.deepEqual(
+    columnPositive.failures.filter((failure) => /右缘不齐|只装它自己|控件高度阶梯/.test(failure)),
+    [],
+    "示范页不应触发弹窗表单列、单按钮框或轨道阶梯的失败"
+  );
+
+  // 1) 锯齿：金额按数字载荷停在半截、日期独占一行
+  await page.evaluate(() => {
+    const style = document.createElement("style");
+    style.id = "column-probe";
+    style.textContent = ".form-grid-2 { grid-template-columns: minmax(0, 1fr) } .form-grid-2 > .field:first-child { max-width: 8rem }";
+    document.head.appendChild(style);
+  });
+  const sawtooth = createReport();
+  await auditPage(page, "form-column-sawtooth", { kind: "admin", report: sawtooth, skipFont: true });
+  assert.ok(
+    sawtooth.failures.some((failure) => failure.includes("右缘不齐") && failure.includes("追加借入金额")),
+    `停在半截的短字段必须被拒绝：\n${sawtooth.failures.join("\n")}`
+  );
+  await page.evaluate(() => document.getElementById("column-probe")?.remove());
+
+  // 2) 豁免不能过界：两栏网格里刻意只占左栏的字段是对齐的 —— 它的右缘就是邻行左栏的右缘
+  await page.evaluate(() => {
+    const grid = document.createElement("div");
+    grid.id = "half-row-probe";
+    grid.className = "form-grid-2";
+    grid.innerHTML = '<div class="field"><label class="field-label" for="probe-fee">手续费（元）</label><input class="input cell-num" id="probe-fee" type="text"></div>';
+    document.querySelector(".form-column").appendChild(grid);
+  });
+  const halfRow = createReport();
+  await auditPage(page, "form-column-half-row", { kind: "admin", report: halfRow, skipFont: true });
+  assert.ok(
+    !halfRow.failures.some((failure) => failure.includes("右缘不齐")),
+    `落在网格列线上的半宽字段不是锯齿：\n${halfRow.failures.join("\n")}`
+  );
+  await page.evaluate(() => document.getElementById("half-row-probe")?.remove());
+
+  // 3) 轨道高一档：差值仍是 4px，整条轨道却比同列输入框高 —— 旧断言放它过去了几个月
+  await page.evaluate(() => {
+    const style = document.createElement("style");
+    style.id = "track-probe";
+    style.textContent = ".form-column .segmented { height: calc(var(--control-height) + 4px) } .form-column .segmented .btn { height: var(--control-height) }";
+    document.head.appendChild(style);
+  });
+  const tallTrack = createReport();
+  await auditPage(page, "segmented-off-ladder", { kind: "admin", report: tallTrack, skipFont: true });
+  assert.ok(
+    tallTrack.failures.some((failure) => failure.includes("动作") && failure.includes("控件高度阶梯")),
+    `差值正确但整条高一档的轨道必须被拒绝：\n${tallTrack.failures.join("\n")}`
+  );
+  await page.evaluate(() => document.getElementById("track-probe")?.remove());
+
+  // 4) 只装一个按钮的框；同一个按钮不套框就放行
+  await page.evaluate(() => {
+    const framed = document.createElement("div");
+    framed.id = "frame-probe";
+    framed.style.cssText = "padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--muted)";
+    framed.innerHTML = '<button class="btn btn-outline" type="button">从流水选取</button>';
+    const bare = document.createElement("div");
+    bare.id = "bare-probe";
+    bare.innerHTML = '<button class="btn btn-outline" type="button">选择附件</button>';
+    document.querySelector(".form-column").append(framed, bare);
+  });
+  const lone = createReport();
+  await auditPage(page, "lone-button-frame", { kind: "admin", report: lone, skipFont: true });
+  assert.ok(
+    lone.failures.some((failure) => failure.includes("从流水选取") && failure.includes("只装它自己")),
+    `套了一层只装它自己的框必须被拒绝：\n${lone.failures.join("\n")}`
+  );
+  assert.ok(
+    !lone.failures.some((failure) => failure.includes("选择附件")),
+    `没有框的入口按钮不该记账：\n${lone.failures.join("\n")}`
+  );
+  await page.evaluate(() => {
+    document.getElementById("frame-probe")?.remove();
+    document.getElementById("bare-probe")?.remove();
+  });
+
+  console.log("✓ runtime form column: catches sawtooth rows, off-ladder tracks, and lone-button frames; exempts grid-aligned half rows");
+
+  // 弹窗标题区说明：示范弹窗没有说明，清单里要照实列出「无说明」；一行的说明放行并入清单；
+  // 换行的说明必须失败。确认框留两行，第三行才失败。只看渲染行数，不看措辞。
+  const headerPositive = createReport();
+  await auditPage(page, "dialog-header-positive", { kind: "admin", report: headerPositive, skipFont: true });
+  assert.ok(
+    headerPositive.ok.some((item) => item.includes("弹窗标题区清单") && item.includes("「登记往来」无说明")),
+    `示范弹窗的标题区清单应当列出「无说明」：\n${headerPositive.ok.join("\n")}`
+  );
+
+  const describe = (text) => page.evaluate((copy) => {
+    document.getElementById("dlg-desc")?.remove();
+    const dialog = document.querySelector(".dialog-demo");
+    const description = document.createElement("p");
+    description.id = "dlg-desc";
+    description.style.cssText = "margin: 0 0 var(--space-3); font-size: var(--text-meta); line-height: 1.5; color: var(--muted-foreground)";
+    description.textContent = copy;
+    dialog.querySelector("h2").after(description);
+    dialog.setAttribute("aria-describedby", "dlg-desc");
+  }, text);
+
+  await describe("追加后，本金与剩余金额都会增加。");
+  const oneLine = createReport();
+  await auditPage(page, "dialog-header-one-line", { kind: "admin", report: oneLine, skipFont: true });
+  assert.ok(
+    !oneLine.failures.some((failure) => failure.includes("标题区说明")),
+    `一行的说明不该失败：\n${oneLine.failures.join("\n")}`
+  );
+  assert.ok(
+    oneLine.ok.some((item) => item.includes("「登记往来」1 行「追加后，本金与剩余金额都会增加。」")),
+    `一行的说明要进清单，好让人读到：\n${oneLine.ok.join("\n")}`
+  );
+
+  await describe("已入账且未关联的流水，联系人相关的排在前，其余按时间从新到旧。选择后金额、日期与账户以流水为准。");
+  const wrapped = createReport();
+  await auditPage(page, "dialog-header-wrapped", { kind: "admin", report: wrapped, skipFont: true });
+  assert.ok(
+    wrapped.failures.some((failure) => failure.includes("「登记往来」标题区说明占") && failure.includes("上限 1 行")),
+    `换行的弹窗说明必须被拒绝：\n${wrapped.failures.join("\n")}`
+  );
+
+  // 同一段文字挂在确认框上：两行以内放行，第三行才失败
+  await page.evaluate(() => document.querySelector(".dialog-demo").setAttribute("role", "alertdialog"));
+  const alertTwoLines = createReport();
+  await auditPage(page, "alert-header-two-lines", { kind: "admin", report: alertTwoLines, skipFont: true });
+  assert.ok(
+    !alertTwoLines.failures.some((failure) => failure.includes("标题区说明")),
+    `确认框两行以内应当放行：\n${alertTwoLines.failures.join("\n")}`
+  );
+  await describe("待入账收支会写入账本；中性资金移动会按支付方式映射记录为转账。任一必要映射缺失都会使整批失败并回滚。未被用户编辑或归档的导入交易会删除；已编辑或归档的交易将保留。此操作不会提供 toast 撤销。");
+  const alertLong = createReport();
+  await auditPage(page, "alert-header-long", { kind: "admin", report: alertLong, skipFont: true });
+  assert.ok(
+    alertLong.failures.some((failure) => failure.includes("确认框「登记往来」标题区说明占") && failure.includes("上限 2 行")),
+    `超过两行的确认框说明必须被拒绝：\n${alertLong.failures.join("\n")}`
+  );
+  await page.evaluate(() => {
+    const dialog = document.querySelector(".dialog-demo");
+    dialog.setAttribute("role", "dialog");
+    dialog.removeAttribute("aria-describedby");
+    document.getElementById("dlg-desc")?.remove();
+  });
+
+  console.log("✓ runtime dialog header copy: inventories every description, one line for dialogs, two for confirms");
+
+  // 弹窗叠放：补一次真实事故 —— 同宽、居中的选取弹窗叠在更高的表单弹窗上，下层上下边露出来像多长了一截；
+  // 遮罩整体低于所有面板，下层没被压暗。样本只摆几何与层级，不借任何组件或 class 名。
+  const stackProbe = (upperCss, overlayZ) => page.evaluate(({ upperCss, overlayZ }) => {
+    for (const id of ["stack-lower", "stack-overlay", "stack-upper", "stack-popover"]) document.getElementById(id)?.remove();
+    const panel = (id, css) => {
+      const el = document.createElement("div");
+      el.id = id;
+      el.setAttribute("role", "dialog");
+      el.setAttribute("aria-label", id === "stack-lower" ? "表单弹窗" : "选取弹窗");
+      el.style.cssText = `position: fixed; z-index: 100; background: var(--card); box-shadow: var(--shadow-popover); ${css}`;
+      document.body.appendChild(el);
+    };
+    panel("stack-lower", "left: 400px; top: 100px; width: 480px; height: 640px");
+    const overlay = document.createElement("div");
+    overlay.id = "stack-overlay";
+    overlay.style.cssText = `position: fixed; z-index: ${overlayZ}; inset: 0; background: color-mix(in srgb, var(--foreground) 28%, transparent)`;
+    document.body.appendChild(overlay);
+    panel("stack-upper", upperCss);
+  }, { upperCss, overlayZ });
+  const clearStack = () => page.evaluate(() => {
+    for (const id of ["stack-lower", "stack-overlay", "stack-upper", "stack-popover"]) document.getElementById(id)?.remove();
+  });
+
+  // 正样本：上层明显更小，遮罩与面板同层级、按先后叠放 —— 下层被压暗
+  await stackProbe("left: 460px; top: 260px; width: 360px; height: 320px", 100);
+  const stackOk = createReport();
+  await auditPage(page, "dialog-stack-positive", { kind: "admin", report: stackOk, skipFont: true });
+  assert.ok(
+    !stackOk.failures.some((failure) => failure.includes("叠在同宽") || failure.includes("没被遮罩压暗")),
+    `更小且压暗下层的叠放应当放行：\n${stackOk.failures.join("\n")}`
+  );
+  assert.ok(stackOk.ok.some((item) => item.includes("组叠放弹窗")), "叠放必须真的被量到");
+
+  // 1) 同宽叠放：下层的上下边从后面露出来
+  await stackProbe("left: 400px; top: 260px; width: 480px; height: 320px", 100);
+  const sameWidth = createReport();
+  await auditPage(page, "dialog-stack-same-width", { kind: "admin", report: sameWidth, skipFont: true });
+  assert.ok(
+    sameWidth.failures.some((failure) => failure.includes("叠在同宽的「表单弹窗」上")),
+    `同宽叠放必须被拒绝：\n${sameWidth.failures.join("\n")}`
+  );
+
+  // 2) 遮罩层级低于面板：第二层遮罩垫在第一只弹窗底下
+  await stackProbe("left: 460px; top: 260px; width: 360px; height: 320px", 90);
+  const undimmed = createReport();
+  await auditPage(page, "dialog-stack-undimmed", { kind: "admin", report: undimmed, skipFont: true });
+  assert.ok(
+    undimmed.failures.some((failure) => failure.includes("下层「表单弹窗」没被遮罩压暗")),
+    `下层没被压暗必须被拒绝：\n${undimmed.failures.join("\n")}`
+  );
+
+  // 手机上两层都贴满视口宽度的底部面板：免宽度这条，不免压暗
+  await stackProbe("left: 0; top: 400px; width: 100vw; height: 500px", 100);
+  await page.evaluate(() => { document.getElementById("stack-lower").style.cssText += "; left: 0; width: 100vw; top: 200px; height: 700px"; });
+  const sheets = createReport();
+  await auditPage(page, "dialog-stack-sheets", { kind: "admin", report: sheets, skipFont: true });
+  assert.ok(
+    !sheets.failures.some((failure) => failure.includes("叠在同宽") || failure.includes("没被遮罩压暗")),
+    `压暗了的全宽底部面板层叠应当放行：\n${sheets.failures.join("\n")}`
+  );
+
+  // 3) 豁免不能过界：贴着字段的弹出层同样自报 role="dialog"，但它不是模态层
+  await clearStack();
+  await page.evaluate(() => {
+    const lower = document.createElement("div");
+    lower.id = "stack-lower";
+    lower.setAttribute("role", "dialog");
+    lower.setAttribute("aria-label", "表单弹窗");
+    lower.style.cssText = "position: fixed; z-index: 100; left: 400px; top: 100px; width: 480px; height: 640px; background: var(--card)";
+    document.body.appendChild(lower);
+    const popover = document.createElement("div");
+    popover.id = "stack-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("data-side", "bottom");
+    popover.style.cssText = "position: fixed; z-index: 110; left: 416px; top: 300px; width: 448px; height: 320px; background: var(--popover)";
+    document.body.appendChild(popover);
+  });
+  const anchored = createReport();
+  await auditPage(page, "dialog-stack-popover", { kind: "admin", report: anchored, skipFont: true });
+  assert.ok(
+    !anchored.failures.some((failure) => failure.includes("没被遮罩压暗") || failure.includes("叠在同宽")),
+    `贴着字段的弹出层不是模态叠放：\n${anchored.failures.join("\n")}`
+  );
+  await clearStack();
+
+  console.log("✓ runtime dialog stacking: catches same-width stacks and undimmed lower dialogs; exempts anchored popovers");
   // 汇总条：正样本在宽屏与窄屏（折成两列）都要过；负样本各注回一种知余真实踩过或
   // 最容易写出来的走样。只动渲染样式，不碰 class 名。
   const stripFailures = (report) => report.failures.filter((failure) => failure.includes("汇总条"));

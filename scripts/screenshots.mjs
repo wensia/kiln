@@ -46,6 +46,13 @@ if (!fontReachable) {
 
 const SHOTS = [
   {
+    file: "examples/tags.html",
+    out: "tags.png",
+    viewport: { width: 1440, height: 900 },
+    fullPage: true,
+    label: "标签 · 八色与交互",
+  },
+  {
     file: "examples/workbench.html",
     out: "workbench.png",
     viewport: { width: 1440, height: 900 },
@@ -58,11 +65,18 @@ const SHOTS = [
   // README 展示一张塌掉的页面，比不展示更坏。
 ];
 
+// 可按对象更新，避免修改一个示例时重生成其它截图：npm run screenshots -- tags workbench
+const requested = process.argv.slice(2);
+const shots = requested.length ? SHOTS.filter((shot) => requested.includes(shot.out.replace(/\.png$/, ""))) : SHOTS;
+for (const name of requested) {
+  if (!SHOTS.some((shot) => shot.out === `${name}.png`)) throw new Error(`未知截图对象：${name}`);
+}
+
 mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch();
 
-for (const shot of SHOTS) {
+for (const shot of shots) {
   const ctx = await browser.newContext({
     viewport: shot.viewport,
     deviceScaleFactor: 2, // README 在 retina 上看，1x 的字会糊

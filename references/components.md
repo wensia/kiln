@@ -2,7 +2,7 @@
 
 Use these component rules with `references/tokens.md`. Keep controls compact, stable, and built for repeated operations. Components shipped in the DS bundle (`window.AIDesignSystem_4c1727`): Button, Input, Select, Checkbox, DateRangePicker, Card, Badge, Table, ResourceCard, MetricStat, SidebarNav, SegmentedControl, Tabs. Sections below without a DS component (password input, dialog, sheet, dropdown, toast…) are sanctioned patterns built from the same tokens.
 
-> **Focus policy:** Component focus states and focus-ring QA below assume the default `keyboard` policy from `SKILL.md`. If a product explicitly chooses `pointer-first`, apply its root-level Tab interception and focus-chrome override globally; retain the components' non-Tab keyboard protocols and their selected, active, and menu-highlight states.
+> **Focus policy:** Component focus states and focus-ring QA below assume the default `keyboard` policy from `SKILL.md`. Under `managed-navigation`, the same focus states apply in keyboard mode and are suppressed only in pointer mode; retain the components' non-Tab keyboard protocols and their selected, active, and menu-highlight states in both modes.
 
 ## Centered Content Contract
 
@@ -56,16 +56,16 @@ QA: inspect the default surface first, then hover and keyboard focus where the p
 
 ### Variant decision (run this, don't taste it)
 
-Walk it top-down; **the first row that matches wins**. This exists so "红还是黑" is never an aesthetic judgment call made per-button — it is a property of what the action *is*.
+For standalone commands and state controls, walk it top-down; **the first row that matches wins**. Contextual quiet controls defined below retain their containing component's chrome treatment. This exists so "红还是黑" is never an aesthetic judgment call made per-button — it is a property of what the action *is*.
 
 | # | Ask | Variant |
 | --- | --- | --- |
 | 1 | Does it express a **state** rather than an action? (current page, selected row/item, a filter trigger holding active conditions, active nav/tab) | **clay `primary`** — and it MUST carry `aria-current` / `aria-pressed` / `data-state`. Stateful fills are **exempt** from the one-clay-per-viewport cap. |
 | 2 | Is it **high-risk and irreversible**? (删除, 作废, 解绑) | `destructive`, plus destructive labeling, a confirm step, or menu placement |
-| 3 | Is it **the single key action of this page or flow**? (the 新建… entry, 开始兑换, the page's reason to exist) | **clay `primary`** — at most **one per viewport** |
+| 3 | Is it **the single key action of this page or flow**? (the 新建… entry, 开始兑换, the page's reason to exist, or the commit/completion action defined by [Bulk Action Bar](#bulk-action-bar)) | **clay `primary`** — at most **one per viewport** |
 | 4 | Is it an **ordinary filled command**? (dialog/sheet confirm, 保存, 生成, secondary submit) | **ink `default`** (`bg-solid`) |
 | 5 | Is it a **row-level key action**? (one per table row, and it is what the page is *for* — 认领 on a claim queue, 拨打 on a call queue) | **ink `default`**, `sm` size — **at most one filled button per row, and never clay** |
-| 6 | Anything else (toolbar, detail header, secondary/row-secondary actions) | `outline` / `ghost` — must have a **visible surface before hover** |
+| 6 | Other standalone commands (toolbar, detail header, secondary actions) | `outline` / `ghost` — must have a **visible surface before hover** |
 
 The red/black split in one line: **clay is a signal and it is scarce; ink is merely weight.** Clay says "this is the one thing" or "this is the state you're in" — repeat it twenty times down a table and it stops saying anything at all. Ink says "this is an action" — it carries no signal, so repeating it per row costs nothing, which is exactly why the row-level key action gets ink and never clay.
 
@@ -100,17 +100,31 @@ Rules:
 - Clay `primary` fills are reserved for **the single key action of a flow** (e.g. the "新建…" entry on a resource-management page) and for buttons that themselves represent an active state or stateful filter — an advanced-filter trigger with active hidden conditions, a selected date endpoint, or a nav/tab active state defined by that component. At most one clay-filled action per viewport.
 - In shadcn-style button variants, the `default` filled variant should resolve to solid/ink, with an explicit `primary` variant for the key action and stateful filled controls. Do not leave `default` mapped to `bg-primary`.
 - Destructive actions use the destructive token, which currently maps to clay red, but they still need destructive labeling, confirmation, or menu placement. Do not use clay red alone to imply danger.
-- Outline, ghost, and text-like actions stay neutral by default. Page, toolbar, detail, edit, follow-up, call, close, and reset actions must still be discoverable before hover; `ghost` should resolve to a neutral soft button with a weak visible surface such as `border-border/70 bg-muted/40 text-foreground`, or the action should use `outline`. Hover may raise contrast with `text-foreground`, a stronger muted background, or a border change; it should not jump to clay red unless the action is truly selected, active, focused, or destructive. This visible-rest rule governs standalone commands, not the contextual quiet controls explicitly defined by Password Input, table operation menus, Dialog chrome, and DataTable Pagination page numbers.
+- Outline, ghost, and text-like actions stay neutral by default. Page, toolbar, detail, edit, follow-up, call, close, and reset actions must still be discoverable before hover; `ghost` should resolve to a neutral soft button with a weak visible surface such as `border-border/70 bg-muted/40 text-foreground`, or the action should use `outline`. Hover may raise contrast with `text-foreground`, a stronger muted background, or a border change; it should not jump to clay red unless the action is truly selected, active, focused, or destructive. This visible-rest rule governs standalone commands, not the contextual quiet controls explicitly defined by Icon Button shell navigation chrome, Password Input, table operation menus, Dialog chrome, and DataTable Pagination page numbers.
 - Do not use transparent `ghost`, `border-transparent`, or primary-colored text to demote a visible standalone action. If the action is too minor for a button, render it as a real inline text link in surrounding copy; if it remains in a toolbar or detail header, give it a stable neutral button surface. Transparent rest styling is allowed only where the containing component already supplies the boundary and the component spec explicitly defines a quiet control.
 - Text buttons such as Save, Create, Cancel, Generate, and Confirm do not need decorative icons.
 - Press feedback: 1px downward shift (`active:translate-y-px`); selection is expressed by color, never scale.
 - Pure icon buttons need `aria-label` or `title`.
-- Pure icon buttons adjacent to default-height inputs, search inputs, selects, date triggers, or other default toolbar controls use `icon` at 36px. Do not place a 32px `icon-sm` button beside 36px controls in the same group.
+- Pure icon buttons adjacent to default-height text actions, inputs, search inputs, selects, date triggers, or other default controls use `icon` with `--control-height`. A detail-header more menu beside Edit or Sell follows the text buttons' `default` height; menu-trigger semantics alone do not justify `icon-sm`.
 - Use `icon-sm` only when the whole group is explicitly compact, such as table operation cells, embedded input adornments, dense secondary toolbars, or close/remove buttons.
 - Segmented filter/status tracks are measured by the outer visible track, not the child trigger. In a default workbench toolbar, use a 36px outer track: `1px` border + `p-px` + 32px `sm` triggers. Sibling refresh, today, ordinary outline/text buttons, selects, search triggers, and default icon buttons should also be 36px. Use all-32px controls only when the entire toolbar group is explicitly compact.
 - Async actions immediately show loading or disabled state.
 - Do not use `truncate` to hide button text problems.
 - The Button renders content-sized (`inline-flex`); it does not inherit its container's width. For a full-width button (mobile primary CTA, dialog footer stretch), set `width: 100%` **on the button element itself** — in React via `style`/`className` on the Button; in Design Components via `dc-props` (see platform-mapping.md, the `style` attribute on `<x-import>` sizes only the mount wrapper). Height overrides (e.g. a 44px mobile touch target over `lg` 40px) follow the same rule.
+
+## Bulk Action Bar
+
+Use this pattern for the temporary workflow entered by selecting multiple files or rows. Keep the bar in the workspace footer, with a visible selection count and scope.
+
+- Every active bulk action bar has exactly one non-destructive key action using the shared Button's `primary` variant. This matches the key-action decision above; it is not an ordinary secondary command merely because it appears in a footer.
+- If the batch has changes or a selection waiting to be submitted, use the actual commit action, such as “应用更改” or “确认选择”, as that primary button. Label it for what will be committed.
+- If each file operation takes effect when invoked and the bar remains open for more work, use “完成” as the primary button to exit selection mode. It does not submit, save, or undo those operations; do not imply that completed commands are still waiting to be applied.
+- Move, select all, clear selection, and other supporting commands use `outline`. Delete and other destructive commands keep `destructive` semantics, labeling, and their required confirmation; a destructive color does not count as the bar's non-destructive primary action. Do not color every batch command primary.
+- The bar's primary action is the single key action of the active bulk workflow. While that workflow is active, demote or replace a competing page-level primary action so the viewport still has only one clay-filled action. Selected navigation, view toggles, and other semantic state fills retain the existing state exception.
+- Keep the primary and destructive variants during async work. Disable commands that would change selection, repeat work, or exit an operation in progress, and retain their labels and the selection count. Loading must not erase the action hierarchy or silently dismiss the bar.
+- This rule applies to the bulk bar itself. A separate confirmation dialog or sheet still follows the Button decision and dialog rules: ordinary confirms use `default`, and destructive confirms use `destructive`. Do not generalize this pattern into making every confirmation primary.
+
+QA: inspect the rendered bar before hover, with a selection, and while busy. Verify the sole non-destructive primary action, neutral supporting actions, destructive semantics, readable selection scope, and stable placement. Confirm that “完成” exits selection without applying an additional operation.
 
 ## Filter Trigger Button
 
@@ -164,9 +178,17 @@ QA:
 - Default box: 36px when the button is a normal toolbar/page icon action.
 - Compact box: 32px only via `icon-sm`, and only when the surrounding controls are also compact or embedded.
 - Default icon: 16px.
-- In a mixed toolbar, a pure icon button's outer box must match adjacent default `Input`, `SearchInput`, `SelectTrigger`, or date trigger height and radius. A 32px icon button next to 36px controls is a visual QA failure.
+- In a mixed toolbar or page/detail-header action group, a pure icon button's outer box must match adjacent default text buttons, `Input`, `SearchInput`, `SelectTrigger`, or date triggers in height and radius. Match the actual button border boxes, not merely the icons' center lines; table operation menus may remain compact in their own row context.
 - Hover must not resize the box.
 - Do not use icon-only controls for high-risk actions unless they are inside a labeled menu.
+
+### Shell navigation chrome
+
+- The return arrow in the shell topbar is navigation chrome. Keep its resting background and border transparent and its resting shadow absent; the arrow in its stable leading slot is the affordance. This applies to the topbar return action, not to an ordinary body or footer action merely labeled “返回”.
+- Implement the treatment in a shared, scoped chrome variant or modifier. Preserve normal `ghost` surfaces for standalone business commands, including detail-header more menus.
+- Keep the `icon` hit box backed by `--control-height`, the control radius, and a centered icon. Removing the rectangle must not shrink the target or move the surrounding title.
+- Hover may use `--muted`; keep the same dimensions and honor the product's active focus policy. Give the control a destination-specific accessible name, such as `返回物品列表`.
+- QA the real topbar at rest and on hover, including the computed background, border, shadow, and hit box. For detail-header actions, also compare the text buttons' and more trigger's outer heights at the target viewports.
 
 ## Input
 
@@ -178,7 +200,7 @@ Base:
 - Background: `bg-background` / white on cards.
 - Shadow: `--shadow-input` (1px ambient + inner top highlight).
 - Padding: `px-2.5 py-1`.
-- Placeholder: `text-muted-foreground/70`.
+- Placeholder: `text-muted-foreground` (full strength — the `/70` alpha drops placeholder text to about 3:1).
 
 States:
 
@@ -228,7 +250,7 @@ Specs:
 - Click toggles visibility only, not form submission.
 - This is an embedded adornment, not a standalone command: at rest the button is transparent and borderless. The input border is the containing affordance; adding a second resting rectangle inside it creates competing control chrome.
 - Hover may add only a muted surface and foreground contrast. It must not change the button box, input padding, or input border.
-- Under the default keyboard focus policy, keep a visible focus indicator that fits inside the input composition; under an explicit pointer-first policy, follow the product-level focus override without removing the show/hide semantics.
+- Under the default keyboard focus policy, keep a visible focus indicator that fits inside the input composition; under `managed-navigation`, show it in keyboard mode and hide it in pointer mode without removing the show/hide semantics.
 
 QA:
 
@@ -238,13 +260,32 @@ QA:
 
 ## SMS Code Input
 
-The 发送验证码 action lives **inside the SMS-code input**, right-aligned, as a pure-text primary (clay) action — never a separate button beside the phone field.
+The 发送验证码 action lives **inside the verification-code input**, right-aligned, as a pure-text clay action. The input boundary contains both entry and sending. Never place sending beside or inside the phone field, in its own full-width row, or behind a separate step that hides the code field until sending succeeds.
 
-- Phone field stands alone at full width; the helper line (请输入手机号 / 验证码已发送) sits under it.
-- Code input reserves right space (`padding-right: ~96px`); the action is absolutely positioned at `right: 12px`, vertically centered.
-- Action text: 13px / 500, `color: var(--primary)`; hover darkens slightly; no border, no fill, no underline.
-- Cooldown state: the same slot shows `Ns` in muted foreground (tabular), non-interactive; width is reserved so the swap never shifts the input text.
-- Disabled (phone empty/invalid): muted color, no pointer.
+Structure and appearance:
+
+- Keep the phone/account field before the verification-code field. Phone-format guidance stays with the phone; sending success or failure stays beside its related field. Keep the existing login, captcha, confirmation, and recovery sequence.
+- Use one shared SMS-code input component across public redemption, employee login, account dialogs, and password recovery. A manually typed email verification code follows the same composition; automatically collected messages and read-only received codes do not.
+- The sending action is a semantic `button` with `type="button"`. Use `--text-body`, `--weight-medium`, and `--primary`; no resting or hover fill, border, shadow, icon, or underline. Hover changes text contrast only. Disabled/waiting uses `--muted-foreground` without hiding the label.
+- Align the action to the input's trailing content inset (`--space-3`), and stretch its invisible hit area through the input's control height. Respect the host's mobile touch-target minimum without drawing a button-shaped surface.
+- Reserve a stable trailing slot for the longest sending label. Input text, placeholder, selection, and caret must stop before that slot in every state. Do not let a long waiting label move the input edge or reduce the text area unexpectedly.
+- If the host provides a clear action, retain it in a separate reserved slot before sending. It clears only the code, never sends or submits. Reserve its space even while hidden so entering or clearing text does not shift the sending action. The clear icon is transparent and borderless at rest.
+- Prefer vertical insets for embedded button positioning. If using centered transforms, override a shared button's active translation so pressing never replaces the centering transform or moves the target away from the pointer.
+- Keep normal keyboard traversal, a visible focus indicator under the host's focus policy, an accessible label, and `autoComplete="one-time-code"`. Preserve the service's legitimate code length and input normalization; do not assume that every code is numeric.
+
+States and business boundaries:
+
+- Ready: show 发送验证码. Sending: show 发送中… in the same slot and block duplicate requests. Cooldown: show compact `Ns` with tabular figures in the same slot; it stays disabled until the countdown ends, then restores the sending label.
+- Sending failure keeps the input and action in place, shows the service's actual error near the relevant field, and permits retry according to the existing flow. Cooldown length and when it starts come from the product/API contract, not from a visual redesign.
+- Sending and code entry have separate availability. A service may disable code entry until its first message succeeds while still allowing the sending action. Do not propagate that input-only disabled state to the send button. A whole-flow busy/locked state may disable both explicitly.
+- Preserve captcha and third-party verification prerequisites, account/session references, phone limits, and form submission handlers. Changing the composition must not send a message on mount, retry automatically, skip verification, or perform a login/redemption/password reset.
+
+QA:
+
+- Inspect empty/invalid phone, ready, sending, cooldown, cooldown completion, failure/retry, filled code, and clear states at the host's narrowest mobile width and desktop width. Include input-only disabled with sending enabled where the flow uses it.
+- Measure that sending and clear hit areas remain within the input and do not overlap each other or the longest valid code. Check default, hover, focus, and pointer-down geometry; execute real pointer clicks without force-clicking around defects.
+- Verify transparent background, no border or underline, clay ready text, muted waiting text, stable slot width, and the host's touch-target floor. Check keyboard entry and clear/send activation without accidental form submission.
+- Validate sending, captcha, and recovery branches with isolated mocks unless the user authorized real account actions. Build/lint alone do not establish that the control works in every consuming page or dialog.
 
 ## File Input
 
@@ -348,6 +389,13 @@ QA:
 ## Date / Time Picker
 
 One calendar, two shapes: a **single-date field** (a date on a form) and the DS `DateRangePicker` (overview, analytics, payroll, questionnaire). Grid, navigation, bounds, and the keyboard protocol are identical; only the trigger's payload and what a click commits differ. Do not build the single-date field as a second component with sizes of its own.
+
+Implementation boundary:
+
+- Date, time, datetime, month, and week fields belong to the shared picker family. Do not leave a visible native `input[type=date|time|datetime-local|month|week]`, including one hidden behind an `Input` wrapper, in business JSX. If a precision is missing, extend the shared picker rather than substituting browser chrome or requiring users to choose an irrelevant day.
+- A month field opens the shared month grid directly, with a direct year entry. Choosing a month commits `YYYY-MM`; opening, paging, choosing a year, and Escape do not change the value. Escape on the year grid returns to months; Escape on months closes. An empty value stays empty until explicitly selected, and clearing returns an empty value. Reuse trigger, grid, focus, popup-boundary and scroll behavior from the shared date picker.
+- Acceptance must open the actual popup at normal and short viewport heights, select a month, reopen the selection, clear it, and check keyboard navigation. Seeing a styled closed trigger is not evidence that its popup follows the design system.
+- Host build checks must cover native `month/week` as well as `date/time/datetime-local`, both HTML and wrapped JSX controls. Reject violations rather than silently recording them in a visual-debt baseline. A documented internal primitive exception must be narrow and must not permit business controls to bypass the picker.
 
 Trigger:
 
@@ -504,7 +552,7 @@ QA:
 - Radix/shadcn Select content defaults should use trigger-edge positioning, not selected-item positioning: set `SelectContent` to `position="popper"` with `align="start"` in shared components. Keep `position="item-aligned"` only for explicit native-menu behavior where the selected item must sit over the trigger.
 - Popper Select dropdowns should align their left edge to the trigger, use at least `--radix-select-trigger-width`, and keep a real content viewport height. Do not set the viewport height to `--radix-select-trigger-height`, or long option lists will collapse to one-row scroll panes.
 - QA Select positioning in dense workbench headers, table toolbars, dialogs, and narrow viewports. Check placeholder state, selected first item, selected middle item, selected last item, hover/focus, and long labels; the dropdown should not jump horizontally or overlap the trigger.
-- If options exceed about 8 or need search, use a combobox/dialog instead of a long dropdown.
+- If options exceed about 8 or need search, use a searchable combobox instead of a long dropdown. Inside a Dialog or Sheet that combobox is an anchored popover at the field's width — never a second dialog stacked over the form (see Dialog → Stacking).
 
 Clearing a filter select — the X lives in the trigger:
 
@@ -514,6 +562,12 @@ Clearing a filter select — the X lives in the trigger:
 - Map the "all" sentinel (`'all'`, `'__all__'`, `undefined` — whatever the page already uses) to an empty value inside the wrapper so the placeholder renders. Business code keeps passing its own sentinel.
 - Ship this once as a shared wrapper (`FilterSelect`, taking `value / onChange / options / placeholder / allValue`) rather than wiring a trigger and a clear button per page. Filter selects have no exemptions.
 - The same rule governs **multi-select filter triggers** (a popover/command combobox showing "全部渠道 / 已选 3 项"). A "清空选择" row at the top of the option list is the same mistake wearing a different hat: the clear device is hidden one click deep, inside the very list the user opened to *add* conditions. Put the X in the trigger — chevron when nothing is selected, X once anything is — and drop the clear row so there is exactly one way to clear. Because that trigger is usually a real `<button>`, the X is again `span[role="button"]` with the press killed in `onPointerDown` (a popover opens on click, a select on pointerdown — stop both).
+
+Peer modes are segmented, not selected:
+
+- A form choice with two or three **peer options that change what the rest of the form means** — direction (借入 / 借出), movement type (追加 / 还款), transaction kind (支出 / 收入 / 转账) — is a SegmentedControl, not a Select. A Select hides the alternative behind a click, so the user cannot see which modes exist or which one they are in until they open it; the choice is also the first decision of the form and belongs in plain sight.
+- In a form column the track **spans the column** with equal segments (the Form Column right-edge rule applies to it like any field); in a toolbar it stays content-sized. Either way its outer box is the control: `--control-height`, or `--control-height-sm` when the whole group is compact, with the button-tab active language (white plate, `--shadow-card`, clay text).
+- Keep a Select once the options are data (accounts, contacts, categories), exceed three, or are not peers of one decision.
 
 Boundary — this rule is about **filters**, not forms:
 
@@ -547,11 +601,12 @@ When a shared control has to look different inside a denser context (a table cel
 
 ## Field Group
 
-- Use FieldGroup, Field, FieldLabel, and FieldDescription.
+- Use FieldGroup, Field, and FieldLabel. FieldDescription is opt-in; omit it from the initial layout unless it resolves a concrete ambiguity or prevents a likely mistake.
 - Label: 12-13px / 500.
 - Field gap: 12px.
-- Description must add decision value.
-- Error text stays below the field.
+- Do not repeat the label, placeholder, button action, or implementation details in a description. Keep necessary error text concise and local; do not append a general business-rule explanation.
+- Error text stays below the field, but only after an explicit validation attempt or appropriate edited-field blur. Untouched empty fields start neutral; red borders, required-field messages, and destructive completion counts must not appear on arrival. See SKILL.md → Validate After Intent, Not On Arrival.
+- **One line of subtext per field.** While an error shows, it **replaces** the field's description instead of stacking under it; the description returns once the error clears. Two stacked lines — a muted hint and then the red message — push the error a line away from the control it describes and make the grid row beside it look broken. Build this into the shared Field component once, not per form. (The page contract cannot see this state — it only appears after a submit attempt — so cover it with a component test.)
 
 ## Field Width
 
@@ -564,8 +619,10 @@ Size the control by the payload it can hold, not by the space available:
 | Numeric, short code, duration, port, percentage — 2-4 chars | `max-w-28`–`max-w-32` |
 | Short text — slug, person name, phone | `max-w-xs`–`max-w-sm` |
 | Medium — title, email, a select over named records | `max-w-sm`–`max-w-md` |
-| Long free text — URL, path, description, search | full width |
+| Search | `--search-width`, at most the available container width |
+| Long free text — URL, path, description | full width |
 
+- Shared search components own the default width on their outer visible control, including icon wrappers. Use the same width for plain search inputs; avoid `flex-grow`, local width/max-width classes, or breakpoint rules that silently override it. Preserve shrinking in narrow containers. A genuinely embedded search surface may follow its container only through an explicit, documented layout override.
 - Small fields sit **side by side in a grid**; they do not each claim a row.
 - A label-plus-Switch row is the same rule at its limit. A switch's payload is one bit, so the row caps its own width (`max-w-md`) and never stretches `justify-between` across the container. Uncapped on a wide screen, the label lands at the far left and the switch at the far right with hundreds of px of nothing between them — proximity is destroyed, and the eye must cross the viewport to learn which switch it is about to flip.
 - Do not lengthen a placeholder to justify a box the real values never fill. If the placeholder is the widest thing the field will ever hold, the field is too wide and the placeholder is probably restating the description.
@@ -575,6 +632,21 @@ Why this misleads rather than merely looking loose: **a control's width is a cla
 The test: type the longest legitimate value into the field. **If the box is still mostly empty, it is too wide.**
 
 Anti-pattern: every field in a form column inheriting that column's full width regardless of payload; a full-width numeric input; a settings toggle stretched edge to edge.
+
+### Form Column (dialogs and sheets)
+
+A Dialog or Sheet form is one narrow column, and in a column the reader groups fields by their **right edge** before reading a single label. The payload table above still decides *which* fields are short — but in a column, a short field does not express that by stopping short on its own. It pairs up.
+
+- **Every row ends on the column's right edge, or on a grid line the column already uses.** Medium and long payloads (a select over named records, a note) take the whole column. Short payloads (amount, date, count) sit two or three to a row in an equal-column grid, so the row still ends on the column edge. A half-width field in a deliberate two-column grid is aligned — its right edge is the left column's right edge on every other row. A field stopping at its own payload width is not.
+- Choose the dialog width so the column's medium fields fill it (the Dialog `max-w-md` rung is sized for this), instead of choosing a wide dialog and then capping every field inside it.
+- Content-sized entry buttons (「从流水选取」, 「添加附件」) are actions, not fields; they keep their own width and do not count as a row edge.
+- Page-level forms and wide settings panels keep the payload table as written — there, a row of three short fields left-aligned under a long one is ordinary layout, not a ragged column.
+
+Why it matters: in the incident this rule comes from, one 480px dialog had two selects stopping at a medium cap, the amount at a numeric cap, and the date trigger filling the column — three right edges in five rows. Each control was individually "sized by payload"; together they read as a sawtooth, and nothing told the eye which fields belonged together.
+
+The test: draw a vertical line at the column's right edge. **Every row should touch it, or touch a column line some other row also touches.**
+
+Contract: `auditPage` measures every single-column form inside an open `[role="dialog"]` / `[role="alertdialog"]` — each row's last control (or the button that trails it) must land on the column edge or on another row's inner column line. Multi-column dialogs (a row that does not start at the column's left edge) are skipped rather than guessed at.
 
 ## Action Anchor
 
@@ -605,6 +677,21 @@ The test: render the row with one item in the collection, then with thirty. **If
 
 Anti-pattern: an add/edit/select entry point trailing a wrapping tag list; the same entry point re-centering downward as tags wrap; `justify-between` used to "fix" the drift by exiling the action to the container's far edge.
 
+## Linked Record Field
+
+A form field whose value can come from **an existing record** — pick a ledger transaction instead of typing amount, date, and account; pick an existing file instead of uploading — is an ordinary labeled field with two states. It is not a panel.
+
+- **Label it like any other field** (「关联流水」). Inside a dialog whose title already names the link (a 「关联流水」dialog), omit the field label instead of repeating the title.
+- **Unselected: the entry button alone**, content-sized, default control height, sitting in the field slot. No frame around it: a bordered or tinted box whose only content is one button is a container with nothing to contain, and it reads as an empty card rather than as a choice.
+- **Selected: one compact record strip** — the record's identity (title or note, with its date as the secondary line) and the one value that matters to this form (the amount, in tabular figures and its semantic color), followed by the actions (「更换」, 「取消关联」) in **their own grid slot** at the strip's end, so their position never depends on how long the note is. At narrow widths the action slot drops to a second row inside the strip; it does not squeeze the text.
+- **Do not repeat what the form already shows.** If the account has its own field right below, the strip does not restate the account — two renderings of the same account a few pixels apart will eventually disagree (a record reference and a full account object rarely carry the same fields).
+- Values filled from the record lock (disabled) in their own fields while the link stands; clearing the link unlocks them. The strip is the one place that says where the values came from.
+- Offer only records the submit path can accept. A picker that lists records the server will reject for this mode (the wrong income/expense direction) hands the user a guaranteed error one click later.
+
+Anti-pattern: the entry button wrapped in a padded muted box; a selected-state strip whose actions trail the note text and wander with its length; the strip restating the fields below it.
+
+Contract: `auditPage` flags any bordered or tinted container whose only interactive content is a single button and whose only text is that button's label.
+
 ## Mutually Exclusive Options
 
 Two options that cannot both be true (claim it / write it off, keep in pool / release to pool, schedule / mark unreachable) form **one relationship**. Both ends must express it **the same way**.
@@ -626,14 +713,60 @@ Boundary — this is about **mutually exclusive options within one decision**, n
 - A field that only exists once a branch is chosen (「作废原因」under 作废, 「下次跟进时间」under 可持续跟进) **should** appear and disappear: it has no meaning in the other branch, and showing it disabled would imply the user could fill it in if they undid something else. Reveal those.
 - The line: if the option is a **peer choice** in the same decision, disable it. If it is a **dependent detail** of a choice already made, reveal it.
 
-## Badge / Status
+## Badge / Status / Tag
 
-- Height: about 20px.
-- Text: 11-12px.
-- Radius: 4px — avoid pills unless the element is explicitly a tag/chip.
-- Variants are the DS Badge API set: `default`, `secondary`, `outline`, `success`, `info`, `warning`, `neutral`. There is no `destructive` Badge variant — express failed/invalid states with `neutral`/`outline` plus destructive-toned text or a dot, and keep clay fills for buttons and signals, not labels.
-- Reserve the leading status dot for state signals (收集中, 待复核, 已失效…), not for counts or types.
-- Do not show more than three badges in a row.
+Tags identify categories, attributes, and selected items; status markers communicate an object's current condition. Choose the form for that job, then choose the tone. `variant` and `tone` are independent: changing a category's color must not silently turn it into a status or an action.
+
+### Form and color
+
+| Variant | Treatment | Use |
+| --- | --- | --- |
+| `soft` (default) | `--tag-{tone}-bg`, `--tag-{tone}-border`, and `--tag-{tone}-fg` | Categories, attributes, selected items, or a status that needs a bounded label |
+| `outline` | `--tag-surface`, `--tag-{tone}-border`, and `--tag-{tone}-fg` | Quieter categories or secondary metadata |
+| `status` | Transparent surface and border, `--tag-{tone}-fg`, and a leading `--tag-dot-size` dot | Current state such as 收集中, 待复核, 已失效 |
+
+- Tones are `neutral`, `teal`, `peacock`, `blue`, `amber`, `olive`, `rose`, and `clay`. They come from `tokens/tags.css`; use the dedicated `-fg` token for small text instead of the base hue or global status color.
+- Normal status mappings are `success` → `teal`, `info` → `peacock`, `warning` → `amber`, and `danger` / `destructive` → `clay`. The same business state keeps the same tone across screens.
+- `blue`, `olive`, and `rose` expand category vocabulary; they do not redefine the global success, info, warning, or destructive meanings. Give categories stable, named mappings. Do not assign colors by list order, random choice, or a new hash on each render.
+- A danger label may use the soft clay background with its dedicated readable foreground. That subtle status tint is separate from an opaque `--primary` action fill; tags do not consume or imitate the key-action treatment.
+- Reserve the leading dot for a state. Category and count tags do not acquire a dot merely to look varied. Always retain readable state text so color is not the only signal.
+- Normal text must reach at least **4.5:1** against the rendered background in light and dark contexts, including hover and selected states. Disabled controls are assessed separately; lowering opacity is not a reason to weaken ordinary text contrast.
+
+### Business meaning
+
+Choose a tone from the meaning of the value, not from an old component variant name. A legacy `default` badge may have represented a completed state only because it used to be the most prominent fill; mapping that variant to neutral does not finish the business migration.
+
+| Role | Default direction | Boundary |
+| --- | --- | --- |
+| Completed / successful | `teal` | Completion is a state, not a primary action |
+| Active / in progress / informational | `peacock` | A normal process should not look like a warning |
+| Pending attention / review / reservation | `amber` | Use when the pending state matters to the next decision |
+| Failure / invalidity / danger | `clay` | High interest, high value, or a category is not an error |
+| Unassigned / unavailable / ordinarily closed | `neutral` | Closing or missing ownership alone does not imply failure |
+| Named categories or graded attributes | Stable `blue`, `olive`, `rose`, or other named tones | Keep the mapping in the product's domain presentation rules |
+
+Centralize each business mapping and reuse it in lists, grids, details, and related views. For example, one CRM may use rose / blue / neutral for high / medium / low intention and blue / olive for lead / customer categories; these are product mappings, not a global redefinition of kiln's status colors. Preserve a distinct missing or undisclosed value instead of assigning it the tone of a known state. Do not wrap ordinary text links, every table value, or redundant states in tags merely to display more colors.
+
+### Size and interaction
+
+- Static Tag height is `--tag-height`; compact Badge or `size="sm"` height is `--tag-height-sm`. Both use `--text-meta`, `--weight-medium`, `--leading-tight`, `--font-sans`, and `--radius-control`. Noto Sans SC remains the primary CJK font.
+- Use `--space-2` horizontal inset and `--space-1` internal gap. Keep labels on one line; a constrained label can ellipsize while its remove or selection control remains visible. A collection wraps whole tags.
+- Selectable tags, linked tags, and removable tag compositions use `--control-height-sm`. The remove button also uses that token for both dimensions. Static density never shrinks an interactive target.
+- Use a real `button` with `aria-pressed` for toggle selection and a real link for navigation. Keep a stable selection-indicator slot so choosing a tag does not shift its neighbors. Selected state uses the tone's `-hover` background and `-fg` border plus a visible check.
+- A removable tag is a non-button container with a separate, clearly named remove button, such as “移除：线上咨询”; never nest a button inside a button. Use the active product focus policy, preserve keyboard activation, and keep all focus-ring edges visible.
+- Determine interactive sizing from the rendered composition. A `span` containing a remove button is still an interactive composition: both its outer tag and the remove target use `--control-height-sm`, even when the old caller requested a compact badge or icon button. A shared component may use an explicit removable slot or a selector scoped to its own direct remove button; checking only whether the root is an `a` or `button` misses this case. Clip or ellipsize the label, not the remove target or its focus feedback.
+- Hover may use `--tag-{tone}-hover`; focus follows `--ring-focus`. Neither changes the tag's size or position. Disabled controls retain their label and expose disabled semantics.
+- A single object's state summary carries zero to three useful state badges; remove redundant state descriptions. This bound does not truncate a user's tag collection, a selection list, or a component sample gallery. Long collections follow the Action Anchor rule above.
+
+### Compatibility and reference implementation
+
+Existing Badge APIs can keep their variant names and translate them inside the shared component. Map `default`, `secondary`, and `neutral` to `soft` + `neutral`; `outline` to `outline` + `neutral`; `success`, `info`, and `warning` to `soft` + their status tones; and an existing `danger` or `destructive` alias to `soft` + `clay`. Keep each caller's state meaning and do not require a repository-wide call-site rewrite. New APIs expose form and tone separately.
+
+Resolve form and tone before generating styles: an explicit `tone` wins over the tone inferred from a legacy variant; otherwise use that variant's mapping, then neutral. If exposed, `data-tone` and the style classes use the same resolved tone. For example, `variant="success" tone="rose"` is a soft rose tag, while `variant="outline" tone="blue"` is an outlined blue tag. Preserve any host-specific `ghost` or `link` aliases and existing `className`, `asChild`, ref, event, and accessibility behavior without adding those aliases to the core form vocabulary. A slotted link remains a link; a status dot must not add a wrapper that breaks a single-child slot.
+
+The plain HTML reference is [`examples/tags.css`](../examples/tags.css), shared by the workbench and [`examples/tags.html`](../examples/tags.html). The dedicated page demonstrates tones, forms, densities, selection, removal, and explicit dark contexts. It is a reference stylesheet, not a shipped React component. Check the rendered light/dark combinations, narrow collection wrapping, text fit, selection stability, keyboard activation, remove names, and focus visibility when porting it.
+
+For an existing product, finish the port in the installed dependency and shared component, then verify the requested live page. A correct gallery or an updated upstream working tree does not prove the product consumes the new tokens. Cover representative business states, explicit-tone overrides, and disabled/removable long labels; check computed foreground/background, static versus interactive height, label clipping, focus visibility, and narrow table or collection layout. Verify the package and lockfile include the actual token version; if using an unpublished local package snapshot, use an immutable repository-relative artifact with integrity, include it before dependency installation in container builds, and never rely on a hand-edited `node_modules` directory.
 
 ## Compact Detail Field Group
 
@@ -681,6 +814,7 @@ Button tabs (`variant="button"`) — a **raised segment in a quiet track**, same
 - Track: `inline-flex`, 4px gap, **1px** padding, control radius, `border-border-visible/50`, background `color-mix(muted 40%, transparent)`.
 - **The track's visible outer box is the control, and it is `--control-height` — the same as the button, input, select, and search box beside it.** Triggers are `--control-height-sm`, so the track is exactly 4px taller than its trigger (1px border + 1px padding, top and bottom). This spec used to read "4px padding, trigger 28px", which computes to a 38px track — the exact measurement `SKILL.md` lists as an anti-pattern for sitting next to a 36px sibling. Two ways to write one component, one of them producing a banned result, is how a whole product ends up with a toolbar row that nobody can align: the 4px gap between the track and its neighbour is too small to read as an error and too large to read as intentional.
 - A compact toolbar may run the whole row one rung down (`--control-height-sm` track, smaller triggers). What is not allowed is one rung for the track and another for its neighbours.
+- The contract checks both halves: the track is exactly 4px taller than its triggers, **and** (on precision pointers) the track itself sits on the control ladder — `--control-height` or `--control-height-sm`. The first half alone passed a 40px track around 36px triggers for months: the difference was right and the whole track was one rung too tall. Touch layouts that deliberately enlarge controls are exempt from the ladder half only.
 - Active state: **white surface** (`--card`) + **`--shadow-card`** + **clay text** (`--primary`), weight at most 500.
 - Inactive: muted text, quiet `foreground/3%` hover.
 
@@ -819,7 +953,7 @@ Pagination is **one shared global component** — every paginated data table con
 - Pagination is a tertiary strip — use the compact 32px tier: page-number buttons ~32px (12px tabular text), the page-size Select `size="sm"` (32px, still ≥120px wide); the current page is a selected state → clay fill (`bg-primary text-primary-foreground`); **every other page number is `quiet`** — transparent and borderless at rest, muted surface on hover. All controls in the strip share the same 32px outer height. Do not go below 32px — the Select trigger cannot render shorter.
   - Page numbers are a sanctioned **`quiet` exception** (see Interaction Is Quiet in `SKILL.md`). The others are quiet because a container already frames them; these are quiet because **a digit is its own affordance**. Seven outlined boxes in a row read as a toolbar, not as a page index. The prev/next arrows are *not* exempt — they are icon-only, so they keep the outline surface.
   - The page-size Select (`每页 N 条`, 20 / 50 / 100) is **optional per table**: render it only where changing density is a real job. Changing it returns to page 1. Leaving the user on page 30 of a list that just became 6 pages long is a bug, not a rounding error.
-- Bulk actions stay inside the existing footer strip; a bulk-capable table always reserves that fixed slot, even with `showPagination={false}`. They do not create a second row or change the footer/dock height. On desktop they sit before the pagination controls when those controls exist. On narrow layouts collapse them into one compact bulk-action menu if both groups cannot fit, rather than stacking a new bar and shifting the viewport.
+- [Bulk actions](#bulk-action-bar) stay inside the existing footer strip; a bulk-capable table always reserves that fixed slot, even with `showPagination={false}`. They do not create a second row or change the footer/dock height. On desktop they sit before the pagination controls when those controls exist. On narrow layouts collapse supporting commands into one compact bulk-action menu while retaining the primary action if both groups cannot fit, rather than stacking a new bar and shifting the viewport.
 - The bulk action group is contextual: mount it only when at least one item is selected. With zero selected items, show neither disabled bulk actions nor an `已选 0 条` placeholder; the ordinary pagination/footer remains in place. Keep row and header selection controls available so users can enter the bulk-selection state.
 - Selection scope must be explicit, and it has **two halves that do not match on purpose**: the header checkbox acts on **the current page only** (it selects or clears this page's rows), while the count in the strip is the **cross-page running total** — leaving a page does not drop what you picked there. Both behaviors are right; what breaks trust is showing one and meaning the other, so the count must be visible whenever at least one selection exists.
 
@@ -896,11 +1030,36 @@ Resource package selectors, such as quota or package pickers, are compact choice
 - Radius: 6px (`--radius-card`), white surface, `--shadow-popover`.
 - Viewport breathing space is part of the shared component, not page code. The frame width should be constrained to `calc(100vw - 2rem)` on mobile and `calc(100vw - 3rem)` on desktop, split-screen, and DevTools-narrow viewports. The same safe gap applies vertically through `max-height`: `calc(100svh - 2rem)` on mobile and `calc(100svh - 3rem)` on desktop.
 - Business code may set the semantic maximum width such as `sm:max-w-lg`, `sm:max-w-4xl`, or `sm:max-w-6xl`, but it must not cancel the shared safe width with `w-screen`, `sm:w-full`, or a larger viewport width. True fullscreen workflows should use Sheet or a clearly marked fullscreen exception.
-- Header includes title and only useful description.
+- Header starts with a title only. Dialog/Sheet descriptions are opt-in, never default layout filler. Add one only for a consequence or ambiguity the visible controls do not explain; show prerequisite guidance in the relevant blocked/stale state instead. If no description is needed, omit the Description element and correctly disable its optional accessible association; retain an accessible title. See SKILL.md → Every Element Must Earn Its Place.
+- **Header description budget: one rendered line.** A Dialog or Sheet description that wraps is a paragraph of instructions sitting in the header — the first thing read and the least likely to matter. If a consequence genuinely needs two lines, either the action is risky enough to be an AlertDialog, or the sentence belongs beside the field where it becomes actionable.
+- **An identity subtitle is legitimate** when the title is a generic verb (「归类流水」): the name of the record being acted on (a payee, a file name). When that data is missing, render nothing — never a placeholder such as 「这笔流水」.
+- **Deletion test for header copy:** cover the description and use the dialog. If no choice changes and no mistake becomes likely, delete it. These categories fail it every time — every example below shipped in one product while this rule existed only as prose:
+  - List mechanics: 「联系人相关的排在前，其余按时间从新到旧」. The order is visible in the list.
+  - Filter plumbing: 「只显示尚未被物品插件关联的流水」. If the user cannot find a record, say it in the empty state.
+  - Control narration: 「选择一件在用物品，将这笔支出记为相关支出」, 「管理周期支出计划」. The title and the field label already say it.
+  - Data-model assurances: 「现金变动始终保留一笔流水」. Implementation belongs in developer documentation.
+  - Echoes: a supported-format line the drop zone already prints; a caveat the page's own help or the dialog body's notice already states.
+- Contract: `auditPage` lists every open dialog's header description in its report, so the copy is read in review rather than merely rendered, and fails any Dialog/Sheet description over one rendered line and any AlertDialog description over two.
 - The header close control is window chrome, not a page action. Render it as a quiet `icon-sm` button: transparent at rest with no border or resting background, a muted surface on hover, and the product's focus ring on keyboard focus. The visible-at-rest rule for `ghost`/close actions applies to page, toolbar, and detail surfaces, not to dialog/sheet header chrome.
 - Footer buttons align right on desktop.
 - Mobile may use bottom sheet posture.
 - Data-heavy dialogs such as details, configuration, employee selection, and import previews use a fixed content height. Keep header/footer fixed inside the dialog and scroll the body viewport; tabs, empty/loading states, and data volume must not change the outer dialog height.
+
+### Stacking
+
+- **Do not open a dialog over a dialog to pick something.** A picker launched from inside a Dialog or Sheet — records, long option lists, anything with search — is an anchored popover: the select dropdown's surface (card radius, `--shadow-popover`, item padding and highlight), a search field at its top, anchored to the field's left edge at the field's width, flipping above when there is no room below. The form stays visible behind it, so the user still sees which action they are picking for.
+- A sub-flow that genuinely needs the whole surface replaces the dialog body in place, with a back action in the header; it does not stack a second dialog.
+- When a modal layer must stack (a date panel, a confirmation raised from inside a form), it is **visibly smaller on every side** and it **dims the layer beneath**. On a phone, where both layers become full-width bottom sheets, the lower sheet showing above the upper one is the platform's card-stack idiom and is exempt from the width rule — never from the dimming. Overlays and modal surfaces share one z-index and stack by portal order, so each new overlay lands above the dialog opened before it. A global overlay z-index below every surface leaves the lower dialog bright; two white panels then merge into one shape.
+- The failure this section comes from: a same-width, centered record picker opened over a taller form dialog. The form's top and bottom edges showed above and below the picker, so the picker read as one dialog with an extra band stuck on each end — and because the second overlay sat under the first dialog, nothing told the eye they were two layers.
+- Contract: `auditPage` fails two open modal surfaces whose left and right edges coincide while the lower one shows above or below the upper, and a lower modal surface that is still topmost where it shows outside the upper one (not dimmed). Anchored popovers that also report `role="dialog"` are exempt (they carry `data-side` or sit in a popper wrapper).
+
+### Nested Popup Dismissal
+
+- A pointer gesture or Escape press dismisses at most the topmost relevant layer. Opening, selecting, cancelling, or repeatedly clicking a Select/Popover inside a Dialog/Sheet must not dismiss its parent or discard the form.
+- Portal placement does not make a child popup an outside interaction. Preserve the interaction's origin across popup unmount; do not decide parent dismissal solely from the DOM that remains when a deferred callback executes.
+- Test the real hit target. Modal child layers can set the parent's `pointer-events` to `none`, so a click visually inside the parent may hit its overlay. If the shared wrapper needs a geometry guard, constrain it to that parent's own overlay and content bounds. Genuine outside clicks must retain their normal behavior; do not suppress all outside events or introduce arbitrary time-based grace periods.
+- Compose caller-provided handlers and refs. Honor an existing `preventDefault()` and keep focus restoration, keyboard dismissal, and normal close controls working.
+- Acceptance must exercise rendered behavior: repeated trigger clicks, closing the popup by clicking its trigger position, selecting an option, pointer-down followed by popup unmount before click, Escape closing the popup then the parent on a second press, and a genuine outside click. Assert the parent remains mounted with its draft intact for internal interactions. Source-string assertions alone do not establish this contract.
 
 ### Scroll Body Gutter
 
@@ -920,6 +1079,12 @@ Include:
 - Consequence.
 - Recoverability.
 - Destructive main action where appropriate.
+
+Copy:
+
+- Say what happens to the user's data, in the user's words. Mechanism vocabulary — 映射, 回滚, 自检, toast, hash, internal status names — is implementation leaking into a decision point. 「此操作不会提供 toast 撤销」 is 「撤销后不能再恢复」; 「中性资金移动会按支付方式映射记录为转账」 is 「资金在自己账户间的移动记为转账」.
+- Do not restate a precondition the UI already enforces. If 删除 only appears for deletable records, 「只有没有追加或还款记录的债务可以删除」 in its confirm is noise.
+- Budget: two rendered lines — consequence, then recoverability. Error-handling behaviour («any missing mapping fails the whole batch») is not a consequence of confirming; it is what the error message will say if it happens.
 
 ## Sheet
 

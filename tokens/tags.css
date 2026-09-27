@@ -1,0 +1,81 @@
+/* kiln — Tag 釉色。分类色独立于业务状态色；小字使用加深/提亮后的专属前景。 */
+:root {
+  --tag-surface: var(--palette-white);
+  --tag-neutral: var(--palette-muted-ink);
+  --tag-teal: var(--palette-teal);
+  --tag-peacock: var(--palette-peacock);
+  --tag-blue: #5276a4;
+  --tag-amber: var(--palette-amber);
+  --tag-olive: #7d8650;
+  --tag-rose: #af657d;
+  --tag-clay: var(--palette-clay);
+  --tag-neutral-bg: color-mix(in srgb, var(--tag-neutral) 14%, var(--palette-white));
+  --tag-neutral-border: color-mix(in srgb, var(--tag-neutral) 32%, var(--palette-white));
+  --tag-neutral-fg: color-mix(in srgb, var(--tag-neutral) 58%, var(--palette-ink));
+  --tag-neutral-hover: color-mix(in srgb, var(--tag-neutral) 22%, var(--palette-white));
+  --tag-teal-bg: color-mix(in srgb, var(--tag-teal) 14%, var(--palette-white));
+  --tag-teal-border: color-mix(in srgb, var(--tag-teal) 32%, var(--palette-white));
+  --tag-teal-fg: color-mix(in srgb, var(--tag-teal) 58%, var(--palette-ink));
+  --tag-teal-hover: color-mix(in srgb, var(--tag-teal) 22%, var(--palette-white));
+  --tag-peacock-bg: color-mix(in srgb, var(--tag-peacock) 14%, var(--palette-white));
+  --tag-peacock-border: color-mix(in srgb, var(--tag-peacock) 32%, var(--palette-white));
+  --tag-peacock-fg: color-mix(in srgb, var(--tag-peacock) 58%, var(--palette-ink));
+  --tag-peacock-hover: color-mix(in srgb, var(--tag-peacock) 22%, var(--palette-white));
+  --tag-blue-bg: color-mix(in srgb, var(--tag-blue) 14%, var(--palette-white));
+  --tag-blue-border: color-mix(in srgb, var(--tag-blue) 32%, var(--palette-white));
+  --tag-blue-fg: color-mix(in srgb, var(--tag-blue) 58%, var(--palette-ink));
+  --tag-blue-hover: color-mix(in srgb, var(--tag-blue) 22%, var(--palette-white));
+  --tag-amber-bg: color-mix(in srgb, var(--tag-amber) 14%, var(--palette-white));
+  --tag-amber-border: color-mix(in srgb, var(--tag-amber) 32%, var(--palette-white));
+  --tag-amber-fg: color-mix(in srgb, var(--tag-amber) 58%, var(--palette-ink));
+  --tag-amber-hover: color-mix(in srgb, var(--tag-amber) 22%, var(--palette-white));
+  --tag-olive-bg: color-mix(in srgb, var(--tag-olive) 14%, var(--palette-white));
+  --tag-olive-border: color-mix(in srgb, var(--tag-olive) 32%, var(--palette-white));
+  --tag-olive-fg: color-mix(in srgb, var(--tag-olive) 58%, var(--palette-ink));
+  --tag-olive-hover: color-mix(in srgb, var(--tag-olive) 22%, var(--palette-white));
+  --tag-rose-bg: color-mix(in srgb, var(--tag-rose) 14%, var(--palette-white));
+  --tag-rose-border: color-mix(in srgb, var(--tag-rose) 32%, var(--palette-white));
+  --tag-rose-fg: color-mix(in srgb, var(--tag-rose) 58%, var(--palette-ink));
+  --tag-rose-hover: color-mix(in srgb, var(--tag-rose) 22%, var(--palette-white));
+  --tag-clay-bg: color-mix(in srgb, var(--tag-clay) 14%, var(--palette-white));
+  --tag-clay-border: color-mix(in srgb, var(--tag-clay) 32%, var(--palette-white));
+  --tag-clay-fg: color-mix(in srgb, var(--tag-clay) 58%, var(--palette-ink));
+  --tag-clay-hover: color-mix(in srgb, var(--tag-clay) 22%, var(--palette-white));
+}
+
+/* 暗色上下文：与 tokens/dark.css 同一组选择器；底色混进暗色主表面，而不是 --palette-ink。 */
+.dark, [data-theme="dark"] {
+  --tag-surface: var(--palette-dark-surface);
+  --tag-neutral-bg: color-mix(in srgb, var(--tag-neutral) 25%, var(--palette-dark-surface));
+  --tag-neutral-border: color-mix(in srgb, var(--tag-neutral) 50%, var(--palette-dark-surface));
+  --tag-neutral-fg: color-mix(in srgb, var(--tag-neutral) 42%, var(--palette-white));
+  --tag-neutral-hover: color-mix(in srgb, var(--tag-neutral) 32%, var(--palette-dark-surface));
+  --tag-teal-bg: color-mix(in srgb, var(--tag-teal) 25%, var(--palette-dark-surface));
+  --tag-teal-border: color-mix(in srgb, var(--tag-teal) 50%, var(--palette-dark-surface));
+  --tag-teal-fg: color-mix(in srgb, var(--tag-teal) 42%, var(--palette-white));
+  --tag-teal-hover: color-mix(in srgb, var(--tag-teal) 32%, var(--palette-dark-surface));
+  --tag-peacock-bg: color-mix(in srgb, var(--tag-peacock) 25%, var(--palette-dark-surface));
+  --tag-peacock-border: color-mix(in srgb, var(--tag-peacock) 50%, var(--palette-dark-surface));
+  --tag-peacock-fg: color-mix(in srgb, var(--tag-peacock) 42%, var(--palette-white));
+  --tag-peacock-hover: color-mix(in srgb, var(--tag-peacock) 32%, var(--palette-dark-surface));
+  --tag-blue-bg: color-mix(in srgb, var(--tag-blue) 25%, var(--palette-dark-surface));
+  --tag-blue-border: color-mix(in srgb, var(--tag-blue) 50%, var(--palette-dark-surface));
+  --tag-blue-fg: color-mix(in srgb, var(--tag-blue) 42%, var(--palette-white));
+  --tag-blue-hover: color-mix(in srgb, var(--tag-blue) 32%, var(--palette-dark-surface));
+  --tag-amber-bg: color-mix(in srgb, var(--tag-amber) 25%, var(--palette-dark-surface));
+  --tag-amber-border: color-mix(in srgb, var(--tag-amber) 50%, var(--palette-dark-surface));
+  --tag-amber-fg: color-mix(in srgb, var(--tag-amber) 42%, var(--palette-white));
+  --tag-amber-hover: color-mix(in srgb, var(--tag-amber) 32%, var(--palette-dark-surface));
+  --tag-olive-bg: color-mix(in srgb, var(--tag-olive) 25%, var(--palette-dark-surface));
+  --tag-olive-border: color-mix(in srgb, var(--tag-olive) 50%, var(--palette-dark-surface));
+  --tag-olive-fg: color-mix(in srgb, var(--tag-olive) 42%, var(--palette-white));
+  --tag-olive-hover: color-mix(in srgb, var(--tag-olive) 32%, var(--palette-dark-surface));
+  --tag-rose-bg: color-mix(in srgb, var(--tag-rose) 25%, var(--palette-dark-surface));
+  --tag-rose-border: color-mix(in srgb, var(--tag-rose) 50%, var(--palette-dark-surface));
+  --tag-rose-fg: color-mix(in srgb, var(--tag-rose) 42%, var(--palette-white));
+  --tag-rose-hover: color-mix(in srgb, var(--tag-rose) 32%, var(--palette-dark-surface));
+  --tag-clay-bg: color-mix(in srgb, var(--tag-clay) 25%, var(--palette-dark-surface));
+  --tag-clay-border: color-mix(in srgb, var(--tag-clay) 50%, var(--palette-dark-surface));
+  --tag-clay-fg: color-mix(in srgb, var(--tag-clay) 42%, var(--palette-white));
+  --tag-clay-hover: color-mix(in srgb, var(--tag-clay) 32%, var(--palette-dark-surface));
+}

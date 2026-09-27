@@ -9,6 +9,7 @@
      示范页选 CDN 这条路；离线场景改用 @fontsource，见 tokens/fonts.css。 -->
 <style>@import url("../tokens/fonts.css");</style>
 <style>@import url("../tokens/index.css");</style>
+<link rel="stylesheet" href="tags.css">
 
 <style>
 /* ============================================================
@@ -173,7 +174,7 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 
 /* 关键动作：每视口**唯一**一个 clay 填充 */
 .btn-primary { background: var(--primary); color: var(--primary-foreground); }
-.btn-primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--solid)); }
+.btn-primary:hover { background: var(--primary-hover); }
 
 /* 普通实心命令：ink，不是 clay */
 .btn-solid { background: var(--solid); color: var(--solid-foreground); }
@@ -190,9 +191,9 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 }
 .btn-ghost:hover { background: var(--muted); }
 
-/* quiet 例外只有三处：弹层 chrome、**嵌在输入框边界内**的图标控件、分页的非当前页码。
-   前两者靠容器边框提供可发现性，再套一个静止矩形就是两层控件外框；
-   页码靠数字本身 —— 七个方框并排会读成工具栏，而不是页码索引。 */
+/* quiet 用于规范明确的上下文控件：顶栏返回等 shell navigation chrome、弹层 chrome、
+   嵌入输入框的图标、表格操作菜单和非当前页码。稳定位置、容器或数字序列提供可发现性。
+   详情标题的更多菜单仍用普通 ghost，并与相邻默认文字按钮保持同高；不要复用表格的小号。 */
 .btn-quiet { background: transparent; border-color: transparent; color: var(--muted-foreground); }
 .btn-quiet:hover { background: var(--muted); color: var(--foreground); }
 
@@ -318,7 +319,7 @@ h1.topbar-title::before {              /* 短 clay tick：状态标记，不是�
 
 /* ---- 工具栏：同一行控件外框高度必须一致 ---- */
 .toolbar { display: flex; align-items: center; gap: var(--space-2); }
-.toolbar .search { width: 320px; }
+.toolbar .search { width: var(--search-width); max-width: 100%; min-width: 0; flex: 0 1 var(--search-width); }
 .toolbar-spacer { flex: 1; }
 
 .segmented {
@@ -411,19 +412,6 @@ td.op::after {                         /* 滚动阴影用渐变伪元素：borde
 .pager .btn[aria-current="page"] { background: var(--primary); color: var(--primary-foreground); }
 .pager-gap { width: var(--control-height-sm); text-align: center; color: var(--muted-foreground); }
 
-/* ---- badge：默认 4px，不是到处胶囊 ---- */
-.badge {
-  display: inline-flex; align-items: center;
-  height: 20px; padding: 0 var(--space-2);
-  border-radius: var(--radius-control);
-  font-size: var(--text-tiny);
-  line-height: 1;
-}
-.badge-success { background: var(--success-bg); color: var(--success); }
-.badge-info { background: var(--info-bg); color: var(--info); }
-.badge-warning { background: var(--warning-bg); color: var(--warning); }
-.badge-danger { background: var(--destructive-bg); color: var(--destructive); }
-
 /* ---- 表单示范区 ---- */
 .form-panel { padding: var(--space-4); }
 h2.section-title {
@@ -472,6 +460,52 @@ h2.section-title {
 }
 
 .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+
+/* ---- 弹窗表单列示范区 ----
+   一只静态摆放的弹窗（不是模态）。三件事是这里的全部要点：
+   1) 同一列的每一行收在同一条右缘上：短字段（金额、日期）两两并排进等分网格，
+      而不是各自停在「按载荷定的宽度」上 —— 那样五行会有三条右缘；
+   2) 同一决定的并列模式（追加 / 还款）是横跨整列的分段，不藏进下拉；轨道外框落在
+      --control-height 上，和同列的输入框同高；
+   3) 关联记录：未选时只是字段里的一个按钮，不套框；选中后是一条紧凑记录条，
+      更换 / 取消有自己的格子，不随备注长短挪位置，窄屏时下沉到第二行。 */
+/* 窄了按弹窗自己的宽度重排，不看视口：同一条记录条会出现在不同宽度的弹窗里 */
+.dialog-demo { width: 100%; max-width: 480px; container-type: inline-size; }
+.form-column { display: grid; gap: var(--field-rhythm); }
+.form-column .field { gap: var(--space-2); }
+.form-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
+.form-column .segmented {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  border-color: color-mix(in srgb, var(--border-visible) 50%, transparent);
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+.form-column .segmented .btn { background: transparent; color: var(--muted-foreground); }
+.form-column .segmented .btn[aria-pressed="true"] {
+  background: var(--card); color: var(--primary);
+  box-shadow: var(--shadow-card); font-weight: var(--weight-medium);
+}
+.select-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-2); text-align: left; cursor: pointer; }
+.select-trigger > .icon { color: var(--muted-foreground); flex: 0 0 auto; }
+.textarea { height: auto; min-height: calc(var(--control-height) * 2); padding: var(--space-2) var(--space-3); resize: vertical; }
+.input:disabled { background: color-mix(in srgb, var(--muted) 40%, var(--card)); color: var(--muted-foreground); cursor: not-allowed; }
+.linked-record {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "proof amount actions";
+  align-items: center; column-gap: var(--space-3); row-gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+}
+.linked-record-proof { grid-area: proof; min-width: 0; display: grid; gap: var(--space-0\.5); }
+.linked-record-proof strong { overflow: hidden; font-weight: var(--weight-medium); text-overflow: ellipsis; white-space: nowrap; }
+.linked-record-proof time { color: var(--muted-foreground); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.linked-record-amount { grid-area: amount; color: var(--success); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.linked-record-actions { grid-area: actions; display: flex; gap: var(--space-2); }
+.dialog-demo-footer { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+@container (max-width: 400px) {
+  .form-grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .linked-record { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "proof amount" "actions actions"; padding: var(--space-2) var(--space-3); }
+}
 .icon-18 { width: 18px; height: 18px; }
 </style>
 </head>
@@ -695,7 +729,7 @@ h2.section-title {
           <button class="btn btn-ghost" type="button">重置</button>
         </div>
 
-        <div class="swatches">
+        <div class="swatches" aria-label="状态标签样本">
           <span class="badge badge-success">已完成</span>
           <span class="badge badge-info">处理中</span>
           <span class="badge badge-warning">待接单</span>
@@ -805,7 +839,7 @@ h2.section-title {
               <button class="btn btn-outline" type="button">选择部门</button>
             </div>
             <div class="anchor-collection" data-anchor-collection>
-              <span class="badge">西南楼 · 咨询部</span>
+              <span class="badge" data-tone="peacock">西南楼 · 咨询部</span>
             </div>
             <p class="anchor-note">部门内的在职员工自动获得权限。</p>
           </div>
@@ -833,6 +867,59 @@ h2.section-title {
             <p class="anchor-note">排除优先于以上两项。</p>
           </div>
         </div>
+      </section>
+
+      <section class="panel form-panel dialog-demo" role="dialog" aria-labelledby="dlg-title">
+        <!-- 静态摆放的弹窗：五行一条右缘。金额与日期两两并排，关联记录不套框。 -->
+        <h2 class="section-title" id="dlg-title">登记往来</h2>
+        <div class="form-column">
+          <div class="field">
+            <span class="field-label" id="dlg-action-label">动作</span>
+            <div class="segmented" role="group" aria-labelledby="dlg-action-label">
+              <button class="btn" type="button" aria-pressed="true">追加借入</button>
+              <button class="btn" type="button" aria-pressed="false">登记还款</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">关联流水</span>
+            <div class="linked-record">
+              <div class="linked-record-proof"><strong>孙姐转来周转款</strong><time datetime="2026-09-12">2026-09-12</time></div>
+              <b class="linked-record-amount">+¥500.00</b>
+              <div class="linked-record-actions">
+                <button class="btn btn-outline btn-sm" type="button">更换流水</button>
+                <button class="btn btn-outline btn-sm" type="button">取消关联</button>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label" for="dlg-account">收款账户</label>
+            <button class="input select-trigger" id="dlg-account" type="button" role="combobox" aria-expanded="false" aria-haspopup="listbox">
+              <span>招商银行 ····5678 · 工资卡</span>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
+          <div class="form-grid-2">
+            <div class="field">
+              <label class="field-label" for="dlg-amount">追加借入金额（元）</label>
+              <input class="input cell-num" id="dlg-amount" type="text" value="500.00" disabled>
+            </div>
+            <div class="field">
+              <label class="field-label" for="dlg-date">追加日期</label>
+              <button class="input date-trigger" id="dlg-date" type="button" aria-haspopup="dialog" aria-label="追加日期" disabled>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+                <span>2026-09-12</span>
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label" for="dlg-note">备注</label>
+            <textarea class="input textarea" id="dlg-note" rows="3" placeholder="可选"></textarea>
+          </div>
+        </div>
+        <footer class="dialog-demo-footer">
+          <button class="btn btn-outline" type="button">取消</button>
+          <button class="btn btn-solid" type="button">确认登记</button>
+        </footer>
       </section>
     </div>
   </div>

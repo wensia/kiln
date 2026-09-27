@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-brand="clay">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kiln — 主题矩阵</title>
+<link rel="stylesheet" href="../tokens/index.css">
+<link rel="stylesheet" href="tags.css">
+<style>
+/* ============================================================
+   主题矩阵：2 明暗 × 4 品牌 × 4 底面。scripts/verify-themes.mjs 在这里读 computed style。
+
+   · 只消费 tokens/index.css 与 examples/tags.css；本页没有裸色值，
+     每个颜色都 var() 回 token。
+   · 切换：URL `?theme=dark&brand=teal`，或 JS `kilnThemes.set({ theme, brand })`。
+     两个开关都写在根元素上：data-theme / data-brand。
+   · 样本用 data-sample 标记，每个底面各一套；检查器按名字点数，少一个就失败。
+   · 没有 transition：hover 断言读的是最终态，不等动画。
+   ============================================================ */
+
+/* ---- 宿主品牌：像真实宿主一样，在亮色与暗色两个作用域各声明一次三个入口 ----
+   亮色作用域 (0,2,0)；暗色作用域同为 (0,2,0) 且排在后面，所以暗色里赢。
+   只声明亮色那一份，:root[data-brand] 的特异性会压过 dark.css 的默认值，把暗色钉成亮色品牌。 */
+:root[data-brand="clay"] {
+  --kiln-brand-fill: var(--palette-clay);
+  --kiln-brand-on-fill: var(--palette-white);
+  --kiln-brand-text: var(--palette-clay-deep);
+}
+:root[data-brand="teal"] {
+  --kiln-brand-fill: var(--palette-teal);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-teal-deep);
+  /* 深色前景的品牌：hover 往白提亮，远离前景 */
+  --kiln-brand-fill-hover: color-mix(in srgb, var(--kiln-brand-fill) 88%, var(--palette-white));
+}
+:root[data-brand="peacock"] {
+  --kiln-brand-fill: var(--palette-peacock);
+  --kiln-brand-on-fill: var(--palette-white);
+  --kiln-brand-text: var(--palette-peacock);
+}
+:root[data-brand="amber"] {
+  --kiln-brand-fill: var(--palette-amber);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-amber-deep);
+  /* 深色前景的品牌：hover 往白提亮，远离前景 */
+  --kiln-brand-fill-hover: color-mix(in srgb, var(--kiln-brand-fill) 88%, var(--palette-white));
+}
+.dark[data-brand="clay"], [data-theme="dark"][data-brand="clay"] {
+  --kiln-brand-fill: var(--palette-dark-clay);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-dark-clay);
+}
+.dark[data-brand="teal"], [data-theme="dark"][data-brand="teal"] {
+  --kiln-brand-fill: var(--palette-dark-teal);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-dark-teal);
+  /* 浅色块的提亮 hover 优先级更高，暗色里必须重新声明回暗色默认 */
+  --kiln-brand-fill-hover: color-mix(in srgb, var(--kiln-brand-fill) 88%, var(--palette-dark-solid));
+}
+.dark[data-brand="peacock"], [data-theme="dark"][data-brand="peacock"] {
+  --kiln-brand-fill: var(--palette-dark-peacock);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-dark-peacock);
+}
+.dark[data-brand="amber"], [data-theme="dark"][data-brand="amber"] {
+  --kiln-brand-fill: var(--palette-dark-amber);
+  --kiln-brand-on-fill: var(--palette-dark-canvas);
+  --kiln-brand-text: var(--palette-dark-amber);
+  /* 浅色块的提亮 hover 优先级更高，暗色里必须重新声明回暗色默认 */
+  --kiln-brand-fill-hover: color-mix(in srgb, var(--kiln-brand-fill) 88%, var(--palette-dark-solid));
+}
+
+/* ---- 页面骨架 ---- */
+body { font-family: var(--font-sans); }
+main { max-width: 1440px; margin: 0 auto; padding: var(--space-6); }
+.page-head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--space-3); margin-bottom: var(--space-6);
+}
+h1 { margin: 0; font-size: var(--text-page-title); font-weight: var(--weight-semibold); }
+h1 small { margin-left: var(--space-2); color: var(--muted-foreground); font-size: var(--text-meta); font-weight: var(--weight-regular); }
+.switches { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.switch-label { font-size: var(--text-meta); color: var(--muted-foreground); margin-right: var(--space-1); }
+
+.matrix { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4); align-items: start; }
+.surface { min-width: 0; padding: var(--space-4); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--space-4); }
+.surface-canvas { background: transparent; outline: 1px dashed var(--border-visible); outline-offset: -1px; }
+.surface-card { background: var(--card); color: var(--card-foreground); box-shadow: var(--shadow-card); }
+.surface-popover { background: var(--popover); color: var(--popover-foreground); box-shadow: var(--shadow-popover); }
+.surface-fill { background: var(--muted); }
+.surface-title { margin: 0; font-size: var(--text-section-title); font-weight: var(--weight-semibold); }
+.surface-title small { margin-left: var(--space-2); color: var(--muted-foreground); font-size: var(--text-meta); font-weight: var(--weight-regular); }
+.group { display: flex; flex-direction: column; gap: var(--space-2); }
+.group-label { font-size: var(--text-tiny); color: var(--muted-foreground); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* ---- Button（与 examples/workbench.html 同一套写法） ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: var(--text-body);
+  line-height: 1;
+  cursor: pointer;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-solid { background: var(--solid); color: var(--solid-foreground); }
+.btn-solid:hover { background: var(--solid-hover); }
+.btn-outline { background: var(--card); border-color: var(--input); color: var(--foreground); }
+.btn-outline:hover { border-color: var(--border-visible); background: var(--accent); }
+.btn:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+
+/* ---- 品牌文字 ---- */
+.link { color: var(--primary-text); text-underline-offset: var(--space-1); }
+
+/* ---- SegmentedControl：轨道 + 浮起的激活片 + 选中标记 ---- */
+.segmented {
+  display: inline-flex; align-items: center;
+  height: var(--control-height);
+  padding: 1px;
+  gap: var(--space-0\.5);
+  border: 1px solid color-mix(in srgb, var(--border-visible) 50%, transparent);
+  border-radius: var(--radius-control);
+  background: var(--segment-track-bg);
+}
+.segment {
+  position: relative;
+  height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-family: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+.segment:not([aria-pressed="true"]):hover { background: var(--segment-hover-bg); color: var(--foreground); }
+.segment[aria-pressed="true"],
+.segment[aria-pressed="true"]:hover {
+  background: var(--segment-active-bg);
+  color: var(--segment-active-fg);
+  box-shadow: var(--segment-active-shadow);
+  font-weight: var(--weight-medium);
+}
+/* 选中标记：每个分段都有这个槽，只有 aria-pressed 的才上色。亮色里 token 是 transparent。 */
+.segment-mark {
+  position: absolute; left: 50%; bottom: 3px;
+  width: var(--space-3); height: 2px;
+  border-radius: 1px;
+  transform: translateX(-50%);
+  background: transparent;
+  pointer-events: none;
+}
+.segment[aria-pressed="true"] .segment-mark { background: var(--segment-active-mark); }
+.segment:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+
+/* ---- Input ---- */
+.input {
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  box-shadow: var(--shadow-input);
+  font-family: inherit;
+  font-size: var(--text-body);
+  color: var(--foreground);
+  width: 100%;
+}
+.input::placeholder { color: var(--muted-foreground); opacity: 1; }
+.input:focus { outline: none; border-color: var(--ring); box-shadow: var(--ring-focus); }
+/* 无标签内联输入：没有框，只剩一条识别底线 —— 这条线承担识别职责，用 --control-boundary。 */
+.input-underline {
+  border: 0;
+  border-bottom: 1px solid var(--control-boundary);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-inline: 0;
+}
+.input-underline:focus { border-bottom-color: var(--ring); box-shadow: none; }
+
+/* ---- Checkbox：原生 input 隐形铺在盒子上，盒子是兄弟节点 ---- */
+.check { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.check input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.check-box {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; flex: none;
+  border: 1px solid var(--control-boundary);
+  border-radius: var(--radius-control);
+  background: transparent;
+}
+.check-box svg { width: 12px; height: 12px; fill: none; stroke: var(--primary-foreground); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; visibility: hidden; }
+.check input:checked + .check-box { background: var(--primary); border-color: var(--primary); }
+.check input:checked + .check-box svg { visibility: visible; }
+.check input:focus-visible + .check-box { box-shadow: var(--ring-focus); }
+
+/* ---- 侧栏菜单 ---- */
+.menu { display: flex; flex-direction: column; gap: var(--space-0\.5); }
+.menu-item {
+  display: flex; align-items: center;
+  height: var(--nav-item-height);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--sidebar-foreground);
+  text-decoration: none;
+}
+.menu-item:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); }
+.menu-item[aria-current="page"] {
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  font-weight: var(--weight-medium);
+}
+
+/* ---- 表格行四态（与 workbench 相同的 token） ---- */
+table.rows { width: 100%; border-collapse: collapse; font-size: var(--text-body); }
+table.rows tr { background: var(--card); border-bottom: 1px solid var(--border); }
+table.rows tr:nth-child(even) { background: var(--table-row-alt); }
+table.rows tr:hover { background: var(--table-row-hover); }
+table.rows tr[aria-selected="true"] { background: var(--table-row-selected); }
+table.rows td { height: var(--table-row-height); padding: 0 var(--space-3); color: var(--foreground); white-space: nowrap; }
+
+@media (max-width: 440px) {
+  main { padding: var(--space-4); }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="page-head">
+    <h1>kiln 主题矩阵<small>2 明暗 × 4 品牌 × 4 底面</small></h1>
+    <div class="switches">
+      <span class="switch-label" id="theme-label">明暗</span>
+      <div class="segmented" role="group" aria-labelledby="theme-label" data-switch="theme">
+        <button type="button" class="segment" data-value="light" aria-pressed="true">亮色<span class="segment-mark" aria-hidden="true"></span></button>
+        <button type="button" class="segment" data-value="dark" aria-pressed="false">暗色<span class="segment-mark" aria-hidden="true"></span></button>
+      </div>
+      <span class="switch-label" id="brand-label">品牌</span>
+      <div class="segmented" role="group" aria-labelledby="brand-label" data-switch="brand">
+        <button type="button" class="segment" data-value="clay" aria-pressed="true">陶土<span class="segment-mark" aria-hidden="true"></span></button>
+        <button type="button" class="segment" data-value="teal" aria-pressed="false">窑青<span class="segment-mark" aria-hidden="true"></span></button>
+        <button type="button" class="segment" data-value="peacock" aria-pressed="false">孔雀<span class="segment-mark" aria-hidden="true"></span></button>
+        <button type="button" class="segment" data-value="amber" aria-pressed="false">琥珀<span class="segment-mark" aria-hidden="true"></span></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="matrix" id="matrix"></div>
+</main>
+
+<!-- 一套样本；脚本把它克隆进四种底面。改样本只改这一处。 -->
+<template id="samples">
+  <div class="group">
+    <span class="group-label">按钮</span>
+    <div class="row">
+      <button type="button" class="btn btn-primary" data-sample="button-primary">新建工单</button>
+      <button type="button" class="btn btn-solid" data-sample="button-solid">保存</button>
+      <button type="button" class="btn btn-outline" data-sample="button-outline">导出</button>
+    </div>
+  </div>
+  <div class="group">
+    <span class="group-label">品牌文字</span>
+    <div class="row"><a class="link" href="#matrix" data-sample="link">查看全部记录</a></div>
+  </div>
+  <div class="group">
+    <span class="group-label">分段控件</span>
+    <div class="row">
+      <div class="segmented" role="group" aria-label="视图" data-sample="segment-track">
+        <button type="button" class="segment" aria-pressed="true" data-sample="segment-active">列表<span class="segment-mark" aria-hidden="true"></span></button>
+        <button type="button" class="segment" aria-pressed="false" data-sample="segment-inactive">看板<span class="segment-mark" aria-hidden="true"></span></button>
+      </div>
+    </div>
+  </div>
+  <div class="group">
+    <span class="group-label">输入框</span>
+    <input class="input" type="text" value="陈默" aria-label="姓名" data-sample="input-value">
+    <input class="input" type="text" placeholder="搜索工单号或客户" aria-label="搜索" data-sample="input-placeholder">
+    <input class="input input-underline" type="text" value="行内备注" aria-label="备注" data-sample="input-underline">
+  </div>
+  <div class="group">
+    <span class="group-label">复选框</span>
+    <div class="row">
+      <label class="check"><input type="checkbox"><span class="check-box" aria-hidden="true" data-sample="checkbox-unchecked"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span>未选</label>
+      <label class="check"><input type="checkbox" checked><span class="check-box" aria-hidden="true" data-sample="checkbox-checked"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span>已选</label>
+    </div>
+  </div>
+  <div class="group">
+    <span class="group-label">标签</span>
+    <div class="row">
+      <span class="tag" data-tone="teal" data-sample="tag-soft">续费学员</span>
+      <span class="tag" data-tone="clay" data-variant="outline" data-sample="tag-outline">已逾期</span>
+      <span class="tag" data-tone="amber" data-variant="status" data-sample="tag-status"><span class="tag-dot" aria-hidden="true"></span><span class="tag-label">待复核</span></span>
+    </div>
+  </div>
+  <div class="group">
+    <span class="group-label">侧栏菜单</span>
+    <nav class="menu" aria-label="示例菜单">
+      <a class="menu-item" href="#matrix" aria-current="page" data-sample="menu-current">工单中心</a>
+      <a class="menu-item" href="#matrix" data-sample="menu-item">客户档案</a>
+    </nav>
+  </div>
+  <div class="group">
+    <span class="group-label">表格行</span>
+    <table class="rows">
+      <tbody>
+        <tr data-sample="row-normal"><td>GD-1024</td><td>待处理</td></tr>
+        <tr data-sample="row-zebra"><td>GD-1025</td><td>处理中</td></tr>
+        <tr data-sample="row-hover"><td>GD-1026</td><td>已完成</td></tr>
+        <tr aria-selected="true" data-sample="row-selected"><td>GD-1027</td><td>已选中</td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script>
+(() => {
+  const THEMES = ["light", "dark"];
+  const BRANDS = ["clay", "teal", "peacock", "amber"];
+  const SURFACES = [
+    { id: "canvas", title: "页面底", note: "--background" },
+    { id: "card", title: "卡片", note: "--card" },
+    { id: "popover", title: "浮层", note: "--popover" },
+    { id: "fill", title: "填充块", note: "--muted" },
+  ];
+  const root = document.documentElement;
+  const matrix = document.getElementById("matrix");
+  const template = document.getElementById("samples");
+
+  for (const surface of SURFACES) {
+    const section = document.createElement("section");
+    section.className = `surface surface-${surface.id}`;
+    section.dataset.surface = surface.id;
+    section.setAttribute("aria-label", surface.title);
+    const title = document.createElement("h2");
+    title.className = "surface-title";
+    title.textContent = surface.title;
+    const note = document.createElement("small");
+    note.textContent = surface.note;
+    title.appendChild(note);
+    section.appendChild(title);
+    section.appendChild(template.content.cloneNode(true));
+    matrix.appendChild(section);
+  }
+
+  // 样本里的分段与复选框保持静态：检查器要的是确定的「一个 active + 一个 inactive」。
+  matrix.addEventListener("click", (event) => {
+    if (event.target.closest("a[href='#matrix']")) event.preventDefault();
+  });
+
+  const sync = () => {
+    for (const group of document.querySelectorAll("[data-switch]")) {
+      const current = group.dataset.switch === "theme" ? get().theme : get().brand;
+      for (const button of group.querySelectorAll(".segment")) {
+        button.setAttribute("aria-pressed", String(button.dataset.value === current));
+      }
+    }
+  };
+  const get = () => ({ theme: root.dataset.theme === "dark" ? "dark" : "light", brand: root.dataset.brand });
+  const set = ({ theme, brand } = {}) => {
+    if (theme !== undefined) {
+      if (!THEMES.includes(theme)) throw new Error(`unknown theme: ${theme}`);
+      root.dataset.theme = theme;
+    }
+    if (brand !== undefined) {
+      if (!BRANDS.includes(brand)) throw new Error(`unknown brand: ${brand}`);
+      root.dataset.brand = brand;
+    }
+    sync();
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set("theme", get().theme);
+      url.searchParams.set("brand", get().brand);
+      history.replaceState(null, "", url);
+    } catch { /* file:// 下有的浏览器不允许改地址，开关本身不受影响 */ }
+    return get();
+  };
+
+  for (const group of document.querySelectorAll("[data-switch]")) {
+    group.addEventListener("click", (event) => {
+      const button = event.target.closest(".segment");
+      if (button) set({ [group.dataset.switch]: button.dataset.value });
+    });
+  }
+
+  const params = new URLSearchParams(location.search);
+  set({
+    theme: THEMES.includes(params.get("theme")) ? params.get("theme") : "light",
+    brand: BRANDS.includes(params.get("brand")) ? params.get("brand") : "clay",
+  });
+  window.kilnThemes = { THEMES, BRANDS, SURFACES: SURFACES.map((s) => s.id), get, set };
+})();
+</script>
+</body>
+</html>

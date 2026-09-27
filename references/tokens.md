@@ -85,6 +85,35 @@ Rules:
 | `--input` | `#DCD7D0` | Input border |
 | `--ring` | `#B6533C` | Focus ring |
 
+### Tag Glaze Tokens
+
+`tokens/tags.css` owns this component palette. The anchors below stay unchanged in light and dark contexts; each tone has its own background, border, foreground, and hover tokens. Tag text uses the derived foreground, not the anchor itself. These tokens do not replace the global status tokens above.
+
+| Tone | Anchor token | Value | Use |
+| --- | --- | --- | --- |
+| Neutral | `--tag-neutral` | `var(--palette-muted-ink)` | Uncategorized attributes and quiet metadata |
+| Teal | `--tag-teal` | `var(--palette-teal)` | Success states or a consistently assigned category |
+| Peacock | `--tag-peacock` | `var(--palette-peacock)` | Info states or a consistently assigned category |
+| Blue | `--tag-blue` | `#5276A4` | Category identity |
+| Amber | `--tag-amber` | `var(--palette-amber)` | Warning states or a consistently assigned category |
+| Olive | `--tag-olive` | `#7D8650` | Category identity |
+| Rose | `--tag-rose` | `#AF657D` | Category identity |
+| Clay | `--tag-clay` | `var(--palette-clay)` | Danger / destructive states or a consistently assigned category |
+
+For each `{tone}` above, the following table mirrors the exact sRGB derivation. `tone` means `var(--tag-{tone})`, `white` means `var(--palette-white)`, `ink` means `var(--palette-ink)`, and `night` means `var(--palette-dark-surface)`. The omitted second percentage is the remainder to 100%, as in CSS `color-mix`.
+
+| Token family | Light value | Dark value | Use |
+| --- | --- | --- | --- |
+| `--tag-surface` | `var(--palette-white)` | `var(--palette-dark-surface)` | Opaque outline-tag surface |
+| `--tag-{tone}-bg` | tone 14% + white | tone 25% + night | Soft default surface |
+| `--tag-{tone}-border` | tone 32% + white | tone 50% + night | Whole thin boundary |
+| `--tag-{tone}-fg` | tone 58% + ink | tone 42% + white | Readable label, state dot, and selected border |
+| `--tag-{tone}-hover` | tone 22% + white | tone 32% + night | Interactive hover and selected surface |
+
+The concrete families are `--tag-neutral-*`, `--tag-teal-*`, `--tag-peacock-*`, `--tag-blue-*`, `--tag-amber-*`, `--tag-olive-*`, `--tag-rose-*`, and `--tag-clay-*`, each with `bg`, `border`, `fg`, and `hover` suffixes. `.dark` and `[data-theme="dark"]` activate the dark derivations together with the global dark theme in `tokens/dark.css` (see Dark Theme Tokens).
+
+Normal tag text must reach at least 4.5:1 against its rendered surface in both themes and in hover/selected states. A transparent `status` variant is checked against its actual ancestor surface. Disabled controls are assessed separately. Stable category assignments and state mappings live in [Badge / Status / Tag](components.md#badge--status--tag); the interactive reference is [examples/tags.html](../examples/tags.html).
+
 ### Table Surface Tokens
 
 | Token | Light Value | Use |
@@ -126,6 +155,69 @@ The four row-state values are tokens for one reason beyond reuse: **a frozen col
 | `--chart-4` | amber | Warning, pending |
 | `--chart-5` | muted ink | Auxiliary series |
 
+### Dark Theme Tokens
+
+`tokens/dark.css` ships the dark theme ("夜窑"): the same vessel fired at night, not an inverted page. It activates on `.dark` or `[data-theme="dark"]` — on the root element or on any local container, because the file re-declares every derived token instead of relying on root-level `var()` recomputation. Deciding **when** to turn it on (a user setting, `prefers-color-scheme`) is the host's job; kiln only supplies the look.
+
+The dark palette is always defined on `:root`, so a host that owns an extra accent can point it at the matching dark glaze.
+
+| Token | Value | Role in dark |
+| --- | --- | --- |
+| `--palette-dark-canvas` | `#16120F` | Page canvas — the deepest step |
+| `--palette-dark-surface` | `#1D1915` | Main surface: cards, panels, tables, sidebar, topbar |
+| `--palette-dark-raised` | `#24201C` | Floating layer: popover, dropdown, dialog, toast |
+| `--palette-dark-fill` | `#2A2622` | Muted fill: hover, selected, quiet wells |
+| `--palette-dark-line` | `#49443F` | Strong border: inputs and necessary dividers |
+| `--palette-dark-ink` | `#EBE5DE` | Primary text — warm off-white, never pure white |
+| `--palette-dark-muted-ink` | `#A39D97` | Secondary text (6.5:1 on the main surface) |
+| `--palette-dark-clay` | `#DE816B` | Clay glaze, lightened in OKLCH |
+| `--palette-dark-teal` | `#69B5A5` | Teal glaze, lightened in OKLCH |
+| `--palette-dark-peacock` | `#6EB1BD` | Peacock glaze, lightened in OKLCH |
+| `--palette-dark-amber` | `#E09E5B` | Amber glaze, lightened in OKLCH |
+| `--palette-dark-solid` | `#B4ACA5` | Ordinary solid command fill — one step below ink |
+| `--palette-dark-boundary` | `#7D756D` | Control-identifying outline in dark (3:1 on every dark surface step) |
+
+Dark rules:
+
+- **Surfaces step up in lightness toward the user**: canvas < surface < raised; fill is the interaction wash. In the dark, elevation reads as "lighter", not as "more shadow".
+- **Glazes are lightened in OKLCH, keeping hue; chroma is only trimmed slightly** (clay drops from about .134 to .120, the other three stay within about .005). Mixing them with white turns clay pink and teal chalky. Every dark glaze reaches at least 5.3:1 on every dark surface step.
+- **Filled primary and solid actions flip their foreground to the dark canvas.** A lightened clay plate with white text fails contrast (under 3:1); dark text on it clears 6:1. `--solid` becomes a warm stone one step below ink, so ordinary commands keep their weight without turning into the brightest spot on the page; its hover stays neutral and never picks up the brand hue.
+- **Separation moves from shadow to surface steps plus a hairline.** The dark `--shadow-card`, `--shadow-card-hover`, and `--shadow-popover` each open with `0 0 0 1px` of warm off-white at 5–8% alpha, so white-surface-borderless components stay borderless and still separate. The shadow color stays warm black, only deeper.
+- `--shadow-input` drops the inner top highlight; on a dark field it reads as a grey bevel.
+- `color-scheme: dark` is set in the same selector so native scrollbars and form controls follow.
+- Status backgrounds (`--success-bg` and friends) mix the dark glaze 15–16% into the main surface. Table row states keep the light formulas over the dark `--muted` / `--card` / `--primary`.
+
+### Brand Inputs
+
+A host changes its brand through three inputs only. kiln resolves them into the primary roles at each theme boundary (`:root` in `tokens/colors.css`, `.dark` / `[data-theme="dark"]` in `tokens/dark.css`), so every derived role stays paired.
+
+| Input | Light default | Dark default | Resolves into |
+| --- | --- | --- | --- |
+| `--kiln-brand-fill` | `var(--palette-clay)` | `var(--palette-dark-clay)` | `--primary`, `--sidebar-primary`, `--primary-subtle` |
+| `--kiln-brand-on-fill` | `var(--palette-white)` | `var(--palette-dark-canvas)` | `--primary-foreground`, `--sidebar-primary-foreground` |
+| `--kiln-brand-text` | `var(--palette-clay-deep)` | `var(--palette-dark-clay)` | `--primary-text`, `--ring`, `--sidebar-ring` |
+| `--kiln-brand-fill-hover` | fill 88% + ink | fill 88% + dark solid | `--primary-hover` |
+
+- `--primary` is the **fill**; `--primary-text` is for links, active labels, and small emphasis. Do not set text in `--primary`: a glaze that works as a fill is often too light for small text on its own subtle tint.
+- A host brand must be declared in **both** scopes — once for light and once inside `.dark` / `[data-theme="dark"]` — or the light value pins the dark theme. Choose the on-fill per brand: lighter glazes such as teal and amber need a dark on-fill in light mode as well.
+- Deep text anchors for light brands: `--palette-clay-deep` (`#9B4C39`), `--palette-teal-deep` (`#326C60`), `--palette-amber-deep` (`#87551F`); each reaches 4.5:1 on white and on its own subtle tint.
+- Hover moves **away from the on-fill**: a white on-fill darkens toward ink (the default); a dark on-fill (teal, amber in light) must override `--kiln-brand-fill-hover` to mix toward white, or hover contrast drops below 4.5:1.
+- Brand never drives status: `--destructive` stays clay and `--success` / `--warning` keep their glazes whatever the brand is.
+
+### Control Boundary And Segments
+
+| Token | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `--control-boundary` | `#8B837B` | `var(--palette-dark-boundary)` | Outline that identifies a control: unchecked checkbox / radio, the underline of an unlabeled inline input. At least 3:1 against canvas, surface, and fill. `--input` stays the soft field edge and carries no identification duty. |
+| `--segment-track-bg` | muted 40% + transparent | same formula | SegmentedControl / button-tab track |
+| `--segment-hover-bg` | foreground 3% + transparent | same formula | Inactive segment hover |
+| `--segment-active-bg` | `var(--card)` | foreground 8% + transparent | Active plate — lighter than the track on any container |
+| `--segment-active-fg` | `var(--primary-text)` | `var(--foreground)` | Active label |
+| `--segment-active-mark` | `transparent` | `var(--primary-text)` | Selection mark (a short bar or check) — required in dark, where plate and hover differ only slightly |
+| `--segment-active-shadow` | `var(--shadow-card)` | hairline ring | Active plate separation |
+
+Do not rely on the small lightness step between active and hover to carry selection in dark; the mark and `aria-selected` / `aria-pressed` carry it. An active segment on hover keeps the active plate.
+
 Color rules:
 
 - Use semantic classes such as `bg-background`, `bg-card`, `bg-muted`, `border-border`, `text-muted-foreground`, `bg-solid`, `bg-primary`, `bg-success`, `bg-info`, and `bg-warning`.
@@ -134,7 +226,8 @@ Color rules:
 - At most one clay-filled action per viewport. When a viewport contains both an ordinary submit and a stateful signal, keep the submit ink-solid and reserve clay for the selected/active/focus/error signal. If everything is red, nothing reads as state.
 - Beyond the single key action, prefer primary text, a thin whole border/ring, or a subtle tint for selected and active states over clay fills, unless the component spec explicitly calls for `bg-primary` (active nav plate, selected date endpoints).
 - Do not use local purple, Tailwind emerald/amber/sky status colors, or naked hex in business UI.
-- Apply status color to badges, dots, values, whole thin borders/rings, or subtle tints (`--success-bg` / `--info-bg` / `--warning-bg` / `--destructive-bg`). Avoid heavy row fills.
+- Apply status color to dots, values, whole thin borders/rings, or subtle tints (`--success-bg` / `--info-bg` / `--warning-bg` / `--destructive-bg`). Tags and badges use the corresponding `--tag-{tone}-bg` / `-border` / `-fg` family so small text gets its own readable foreground. A soft clay danger badge is allowed; avoid heavy row fills or opaque primary tag fills.
+- Category tags may use the additional blue, olive, and rose tag tones with stable assignments. These category colors do not change the global success, info, warning, or destructive meanings.
 - Do not use status color as a one-sided border accent by thickening or tinting only `border-left`, `border-right`, `border-top`, or `border-bottom`. One-sided borders are allowed only for real structural edges such as frozen columns, split panes, timelines, or table dividers.
 
 ## Spacing
@@ -154,22 +247,26 @@ Fixed sizes:
 
 | Token | Value | Use |
 | --- | --- | --- |
+| `--tag-height` | `24px` | Default static Tag |
+| `--tag-height-sm` | `20px` | Compact static Tag / Badge |
+| `--tag-dot-size` | `6px` | Leading state dot in a status marker |
 | `--nav-item-height` | `36px` | Sidebar nav item |
 | `--table-row-height` | `48px` | Data table row baseline (the DS `Table` component renders airy 52px rows with 16px cell padding — both are sanctioned; do not go below 48px) |
 | `--table-pagination-height` | `40px` | Pagination strip (a tertiary strip: 32px controls plus breathing room). Anything computing a table's fitted height must consume this, not re-derive it from a control height. |
 | `--toolbar-control` | `32px` | Compact toolbar control (32-36) |
 | `--control-height` | `36px` | Default button, input, select |
-| `--control-height-sm` | `32px` | Small button, inline control |
+| `--control-height-sm` | `32px` | Small button, inline control, selectable/linked/removable Tag and its remove target |
+| `--search-width` | `320px` | Default search field width; shrink to fit narrower containers |
 | `--field-rhythm` | `12px` | Form field gap (8-12) |
 
 ## Radius
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `--radius-control` | `4px` | Buttons, inputs, nav items |
+| `--radius-control` | `4px` | Buttons, inputs, nav items, Tags and Badges |
 | `--radius-card` | `6px` | Card, popover, dialog |
 | `--radius-panel` | `8px` | Large panel, resource card |
-| `--radius-pill` | `999px` | Explicit tag/chip only |
+| `--radius-pill` | `999px` | Circular state dots and explicitly documented pill exceptions |
 
 Rules:
 
@@ -177,7 +274,7 @@ Rules:
 - Cards and popovers use 6px.
 - Large panels and resource cards use at most 8px.
 - Exact 4/6/8 ladder — never derive fractional pixels from a multiplier.
-- Status badges default to 4px; avoid pills unless the element is explicitly a tag/chip.
+- Tags and status badges use `--radius-control`; the component's tag/chip name alone does not authorize a pill. Its state dot uses `--radius-pill`.
 - Avoid radius above 12px except for explicit device previews or special panels.
 
 shadcn bridge (from the DS `tokens/radius.css`): `--radius: 0.375rem`, `--radius-sm/md: 0.25rem`, `--radius-lg: 0.375rem`, `--radius-xl: 0.5rem` — i.e. `rounded-md` → controls 4px, `rounded-lg` → cards 6px, `rounded-xl` → panels 8px.

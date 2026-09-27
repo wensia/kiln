@@ -79,7 +79,7 @@ export const collect = (palette) =>
       buttons: [], cards: [], shadows: [], verticalGrids: [], cardInsets: [], nativeDatalists: [],
       heroHeadings: [], tinyText: [], font: "", clayFills: 0, rowFills: [],
       centeredContent: [], segmentedTracks: [], headingBands: [], checkMarks: [],
-      actionAnchors: [], anchorStacks: [], summaryStrips: [], fieldRows: [],
+      actionAnchors: [], anchorStacks: [], summaryStrips: [], fieldRows: [], formColumns: [], loneButtonFrames: [], dialogDescriptions: [], dialogStacks: [],
       titleAuthority: { total: 0, visible: [], texts: [], echoes: [] },
     };
     const CLAY = palette.clay;
@@ -373,6 +373,16 @@ export const collect = (palette) =>
     // 没对齐，看不出错在哪一边。这条断言与产品选哪一档控件高无关，查的是差值。
     // 同一条规格有两种写法：Tabs 的 tablist/tab，和 SegmentedControl 的 group + aria-pressed。
     // 只查前者，后者就是规范里没被访问过的那一半 —— 也就是实际上没被规定。
+    // 差值对了还不够：40px 的轨道配 36px 的段，差值正好 4px，照样「通过」—— 可它比同一列
+    // 里的输入框高一档。轨道外框本身就是控件，必须落在控件高度阶梯上（--control-height，
+    // 或整组紧凑时的 --control-height-sm）。宿主没接 kiln token 时读不到阶梯，这一半跳过。
+    // 触屏端会有意把控件放大到触摸高度，阶梯只约束精确指针；差 4px 那条照样全端生效。
+    const rootStyle = getComputedStyle(document.documentElement);
+    const controlLadder = matchMedia("(pointer: fine)").matches
+      ? ["--control-height", "--control-height-sm"]
+        .map((token) => parseFloat(rootStyle.getPropertyValue(token)))
+        .filter((value) => Number.isFinite(value) && value > 0)
+      : [];
     for (const list of document.querySelectorAll('[role="tablist"], [role="group"]')) {
       const listRect = list.getBoundingClientRect();
       if (!(listRect.height > 0)) continue;
@@ -387,8 +397,19 @@ export const collect = (palette) =>
       if (!triggers.length) continue;
       out.segmentedTracks.push({
         track: listRect.height,
+        ladder: controlLadder,
         trigger: Math.max(...triggers),
-        label: (list.getAttribute("aria-label") || list.textContent || "").trim().slice(0, 12),
+        // 可见标签用 aria-labelledby 挂上来的轨道，名字在别的元素里 —— 两种都要认，
+        // 否则报错里只剩一串段文字，读不出是哪条轨道
+        label: (
+          list.getAttribute("aria-label") ||
+          (list.getAttribute("aria-labelledby") || "")
+            .split(/\s+/)
+            .map((id) => document.getElementById(id)?.textContent || "")
+            .join(" ") ||
+          list.textContent ||
+          ""
+        ).trim().slice(0, 12),
       });
     }
 
@@ -741,6 +762,196 @@ export const collect = (palette) =>
         out.overscroll.scrollers.push({ label: label.slice(0, 60), badY, badX });
       } else {
         out.overscroll.okCount++;
+      }
+    }
+
+    // ── 弹窗表单列（components.md → Form Column）：同一列里每一行收在同一条右缘上 ──
+    // 真实事故：一只弹窗里两项选择框停在 384px、金额停在 128px、日期却撑满整列 —— 三条
+    // 右缘。每个控件单看都「按载荷定宽」，放进同一列就是一排锯齿，读不出谁和谁是一组。
+    // 判据只看几何：列右缘 = 列里最靠右的控件右缘；每一行最右的那件东西必须落在这条线上，
+    // 或者落在这一列别的行已经用到的网格线上（两栏网格里刻意只占左栏的字段是对齐的 ——
+    // 它的右缘就是邻行左栏的右缘）。停在只属于自己的宽度上，才是锯齿。
+    // 同一行里跟在控件后面的按钮（「发送验证码」）算这一行的收尾，所以它也参与行右缘。
+    // 只审单列表单：有哪一行不从列左缘起步，就是多栏布局，这条规则不替它判断。
+    for (const dialog of document.querySelectorAll('[role="dialog"], [role="alertdialog"]')) {
+      if (!isRendered(dialog)) continue;
+      const inScope = (el) => !el.closest('table, [role="grid"], [role="toolbar"], [role="search"]');
+      const pressedTrack = (el) => el.getAttribute("role") === "group" && Boolean(el.querySelector("[aria-pressed]"));
+      const controls = [...dialog.querySelectorAll(
+        'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="search"]),' +
+          'select, textarea, [role="combobox"], button[aria-haspopup="dialog"], button[aria-haspopup="listbox"], [role="group"]'
+      )]
+        .filter((el) => el.getAttribute("role") !== "group" || pressedTrack(el))
+        // 分段轨道里的段属于轨道，量轨道就够了
+        .filter((el) => !el.parentElement?.closest('[role="group"]') || !pressedTrack(el.parentElement.closest('[role="group"]')))
+        .filter((el) => inScope(el) && isRendered(el) && el.closest('[role="dialog"], [role="alertdialog"]') === dialog)
+        .map((el) => ({ el, r: outerBox(el) }))
+        .filter(({ r }) => r.width > 48 && r.height > 0);
+      if (controls.length < 2) continue;
+      const rows = [];
+      for (const control of controls) {
+        const mid = control.r.top + control.r.height / 2;
+        const row = rows.find((candidate) => Math.abs(candidate.mid - mid) <= 2);
+        if (row) row.items.push(control);
+        else rows.push({ mid, items: [control] });
+      }
+      if (rows.length < 2) continue;
+      const left = Math.min(...controls.map(({ r }) => r.left));
+      if (rows.some((row) => Math.min(...row.items.map(({ r }) => r.left)) - left > 1)) continue;
+      const trailing = [...dialog.querySelectorAll('button, [role="button"], a[href]')]
+        .filter((el) => inScope(el) && isRendered(el))
+        .map((el) => el.getBoundingClientRect());
+      const right = Math.max(...controls.map(({ r }) => r.right));
+      // 网格线：各行里「不是最后一个」的控件右缘 —— 那是网格自己的列线
+      const gridLines = rows.flatMap((row) => {
+        const last = Math.max(...row.items.map(({ r }) => r.right));
+        return row.items.map(({ r }) => r.right).filter((edge) => last - edge > 1);
+      });
+      const ragged = [];
+      for (const row of rows) {
+        const rowRight = Math.max(
+          ...row.items.map(({ r }) => r.right),
+          ...trailing.filter((r) => Math.abs(r.top + r.height / 2 - row.mid) <= 2 && r.left >= Math.min(...row.items.map((item) => item.r.right)) - 1).map((r) => r.right)
+        );
+        if (right - rowRight > 1 && !gridLines.some((edge) => Math.abs(edge - rowRight) <= 1)) {
+          const last = row.items.reduce((a, b) => (b.r.right > a.r.right ? b : a));
+          ragged.push({ label: fieldName(last.el), gap: Math.round(right - rowRight) });
+        }
+      }
+      out.formColumns.push({
+        dialog: (dialog.getAttribute("aria-label") || dialog.querySelector("h1, h2, h3")?.textContent || "未命名弹窗").trim().slice(0, 16),
+        rows: rows.length,
+        ragged,
+      });
+    }
+
+    // ── 弹窗标题区说明（components.md → Dialog / Alert Dialog）──────────────────
+    // 规范早就写着「标题区只放标题，说明按需才加」，一个产品照样攒下二十多条：列表怎么
+    // 排序、哪些记录被过滤掉、「选择一件在用物品」这种复述控件的句子、数据模型的保证……
+    // 一句话有没有用，机器判断不了；能判断的是篇幅 —— 普通弹窗 / 抽屉的说明换行了，就是
+    // 一段教程塞进了标题区；确认框留两行给「后果 + 能否恢复」。另外把每条说明都列进报告，
+    // 让审查的人真的读到它们，而不是只看见它们渲染出来了。
+    const dialogTitle = (dialog) =>
+      (
+        dialog.getAttribute("aria-label") ||
+        (dialog.getAttribute("aria-labelledby") || "")
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent || "")
+          .join(" ") ||
+        dialog.querySelector("h1, h2, h3")?.textContent ||
+        "未命名弹窗"
+      ).trim().replace(/\s+/g, " ").slice(0, 16);
+    for (const dialog of document.querySelectorAll('[role="dialog"], [role="alertdialog"]')) {
+      if (!isRendered(dialog)) continue;
+      const alert = dialog.getAttribute("role") === "alertdialog";
+      const title = dialogTitle(dialog);
+      const described = (dialog.getAttribute("aria-describedby") || "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((id) => document.getElementById(id))
+        .filter((el) => el && dialog.contains(el) && isRendered(el) && (el.textContent || "").trim());
+      if (!described.length) {
+        out.dialogDescriptions.push({ dialog: title, alert, text: "", lines: 0 });
+        continue;
+      }
+      for (const el of described) {
+        const cs = getComputedStyle(el);
+        const lineHeight = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+        out.dialogDescriptions.push({
+          dialog: title,
+          alert,
+          text: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 60),
+          lines: Math.max(1, Math.round(el.getBoundingClientRect().height / lineHeight)),
+        });
+      }
+    }
+
+    // ── 弹窗叠放（components.md → Dialog → Stacking）──────────────────────────
+    // 真实事故：「选择已入账流水」作为第二只弹窗叠在「登记往来」上 —— 同宽、居中，下层更高，
+    // 它的上下边从上层后面露出来，读成上层弹窗多长了一截；而遮罩整体低于所有面板，第二层
+    // 遮罩垫在第一只弹窗底下，下层没被压暗，两层连成一块。两件事各查一次：
+    //   1) 叠放的两个模态面板左右边缘重合，且下层在上方或下方露出来；
+    //   2) 下层露在上层之外的地方，最上面的仍是下层自己（没被上层的遮罩压住）。
+    // 贴着字段的弹出层（Popover / 组合框面板）也自报 role="dialog"，但它不是模态层，豁免：
+    // 由浮层定位库摆放的面板带 data-side，或包在 Radix 的 popper 包装里。
+    // 命中检测要看绘制顺序，不看谁能接收指针：模态库会把下层弹窗设成 pointer-events: none，
+    // elementFromPoint 会穿过它，把「没被压暗」误判成「被盖住了」。量的这一刻临时放开，量完即删。
+    const hitTestUnlock = document.createElement("style");
+    hitTestUnlock.textContent = "* { pointer-events: auto !important; }";
+    document.head.appendChild(hitTestUnlock);
+    try {
+      const modals = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].filter(
+        (el) => isRendered(el) && !el.hasAttribute("data-side") && !el.closest("[data-radix-popper-content-wrapper]")
+      );
+      const inside = (r, x, y) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+      for (let i = 0; i < modals.length; i += 1) {
+        for (let j = i + 1; j < modals.length; j += 1) {
+          const [a, b] = [modals[i], modals[j]];
+          if (a.contains(b) || b.contains(a)) continue;
+          const ra = a.getBoundingClientRect();
+          const rb = b.getBoundingClientRect();
+          const left = Math.max(ra.left, rb.left);
+          const right = Math.min(ra.right, rb.right);
+          const top = Math.max(ra.top, rb.top);
+          const bottom = Math.min(ra.bottom, rb.bottom);
+          if (right <= left || bottom <= top) continue;
+          const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+          const upper = a.contains(hit) ? a : b.contains(hit) ? b : null;
+          if (!upper) continue;
+          const lower = upper === a ? b : a;
+          const ru = upper.getBoundingClientRect();
+          const rl = lower.getBoundingClientRect();
+          // 手机上两层都贴满视口宽度的底部面板，是平台自己的层叠卡片写法：免宽度这条，不免压暗
+          const edgeSheets = ru.width >= innerWidth - 1 && rl.width >= innerWidth - 1;
+          const sameWidth =
+            !edgeSheets &&
+            Math.abs(rl.left - ru.left) <= 2 &&
+            Math.abs(rl.right - ru.right) <= 2 &&
+            (rl.top < ru.top - 2 || rl.bottom > ru.bottom + 2);
+          const probes = [
+            [rl.left + 6, rl.top + 6], [rl.right - 6, rl.top + 6], [rl.left + 6, rl.bottom - 6], [rl.right - 6, rl.bottom - 6],
+            [(rl.left + rl.right) / 2, rl.top + 6], [(rl.left + rl.right) / 2, rl.bottom - 6],
+          ].filter(([x, y]) => !inside(ru, x, y) && x >= 0 && y >= 0 && x < innerWidth && y < innerHeight);
+          const undimmed = probes.some(([x, y]) => lower.contains(document.elementFromPoint(x, y)));
+          out.dialogStacks.push({ upper: dialogTitle(upper), lower: dialogTitle(lower), sameWidth, undimmed });
+        }
+      }
+    } finally {
+      hitTestUnlock.remove();
+    }
+
+    // ── 只装一个按钮的框（components.md → Linked Record Field）──────────────
+    // 真实事故：「从流水选取」外面套了一层带边框的灰底面板，面板里除了这个按钮什么都
+    // 没有 —— 一层没有标签、也不装内容的容器。框（边框或与所在表面不同的底色）是用来
+    // 装内容的；单个入口按钮直接放进它的字段里。判据：带框、框里恰好一个可交互元素且
+    // 是按钮、框里的文字就是按钮的文字、框明显大于按钮（紧贴按钮的包装不算框）。
+    {
+      const paintOf = (el) => {
+        for (let node = el; node; node = node.parentElement) {
+          const bg = getComputedStyle(node).backgroundColor;
+          if (!/^(transparent|rgba\(0, 0, 0, 0\))$/.test(bg)) return bg;
+        }
+        return "rgb(255, 255, 255)";
+      };
+      for (const box of document.querySelectorAll("div, section, fieldset, li")) {
+        if (box.matches('[role="dialog"], [role="alertdialog"], [role="group"], [role="toolbar"], [role="tablist"], [role="menu"], [role="listbox"]')) continue;
+        if (box.closest("table") || !isRendered(box)) continue;
+        const cs = getComputedStyle(box);
+        const bg = cs.backgroundColor;
+        const tinted = !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(bg) && bg !== paintOf(box.parentElement);
+        const bordered = ["Top", "Right", "Bottom", "Left"].every((side) => parseFloat(cs[`border${side}Width`]) > 0);
+        if (!tinted && !bordered) continue;
+        const interactive = [...box.querySelectorAll('button, [role="button"], a[href], input, select, textarea, [role="combobox"]')]
+          .filter(isRendered);
+        if (interactive.length !== 1 || !interactive[0].matches('button, [role="button"], a[href]')) continue;
+        const [only] = interactive;
+        const text = (box.innerText || "").trim().replace(/\s+/g, " ");
+        if (text !== (only.innerText || "").trim().replace(/\s+/g, " ")) continue;
+        if (box.querySelector("img, canvas, video, progress")) continue;
+        const boxRect = box.getBoundingClientRect();
+        const onlyRect = only.getBoundingClientRect();
+        if (boxRect.width * boxRect.height < onlyRect.width * onlyRect.height * 1.6) continue;
+        out.loneButtonFrames.push({ label: text.slice(0, 16) || only.getAttribute("aria-label") || "(未命名按钮)" });
       }
     }
 
@@ -1193,6 +1404,13 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
 
   // ── 分段轨道：外框只比触发器高 4px ──────────────────
   for (const track of d.segmentedTracks || []) {
+    if (track.ladder?.length && !track.ladder.some((height) => Math.abs(height - track.track) < 0.5)) {
+      fail(
+        name,
+        `分段轨道「${track.label}」外框 ${px(track.track)}px 不在控件高度阶梯上（${track.ladder.map(px).join(" / ")}px）` +
+          ` —— 轨道外框就是控件，要和同一列的输入框同高；差值对了但整条轨道高一档，照样对不齐`
+      );
+    }
     const gap = px(track.track) - px(track.trigger);
     if (gap !== 4) {
       fail(
@@ -1224,6 +1442,63 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
   if (d.segmentedTracks?.length) {
     pass(name, `${d.segmentedTracks.length} 条分段轨道外框已检查`);
   }
+
+  // ── 弹窗表单列：每一行收在同一条右缘上 ──────────────────
+  for (const column of d.formColumns || []) {
+    for (const row of column.ragged)
+      fail(
+        name,
+        `弹窗「${column.dialog}」表单列右缘不齐：「${row.label}」那一行止于列右缘内 ${row.gap}px` +
+          ` —— 同一列的每一行收在同一条右缘上；短字段两两并排进网格，不要单独停在半截`
+      );
+  }
+  const alignedColumns = (d.formColumns || []).filter((column) => !column.ragged.length);
+  if (alignedColumns.length)
+    pass(name, `${alignedColumns.length} 个弹窗表单列右缘一致（${alignedColumns.map((c) => `${c.dialog} ${c.rows} 行`).join("，")}）`);
+
+  // ── 弹窗标题区说明：篇幅上限 + 清单 ─────────────────────
+  for (const item of d.dialogDescriptions || []) {
+    const budget = item.alert ? 2 : 1;
+    if (item.lines > budget)
+      fail(
+        name,
+        `${item.alert ? "确认框" : "弹窗"}「${item.dialog}」标题区说明占 ${item.lines} 行（上限 ${budget} 行）：「${item.text}」` +
+          ` —— 标题区只放标题；真有后果要说，${item.alert ? "只说后果和能否恢复" : "一行说完，或者放到它起作用的那个字段旁边"}`
+      );
+  }
+  if (d.dialogDescriptions?.length)
+    pass(
+      name,
+      `弹窗标题区清单：${d.dialogDescriptions
+        .map((item) => (item.text ? `「${item.dialog}」${item.lines} 行「${item.text}」` : `「${item.dialog}」无说明`))
+        .join("；")}`
+    );
+
+  // ── 弹窗叠放：不同宽、下层压暗 ─────────────────────────
+  for (const stack of d.dialogStacks || []) {
+    if (stack.sameWidth)
+      fail(
+        name,
+        `弹窗「${stack.upper}」叠在同宽的「${stack.lower}」上 —— 下层的上下边从后面露出来，读成上层多长了一截；` +
+          `弹窗里的选取改用贴着字段的弹出层，非叠不可的层要明显更小`
+      );
+    if (stack.undimmed)
+      fail(
+        name,
+        `弹窗「${stack.upper}」打开时，下层「${stack.lower}」没被遮罩压暗 —— 遮罩与弹层面板同一层级、按打开先后叠放；` +
+          `遮罩整体低于所有面板时，第二层遮罩垫在第一只弹窗底下，两层连成一块`
+      );
+  }
+  const cleanStacks = (d.dialogStacks || []).filter((stack) => !stack.sameWidth && !stack.undimmed);
+  if (cleanStacks.length)
+    pass(name, `${cleanStacks.length} 组叠放弹窗：下层已压暗、宽度可分（${cleanStacks.map((s) => `${s.upper} 叠在 ${s.lower} 上`).join("，")}）`);
+
+  // ── 只装一个按钮的框 ─────────────────────────────────
+  for (const frame of d.loneButtonFrames || [])
+    fail(
+      name,
+      `「${frame.label}」外面套了一层只装它自己的框（边框或底色）—— 框要装内容；单个入口按钮直接放进它的字段`
+    );
 
   // ── 入口锚定 ───────────────────────────────────────
   // 三条判据分别对应三种翻车方式：把入口塞回集合里、忘了 self-start、以及只对了一行。
@@ -1482,7 +1757,22 @@ export async function auditPage(page, name, { kind = "admin", report, palette = 
   }
 
   // ── 冻结列：不透明 + 跟随行状态（需要交互，放在静态收集之后）──
-  await auditFrozenColumns(page, name, report);
+  // 模态弹层打开时，冻结列所在的表格在遮罩下面 —— hover 不到，也不是这次审计的对象
+  // （页面本身已在弹层打开前审过）。不跳过，hover 会被遮罩一直拦着直到超时。判据取几何：
+  // 表格行上最上面的元素不属于这一行，就是被别的层盖住了 —— 不依赖哪个框架给弹窗打什么标记。
+  const tableUnderLayer = await page.evaluate(() => {
+    const row = [...document.querySelectorAll("tbody tr")].find((r) => {
+      const b = r.getBoundingClientRect();
+      return b.width > 0 && b.height > 0 && b.bottom > 0 && b.top < innerHeight;
+    });
+    if (!row) return false;
+    const b = row.getBoundingClientRect();
+    const x = Math.min(Math.max(b.left + 12, 0), innerWidth - 1);
+    const y = Math.min(Math.max(b.top + b.height / 2, 0), innerHeight - 1);
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit) && !row.contains(hit);
+  });
+  if (!tableUnderLayer) await auditFrozenColumns(page, name, report);
 }
 
 /** 统一的收尾输出。返回进程退出码，由调用方决定怎么退出。 */

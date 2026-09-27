@@ -16,6 +16,12 @@
 
 ![kiln 工作台示范页](docs/workbench.png)
 
+### 标签
+
+八种克制的釉色、明暗背景下清晰的文字，以及分类、状态、选择和移除的独立表达。[打开交互示例](examples/tags.html)。
+
+![kiln 标签配色与交互](docs/tags.png)
+
 > 示例图由 `npm run screenshots` 从 `examples/*.html` 渲染，从不手截。同一批示范页也是渲染契约的断言目标，所以**图、规范、契约三者不会分家**。
 
 ---
@@ -84,6 +90,8 @@
 ```bash
 npm run verify           # 静态：token 契约 + 规格表镜像 + 散文不含数值（零依赖）
 npm run verify:examples  # 渲染：对 examples/workbench.html 跑运行时契约（需 playwright）
+npm run verify:tags      # 标签：明暗对比度、尺寸、键盘与窄屏换行
+npm run verify:themes    # 主题矩阵：2 明暗 × 4 品牌 × 4 底面的渲染对比度，含负样本
 npm run screenshots      # 重新生成 README 里的示例图（需 playwright）
 ```
 

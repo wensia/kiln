@@ -64,7 +64,7 @@
     {
       "id": 11,
       "prompt": "用户明确要求这个后台产品全局禁用 Tab 切换焦点，但点击输入框仍要能输入。请按 kiln 实现并给出验收。",
-      "expected_output": "Output should declare the explicit pointer-first focus policy rather than changing the keyboard default, install one capture-phase document keydown handler that prevents and stops Tab or Shift+Tab traversal, suppress shared root focus outline/ring styles without changing Kiln source tokens, preserve pointer typing plus Arrow/Enter/Space/PageUp/PageDown component protocols and selected/active/menu-highlight states, and verify that both Tab directions leave document.activeElement unchanged while clicked input remains editable.",
+      "expected_output": "Output should not simply disable Tab. It should adopt the managed-navigation focus policy: let editors or other composite controls own Tab where they need it, give every other function a keyboard path through discoverable focus regions (for example F6 / Shift+F6 cycling, with a visible entry in the shortcut help), keep modal containment and focus restoration, suppress the focus ring after pointer input while showing it after keyboard navigation (via a root focus-mode attribute rather than a global outline:none), preserve pointer typing plus Arrow/Enter/Space/PageUp/PageDown component protocols and selected/active/menu-highlight states, and verify region cycling in both directions, editor-owned Tab, no ring after a click, a visible ring after keyboard navigation, and that clicked inputs remain editable.",
       "files": []
     },
     {
@@ -95,6 +95,36 @@
       "id": 16,
       "prompt": "审查一个紧凑后台：侧栏图标下已经显示“日历”，鼠标悬浮又弹出“日历 / 个人账本”；指标卡为了不显得空，每个数字都配了重复含义的图标、徽标、分隔线和副标题；一个禁用按钮没有解释，长编号被截断。请按 kiln 给出保留、删除或降级结论和验收方法。",
       "expected_output": "Output should apply the general Every Element Must Earn Its Place rule across components, copy, icons, badges, cards, dividers, and hover layers, not treat this as a tooltip-only cleanup. It should run the counterfactual deletion test and remove or demote anything whose removal leaves task capability, state visibility, decisions, consequence understanding, and error prevention unchanged, including filler-slot and decorative elements. It should remove the sidebar hover card because the label is already visible, while preserving tooltips for a truly icon-only rail, a useful disabled reason, and the complete value of text that is actually truncated. It should reject 'the component library provides it' as justification and require default-surface plus hover/focus QA.",
+      "files": []
+    },
+    {
+      "id": 17,
+      "prompt": "一个桌面列表筛选栏把“搜索”和“首次月包月份”分别放在输入框上方，占成上下两行；搜索框已有“姓名或手机号”占位文字，月份框只显示年月。请按 kiln 修复，并说明窄窗口如何布局。",
+      "expected_output": "Use a single inline toolbar row when width permits. Remove the redundant visible search heading while retaining an accessible name, keep the meaningful month label beside its control as an unbroken group, and vertically center equal-height search, filters, and actions. Wrap whole groups only at constrained widths, keeping reset/refresh together at the trailing edge and the query submit beside its conditions; do not delete necessary filter meaning, force overflow, or generalize this rule to edit-form labels. Verify wide and constrained layouts plus accessible names and focus states.",
+      "files": []
+    },
+    {
+      "id": 18,
+      "prompt": "资源包已选中“待分配”页签，内容先出现一整行“待分配 / 可分配 / 刷新”，下面才是筛选栏和表格。单行分配按钮已按权限启停。请按 kiln 处理，并说明只读身份如何保留必要信息。",
+      "expected_output": "Remove the repeated tab heading and redundant capability badge, move refresh into the existing filter/action toolbar, and delete the old header wrapper, reserved height, divider, and spacing. Preserve accessible panel naming, refresh loading/disabled behavior, actual permission enforcement, and fixed pagination. Do not blindly erase useful read-only reasons, actionable exceptions, or real record statuses; retain a concise local reason when unavailable actions would otherwise be ambiguous. Validate the composition in wide and constrained windows, not just individual component tokens.",
+      "files": []
+    },
+    {
+      "id": 19,
+      "prompt": "列表工具栏已有搜索、月份条件、筛选、重置、刷新。筛选仅保留图标，重置与刷新固定在内容区右侧。请按 kiln 实现，并验证窄窗口。",
+      "expected_output": "Use a normal-size neutral icon-only query submit with accessible name, tooltip/title and Enter submission beside the leading conditions. Keep reset then refresh as one non-shrinking right-aligned trailing group with their text labels. Use flexible normal-flow layout rather than fixed/absolute positioning; conditions may wrap without dragging the trailing actions inward. If the trailing group wraps, it remains together and right-aligned. Verify equal control heights, centered icon, accessible name, refresh busy state, no overlap and working query/reset behavior. Do not generalize the icon-only rule to advanced-filter triggers with meaningful labels/counts.",
+      "files": []
+    },
+    {
+      "id": 20,
+      "prompt": "只调整列表筛选栏的布局时发现现有月份字段是 <Input type=\"month\" />，项目共享组件只有日期/时间选择器，旧残留扫描只匹配 date/time/datetime-local。请完成修复和验收。",
+      "expected_output": "Read the owning date/time component rules and treat native month as a real violation despite the narrow layout task. Extend the shared picker family with month precision using existing month/year panels, preserving YYYY-MM and empty/clear semantics; do not force day selection or build a local calendar. Fix the caller, add a build-enforced check covering native month/week and wrapped JSX, and prove rejection with negative cases. Open the actual popup at normal/short heights, verify select/reopen/clear and keyboard behavior, and regress existing date selection. Do not claim that merely reading the skill or passing token checks proves compliance.",
+      "files": []
+    },
+    {
+      "id": 21,
+      "prompt": "统一后台全部搜索框的默认宽度为 320px，现有页面分别写了 176、288、360px 或 flex-1。处理有图标包裹层的搜索框及窄容器，并回写 kiln。",
+      "expected_output": "Define the shared search-width token as 320px in tokens and its reference mirror. Apply it at shared search component outer wrappers and plain search controls, remove incidental page-specific sizing and flex growth, and use min(available container, token width) without a viewport-specific hard rule. Do not resize ordinary form inputs. Preserve explicit embedded-layout overrides only when needed, verify 320px computed width in roomy layouts, shrink/no overflow in narrow containers, and unchanged search behavior.",
       "files": []
     }
   ]

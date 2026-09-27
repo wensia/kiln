@@ -170,7 +170,7 @@ Collapsed rail:
 A bare icon column is not navigable — a user cannot tell pages apart by icon alone. These are contract, not polish:
 
 - This tooltip contract applies only to a **truly icon-only** rail. If a compact sidebar keeps page names, group names, or subtitles persistently visible beside or beneath its icons, those labels already restore the meaning; do not open a tooltip or hover card that repeats them.
-- In the default `keyboard` focus policy, tooltip on hover **and** on keyboard focus, in a fixed two-line shape: page name, then group name in low-noise small text. In the explicit `pointer-first` policy, keep the same tooltip on hover and retain the `aria-label`; Tab never reaches the rail. Not a one-line `分组 / 页面` prefix — one shape keeps the spec checkable.
+- In the default `keyboard` focus policy, tooltip on hover **and** on keyboard focus, in a fixed two-line shape: page name, then group name in low-noise small text. Under `managed-navigation`, keep the same tooltip on hover and on keyboard focus; the rail is reached through its focus region (for example F6) and keeps its `aria-label`. Not a one-line `分组 / 页面` prefix — one shape keeps the spec checkable.
 - `aria-label` is the **sole** accessible name, formatted `${分组}：${页面}` (degrades to the page name when there is no group). Do not also render an `sr-only` label — a screen reader would announce the item twice. The icon is `aria-hidden`.
 - The group boundary stays visible. In a truly icon-only rail, the persistent marker is the divider and the tooltip's second line restores the group's **full** title. In a wider label-bearing compact sidebar, render that full title persistently and do not repeat it in a tooltip. Never keep a second `shortLabel` field — `教管部→教务` invents a group that does not exist. The marker is `aria-hidden`; the group is already in every item's accessible name.
 - Active survives hover and focus: the current item stays clay under the pointer and does not fall back to the hover accent. Active items carry `aria-current="page"`.
@@ -206,19 +206,35 @@ Group label:
 - Each card shows key fields, status, and explicit actions.
 - Dialogs may use bottom sheet posture.
 
+### Tab and embedded-panel context
+
+- An active tab already names its panel. Do not repeat that name as a visible heading, eyebrow, or card header immediately inside it. Preserve the tab/panel accessible association or a region name without creating another visible title row. A genuinely different subsection or independently embedded view can have its own useful heading.
+- Do not add permission badges such as “可分配 / 可编辑 / 可操作” when the available actions already express that capability. These describe the viewer, not the records, and must not imply that every row is eligible. Keep a read-only or blocked reason only when it explains an otherwise ambiguous missing or unavailable action, placed next to that action or its existing toolbar.
+- Refresh and other list commands belong in the existing filter/action toolbar. Do not create a separate header band just to host one command, and do not invent a title or badge to fill its empty side. Responsive wrapping of useful command groups is allowed.
+- When deleting a redundant header, remove its wrapper, reserved height, divider, and spacing too. The panel should begin at its first useful filters, data, or actionable exception; the table gains the space and its pagination remains fixed.
+- Acceptance: compare the active tab label, panel title, badges, and actions together. Reject duplicated context and capability narration even when each component individually passes token checks. Verify both actionable and read-only states; do not hide actionable errors or genuine record status in pursuit of fewer elements.
+
 ## Toolbar
 
 Desktop:
 
-- Search width: about 320-360px.
+- Search fields default to `--search-width`, capped by the available container width. Use this shared default across routes and dialogs; do not scatter page-specific width values or let an ordinary search field grow with spare toolbar space.
 - Search, filters, view toggle, and actions are grouped by meaning.
+- **List filter bars default to one inline row when space permits.** Do not borrow an edit form's label-above-control stack for a search/filter toolbar. Keep search, filter controls, and apply/reset actions vertically centered with matching control heights.
+- Search may use a clear placeholder without a visible heading, but must retain an accessible name (`aria-label` or an associated visually hidden label). Never use a placeholder as the only accessible name.
+- A filter whose value does not identify its purpose (for example, a month used for first enrollment rather than a reporting period) keeps a concise visible label **beside** its control. Treat label and control as one non-breaking group; do not remove necessary meaning just to save a row.
+- Wrap complete groups only when available width requires it, including split-screen desktop. An always-visible second label row is not responsive wrapping. Complex criteria belong in the advanced-filter panel rather than turning the toolbar into a permanent form.
+- QA at a wide desktop and a constrained width: no separate label strip on desktop; no orphan labels, clipped controls, or split reset/refresh groups after wrapping. Verify accessible names and stable control heights in empty, filled, hover, and focus states.
+- **List query actions have two anchors.** Keep search and conditions at the leading side, with their submit control immediately after the conditions. Use an icon-only search/submit button with the shared normal icon size, a neutral visible surface, an accessible action name, and a short tooltip or title; preserve Enter-to-submit. This does not replace an advanced-filter trigger that needs a label or applied-condition count.
+- Reset and refresh form one non-shrinking trailing group, in that order, aligned with the toolbar's right content edge. Keep their text labels unless separately specified. Use normal flow (for example, a flexible leading group and `margin-inline-start: auto` on the trailing group), never viewport-fixed or absolute positioning. Growing inputs, changing conditions, and wrapped left-side groups must not drag these actions inward.
+- At constrained widths, let the leading conditions wrap in whole groups. If the action group must move to another line, keep reset/refresh together and right-aligned; no overlap, clipped hit areas, or extra permanent header row.
 - Primary action sits to the right.
 - Low-frequency actions can move into a dropdown.
 - Total counts live in pagination, not duplicated in the toolbar.
 
 Mobile:
 
-- Search can span full width.
+- Search keeps the same preferred width and shrinks to the available container width. Filling a wider container is an explicit layout exception, never an automatic mobile breakpoint.
 - Filters/actions may wrap by group.
 - Low-priority actions move to menu.
 
@@ -256,6 +272,17 @@ React / Tailwind implementation shape:
 - The shared DataTable uses a contained/fill mode such as `layout="contained"` plus `className="min-h-0 flex-1"`.
 - Toolbar, filter bars, alerts, and summary strips stay `shrink-0`; the table viewport is the only vertical `flex-1` scroll region above the footer.
 - Do not fix a sparse table by adding row placeholders, fake minimum row counts, or page-specific `calc()` heights when the shell can provide the height contract.
+
+## Tabbed Panes
+
+A tab bar plus its panes is a vertical flex column: the bar is `shrink-0`, the active pane takes the rest and owns the scrolling.
+
+- The pane uses `min-h-0 flex-1` with `overflow-y-auto` (or `overflow-hidden` when something inside it scrolls instead).
+- **Never put `h-full` on a pane that sits next to a tab bar.** `h-full` resolves to `height:100%` of the *whole* container — it does not subtract the bar's height. The pane then overflows its parent by exactly the bar height, `overflow-y-auto` has nothing left to clip, and the scroll escapes to the document: the user scrolls the pane and the entire app moves, sidebar included.
+- The same applies to the tab root itself when it is a flex child: `flex-1` already claims the remaining space, so an added `h-full` only reintroduces the overflow one level up.
+- This failure is easy to miss because an ancestor with `overflow-hidden` will mask it, and because panes whose content is short never scroll at all. It shows up only on the one tab whose content happens to be tall. Fix the height contract, not that tab.
+
+Symptom → cause: *scrolling inside a pane moves the whole page (sidebar drifts up, blank space appears below)* → a pane or its tab root carries `h-full` instead of relying on `flex-1 min-h-0`.
 
 ## Editor Shell
 
@@ -318,6 +345,8 @@ Replace the blueprints when the domain differs; keep the token / component / lay
 Use this for a drill-down route from a list, table, or card to one record. It is not the multi-pane editor shell below.
 
 - The shell topbar owns the detail route's single return action. Put it in the route-navigation leading slot — after any shell-owned menu/sidebar trigger and before the route title or context — and give it an accessible label that names the destination, such as `返回债务列表`. The action must resolve to a stable parent destination without losing restorable list state: use a canonical parent URL (including URL-backed filters/page when applicable), or history-back with a canonical parent fallback for direct entry, reload, or no usable in-app history. It must never send the user outside the app.
+- Render that return action as shell navigation chrome: transparent background and border, no resting shadow, and a stable `icon` hit box using `--control-height`. Hover may use `--muted`; retain the product's focus policy. Use a scoped shared treatment rather than changing all ordinary `ghost` commands (see Icon Button in `components.md`).
+- The primary record surface's action group uses one control height. An icon-only more menu beside default text actions such as Edit or Sell uses `icon` with `--control-height`; do not copy the table-row menu's `icon-sm` sizing into the detail header. Align and measure the outer button boxes, and keep the whole group consistent when it wraps on narrow screens.
 - Do not add a body-level header band merely to hold that back action or repeat a parent/section eyebrow, breadcrumb, or generic “详情” label. Do not duplicate the back action inside the page body. The primary record surface owns the entity name, status, and business metadata.
 - Start the body at the first useful business surface. Removing a redundant header band means removing its wrapper, divider, reserved height, and padding too. The shell content container and route body share one top-gap budget; when the shell already supplies it, the body stays at `pt-0` or uses only an optical correction (see Page Header Rhythm). Apply the same ownership on desktop and mobile.
 - Keep a visible body title only when it adds record-specific information or anchors real actions that are not already carried by the topbar or primary record surface. Page naming still stays record-specific: prefer the visible entity name in the primary record surface as the page `h1`; if the topbar already carries a route-specific `h1`, do not duplicate it; otherwise use an `sr-only` `h1` fallback and synchronize the document/route title. Do not rebuild a second visible band for semantics alone. Keep helper copy only when it changes a decision or prevents a mistake.
