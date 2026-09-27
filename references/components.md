@@ -176,7 +176,7 @@ Base:
 - Background: `bg-background` / white on cards.
 - Shadow: `--shadow-input` (1px ambient + inner top highlight).
 - Padding: `px-2.5 py-1`.
-- Placeholder: `text-muted-foreground/70`.
+- Placeholder: `text-muted-foreground` (full strength — the `/70` alpha drops placeholder text to about 3:1).
 
 States:
 

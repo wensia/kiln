@@ -126,6 +126,69 @@ The four row-state values are tokens for one reason beyond reuse: **a frozen col
 | `--chart-4` | amber | Warning, pending |
 | `--chart-5` | muted ink | Auxiliary series |
 
+### Dark Theme Tokens
+
+`tokens/dark.css` ships the dark theme ("夜窑"): the same vessel fired at night, not an inverted page. It activates on `.dark` or `[data-theme="dark"]` — on the root element or on any local container, because the file re-declares every derived token instead of relying on root-level `var()` recomputation. Deciding **when** to turn it on (a user setting, `prefers-color-scheme`) is the host's job; kiln only supplies the look.
+
+The dark palette is always defined on `:root`, so a host that owns an extra accent can point it at the matching dark glaze.
+
+| Token | Value | Role in dark |
+| --- | --- | --- |
+| `--palette-dark-canvas` | `#16120F` | Page canvas — the deepest step |
+| `--palette-dark-surface` | `#1D1915` | Main surface: cards, panels, tables, sidebar, topbar |
+| `--palette-dark-raised` | `#24201C` | Floating layer: popover, dropdown, dialog, toast |
+| `--palette-dark-fill` | `#2A2622` | Muted fill: hover, selected, quiet wells |
+| `--palette-dark-line` | `#49443F` | Strong border: inputs and necessary dividers |
+| `--palette-dark-ink` | `#EBE5DE` | Primary text — warm off-white, never pure white |
+| `--palette-dark-muted-ink` | `#A39D97` | Secondary text (6.5:1 on the main surface) |
+| `--palette-dark-clay` | `#DE816B` | Clay glaze, lightened in OKLCH |
+| `--palette-dark-teal` | `#69B5A5` | Teal glaze, lightened in OKLCH |
+| `--palette-dark-peacock` | `#6EB1BD` | Peacock glaze, lightened in OKLCH |
+| `--palette-dark-amber` | `#E09E5B` | Amber glaze, lightened in OKLCH |
+| `--palette-dark-solid` | `#B4ACA5` | Ordinary solid command fill — one step below ink |
+| `--palette-dark-boundary` | `#7D756D` | Control-identifying outline in dark (3:1 on every dark surface step) |
+
+Dark rules:
+
+- **Surfaces step up in lightness toward the user**: canvas < surface < raised; fill is the interaction wash. In the dark, elevation reads as "lighter", not as "more shadow".
+- **Glazes are lightened in OKLCH, keeping hue; chroma is only trimmed slightly** (clay drops from about .134 to .120, the other three stay within about .005). Mixing them with white turns clay pink and teal chalky. Every dark glaze reaches at least 5.3:1 on every dark surface step.
+- **Filled primary and solid actions flip their foreground to the dark canvas.** A lightened clay plate with white text fails contrast (under 3:1); dark text on it clears 6:1. `--solid` becomes a warm stone one step below ink, so ordinary commands keep their weight without turning into the brightest spot on the page; its hover stays neutral and never picks up the brand hue.
+- **Separation moves from shadow to surface steps plus a hairline.** The dark `--shadow-card`, `--shadow-card-hover`, and `--shadow-popover` each open with `0 0 0 1px` of warm off-white at 5–8% alpha, so white-surface-borderless components stay borderless and still separate. The shadow color stays warm black, only deeper.
+- `--shadow-input` drops the inner top highlight; on a dark field it reads as a grey bevel.
+- `color-scheme: dark` is set in the same selector so native scrollbars and form controls follow.
+- Status backgrounds (`--success-bg` and friends) mix the dark glaze 15–16% into the main surface. Table row states keep the light formulas over the dark `--muted` / `--card` / `--primary`.
+
+### Brand Inputs
+
+A host changes its brand through three inputs only. kiln resolves them into the primary roles at each theme boundary (`:root` in `tokens/colors.css`, `.dark` / `[data-theme="dark"]` in `tokens/dark.css`), so every derived role stays paired.
+
+| Input | Light default | Dark default | Resolves into |
+| --- | --- | --- | --- |
+| `--kiln-brand-fill` | `var(--palette-clay)` | `var(--palette-dark-clay)` | `--primary`, `--sidebar-primary`, `--primary-subtle` |
+| `--kiln-brand-on-fill` | `var(--palette-white)` | `var(--palette-dark-canvas)` | `--primary-foreground`, `--sidebar-primary-foreground` |
+| `--kiln-brand-text` | `var(--palette-clay-deep)` | `var(--palette-dark-clay)` | `--primary-text`, `--ring`, `--sidebar-ring` |
+| `--kiln-brand-fill-hover` | fill 88% + ink | fill 88% + dark solid | `--primary-hover` |
+
+- `--primary` is the **fill**; `--primary-text` is for links, active labels, and small emphasis. Do not set text in `--primary`: a glaze that works as a fill is often too light for small text on its own subtle tint.
+- A host brand must be declared in **both** scopes — once for light and once inside `.dark` / `[data-theme="dark"]` — or the light value pins the dark theme. Choose the on-fill per brand: lighter glazes such as teal and amber need a dark on-fill in light mode as well.
+- Deep text anchors for light brands: `--palette-clay-deep` (`#9B4C39`), `--palette-teal-deep` (`#326C60`), `--palette-amber-deep` (`#87551F`); each reaches 4.5:1 on white and on its own subtle tint.
+- Hover moves **away from the on-fill**: a white on-fill darkens toward ink (the default); a dark on-fill (teal, amber in light) must override `--kiln-brand-fill-hover` to mix toward white, or hover contrast drops below 4.5:1.
+- Brand never drives status: `--destructive` stays clay and `--success` / `--warning` keep their glazes whatever the brand is.
+
+### Control Boundary And Segments
+
+| Token | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `--control-boundary` | `#8B837B` | `var(--palette-dark-boundary)` | Outline that identifies a control: unchecked checkbox / radio, the underline of an unlabeled inline input. At least 3:1 against canvas, surface, and fill. `--input` stays the soft field edge and carries no identification duty. |
+| `--segment-track-bg` | muted 40% + transparent | same formula | SegmentedControl / button-tab track |
+| `--segment-hover-bg` | foreground 3% + transparent | same formula | Inactive segment hover |
+| `--segment-active-bg` | `var(--card)` | foreground 8% + transparent | Active plate — lighter than the track on any container |
+| `--segment-active-fg` | `var(--primary-text)` | `var(--foreground)` | Active label |
+| `--segment-active-mark` | `transparent` | `var(--primary-text)` | Selection mark (a short bar or check) — required in dark, where plate and hover differ only slightly |
+| `--segment-active-shadow` | `var(--shadow-card)` | hairline ring | Active plate separation |
+
+Do not rely on the small lightness step between active and hover to carry selection in dark; the mark and `aria-selected` / `aria-pressed` carry it. An active segment on hover keeps the active plate.
+
 Color rules:
 
 - Use semantic classes such as `bg-background`, `bg-card`, `bg-muted`, `border-border`, `text-muted-foreground`, `bg-solid`, `bg-primary`, `bg-success`, `bg-info`, and `bg-warning`.

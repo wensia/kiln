@@ -124,6 +124,8 @@ A thin visible border is not a generic rung on this ladder — reserve it for in
 
 The default canvas is warm near-white, the main surface is white, and the primary signal is clay red. Teal, peacock, and amber are semantic status colors. Color should encode state, focus, or the key action, not decorate the page.
 
+Dark mode is part of the system, not a port-side invention: `tokens/dark.css` answers `.dark` / `[data-theme="dark"]` with warm charcoal surfaces that step lighter toward the user, glazes lightened in OKLCH, dark text on filled glaze, and separation by surface steps plus a hairline instead of shadow. Hosts wire the switch and must not pin light values in their own `:root` overrides. See Dark Theme Tokens in `references/tokens.md` and Dark Mode in `references/platform-mapping.md`.
+
 Do not encode state by strengthening or tinting only one side of a border. Use icons, badges, whole-border/ring states, subtle tint, or text color instead. Reserve one-sided borders for real structural boundaries such as frozen table edges, split panes, or timeline rails.
 
 ### Chinese Admin Precision
@@ -237,7 +239,16 @@ Interaction states should be visible and stable:
 
 - Transitions run about 120-200ms ease and act on background, color, border, shadow, and the tab underline / metric marker — see the Motion table in `references/tokens.md`.
 - Hover changes background, border, or text color. The **only** sanctioned hover lift is the resource card: shadow rises to `--shadow-card-hover` plus a 1px rise; nothing else lifts or scales.
-- Focus has a clear ring in production code. **Design mocks / demo pages disable global Tab focus traversal** (document-level `keydown` intercept on `Tab` + `*:focus/:focus-visible { outline: none }`); click-to-focus for typing is unaffected. If the product itself ever adopts this, revisit the focus-ring rule and keyboard accessibility explicitly first.
+- Declare one focus policy per product before implementation:
+  - **`keyboard` (default):** retain native `Tab` / `Shift+Tab` traversal and a clear `:focus-visible` ring.
+  - **`managed-navigation` (explicit product opt-in for editor-centric workbenches):** the product may reassign `Tab` / `Shift+Tab` inside editors (indent, outdent, cell or node navigation) instead of page traversal. In exchange it must provide all of the following:
+    1. **Discoverable region entry.** A documented key, such as `F6` / `Shift+F6`, cycles focus between declared work regions (navigation, content or editor, lists, status bar). List it in the product's shortcut help. Handle it in the capture phase and skip IME composition.
+    2. **Keyboard path to every function.** Controls outside editors (toolbars, sidebars, dialog forms) keep native `Tab` traversal. Guard `Tab` only at the editor boundary: in the bubble phase, when an editor left the event unhandled (`!event.defaultPrevented`), call `preventDefault()` so focus cannot leave the editor. Never intercept `Tab` in the capture phase or globally, and never strip `tabIndex` or semantic elements.
+    3. **Focus feedback while navigating by keyboard.** Track a root mode (for example `data-focus-mode="pointer|keyboard"`): region entry or shell `Tab` navigation switches to keyboard, `pointerdown` switches back to pointer, and ordinary typing changes nothing. Pointer mode may keep focus rings quiet. Keyboard mode restores the ring tokens and a clear `:focus-visible` indicator on non-editor controls. Text editors express focus through caret and selection instead of a full-block ring.
+    4. **Modal containment.** While a modal dialog is open, region cycling stays inside the topmost modal; without declared regions it moves between the modal's focusable elements.
+    5. **Focus restoration.** Entering a region restores its last valid focus (editors through their own focus API so the selection survives), otherwise its first focusable element. Closing an overlay returns focus to its invoker.
+
+    Verify region cycling in both directions, editor-owned `Tab` commands, no ring after pointer input, a visible indicator after keyboard navigation, and modal containment. The general default remains `keyboard` with `:focus-visible`. The former `pointer-first` opt-in is retired: products may no longer disable keyboard traversal without the region entry above.
 - Loading disables repeat actions and uses short Chinese progress text.
 - Text action buttons use the shared full-size/default button unless the layout has an explicit compact requirement such as a dense toolbar, table operation cell, inline chip, or embedded input adornment.
 - `ghost` and other weak button variants must still be visible at rest in admin/workbench UI. If an action is important enough to render as a button, its default state needs a discoverable neutral surface such as a weak border, subtle muted background, or established inline-link styling. Do not make page, toolbar, detail, edit, follow-up, call, or close actions rely on hover-only affordance.

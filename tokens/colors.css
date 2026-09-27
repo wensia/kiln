@@ -20,6 +20,9 @@
   --palette-teal: #3e8c7d;     /* 窑青绿 — success / 强调 */
   --palette-peacock: #2e6e79;  /* 孔雀蓝 — info / 点缀 */
   --palette-amber: #be7c32;    /* 暖琥珀 — warning */
+  --palette-clay-deep: #9b4c39; /* 陶土红文字：白底与 primary-subtle 浅底上都 ≥4.5:1 */
+  --palette-teal-deep: #326c60; /* 窑青绿文字：同上 */
+  --palette-amber-deep: #87551f; /* 暖琥珀文字：同上 */
 
   /* ---- Palette derived ---- */
   --palette-muted-ink: color-mix(in srgb, var(--palette-ink) 68%, var(--palette-line));
@@ -37,10 +40,21 @@
   --accent: color-mix(in srgb, var(--palette-surface) 60%, var(--palette-white));
   --accent-foreground: var(--palette-ink);
 
-  /* ---- Primary (clay) ---- */
-  --primary: var(--palette-clay);
-  --primary-foreground: var(--palette-white);
-  --primary-subtle: var(--palette-primary-soft);
+  /* ---- Brand inputs：宿主换品牌只改这三个，kiln 在主题边界解析出下面的角色 ----
+     fill = 实心底色；on-fill = 实心底上的字；text = 链接、激活文字、焦点环。
+     暗色边界（tokens/dark.css）有自己的一组默认值；宿主换品牌时两个作用域都要声明。 */
+  --kiln-brand-fill: var(--palette-clay);
+  --kiln-brand-on-fill: var(--palette-white);
+  --kiln-brand-text: var(--palette-clay-deep);
+  /* hover 往「远离前景」的方向混：白字品牌往 ink 压暗；深字品牌（如 teal / amber）由宿主改成往白提亮 */
+  --kiln-brand-fill-hover: color-mix(in srgb, var(--kiln-brand-fill) 88%, var(--palette-ink));
+
+  /* ---- Primary (brand) ---- */
+  --primary: var(--kiln-brand-fill);
+  --primary-foreground: var(--kiln-brand-on-fill);
+  --primary-text: var(--kiln-brand-text);
+  --primary-hover: var(--kiln-brand-fill-hover);
+  --primary-subtle: color-mix(in srgb, var(--kiln-brand-fill) 10%, var(--palette-white));
 
   /* ---- Secondary (surface) ---- */
   --secondary: color-mix(in srgb, var(--palette-surface) 60%, var(--palette-white));
@@ -55,7 +69,11 @@
   --border: #efece7;
   --border-visible: var(--palette-line);
   --input: #dcd7d0;
-  --ring: var(--palette-clay);
+  --ring: var(--kiln-brand-text);
+
+  /* ---- Control boundary：识别控件所必需的轮廓（未选复选框/单选、无标签内联输入的底线），≥3:1 ----
+     与 --input 的柔边分工：--input 是普通表单框的轻边，不承担识别职责。 */
+  --control-boundary: #8b837b;
 
   /* ---- Semantic status（窑青绿=成功、孔雀蓝=信息、琥珀=警示、陶土红=危险） ---- */
   --success: var(--palette-teal);
@@ -89,12 +107,21 @@
   /* ---- Sidebar（纯白侧栏） ---- */
   --sidebar: var(--palette-white);
   --sidebar-foreground: var(--palette-ink);
-  --sidebar-primary: var(--palette-clay);
-  --sidebar-primary-foreground: var(--palette-white);
+  --sidebar-primary: var(--kiln-brand-fill);
+  --sidebar-primary-foreground: var(--kiln-brand-on-fill);
   --sidebar-accent: color-mix(in srgb, var(--palette-surface) 70%, var(--palette-white));
   --sidebar-accent-foreground: var(--palette-ink);
   --sidebar-border: #efece7;
-  --sidebar-ring: var(--palette-clay);
+  --sidebar-ring: var(--kiln-brand-text);
+
+  /* ---- Segmented control / button tabs（轨道里浮起的激活片） ----
+     亮色：白底板 + 卡片阴影 + 品牌文字。暗色见 dark.css：半透明提亮 + 发丝环 + 选中标记。 */
+  --segment-track-bg: color-mix(in srgb, var(--muted) 40%, transparent);
+  --segment-hover-bg: color-mix(in srgb, var(--foreground) 3%, transparent);
+  --segment-active-bg: var(--card);
+  --segment-active-fg: var(--primary-text);
+  --segment-active-mark: transparent; /* 亮色靠品牌文字表明选中，不画标记 */
+  --segment-active-shadow: var(--shadow-card);
 
   /* ---- Topbar（纯白半透明） ---- */
   --topbar: color-mix(in srgb, var(--palette-white) 82%, transparent);

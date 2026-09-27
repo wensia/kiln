@@ -263,9 +263,12 @@ Dialog / Sheet / DataTableDock / 行操作菜单 / 资源卡 / 指标卡）。
 小程序 / 移动端：保留语义色、字号阶梯、组件角色；高频触控控件放大到 40–44px；
 表格变卡片；侧栏换底部导航；对话框多数改成底部 sheet。
 
-暗色模式：kiln 是 light-only。要做暗色**不要简单反色**——重新检查侧栏、表格、弹窗、徽章的
-对比度；陶土红要用 color-mix 提亮，否则发浑；**阴影在深色表面上失去分离力，那里（且只有那里）
-才该改用边框和表面色阶**。
+暗色模式：kiln 自带暗色层 `tokens/dark.css`（由 `tokens/index.css` 引入），宿主只负责**开关**——
+在根元素加 `.dark` / `[data-theme="dark"]`，跟随系统时自己监听 `prefers-color-scheme`，首帧前用
+`<head>` 内联脚本定好类名。**宿主 `:root` 里不要重复声明 kiln 语义 token 的亮色值**：同为单类
+优先级且排在后面，会静默盖掉暗色层；偏离项用语义 token 表达，确属亮色的值在宿主自己的 `.dark`
+里重声明。细则见 `references/platform-mapping.md` 的 Dark Mode 与 `references/tokens.md` 的
+Dark Theme Tokens。
 
 ---
 

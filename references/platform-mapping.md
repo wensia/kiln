@@ -31,6 +31,57 @@ Rules:
 - Use DataTableDock for table scrolling, frozen columns, and pagination.
 - Use shared DropdownMenu for row action menus.
 
+### Focus policy mapping
+
+All focus mappings below assume the default `keyboard` policy. When a product explicitly chooses the `managed-navigation` policy from `SKILL.md`, wire it once at the application root instead of adding per-control `tabIndex` patches, blurring controls, or stripping selection state. Three listeners carry the policy: a bubble-phase editor-boundary guard for `Tab`, a capture-phase region key, and a pointer listener that returns to pointer mode.
+
+```ts
+const EDITOR = '[contenteditable]:not([contenteditable="false"]), [data-focus-editor]'
+const setMode = (mode: "pointer" | "keyboard") => { document.documentElement.dataset.focusMode = mode }
+
+// Bubble phase: editors and components handle Tab first.
+document.addEventListener("keydown", event => {
+  if (event.key !== "Tab" || event.defaultPrevented) return
+  if (event.target instanceof Element && event.target.closest(EDITOR)) event.preventDefault()
+  else setMode("keyboard") // native traversal between shell controls
+})
+
+// Capture phase: region entry, skipped during IME composition.
+document.addEventListener("keydown", event => {
+  if (event.key !== "F6" || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return
+  event.preventDefault()
+  setMode("keyboard")
+  moveFocusRegion(event.shiftKey ? -1 : 1) // cycles visible [data-focus-region] elements
+}, true)
+
+document.addEventListener("pointerdown", () => setMode("pointer"), true)
+```
+
+`moveFocusRegion` scopes itself to the topmost open modal (`[role="dialog"][aria-modal="true"]` or the host dialog's content slot) when one exists, and falls back to the modal's focusable elements when it declares no regions. On entry it restores the region's last valid focus, recorded from `focusin`, and otherwise focuses the region's first focusable element. Editors re-enter through their own focus API, such as a ProseMirror `view.focus()`, so the selection survives.
+
+```css
+:root:not([data-focus-mode="keyboard"]) {
+  --ring: transparent;
+  --sidebar-ring: transparent;
+  --ring-focus: 0 0 0 0 transparent;
+  --shadow-primary-focus: 0 0 0 0 transparent;
+}
+:root:not([data-focus-mode="keyboard"]) :focus,
+:root:not([data-focus-mode="keyboard"]) :focus-visible { outline: none; }
+
+:root[data-focus-mode="keyboard"] :focus-visible:not([contenteditable]:not([contenteditable="false"]), [data-focus-editor]) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+:root[data-focus-mode="keyboard"] :is([contenteditable]:not([contenteditable="false"]), [data-focus-editor]):focus { outline: none; }
+```
+
+Keep the source Kiln tokens unchanged: keyboard mode lets the Kiln ring and `--shadow-primary-focus` values through, and pointer mode is a consumer-root override of focus-only aliases gated by the mode attribute rather than a global `!important`. Zero-length shadows stay valid for consumers that prepend `inset`. Do not suppress `aria-selected`, `aria-current`, `data-state="active"`, or menu highlight states. In keyboard mode, keep the outline from being cropped by `overflow` ancestors, as the ring-composition rule in `SKILL.md` requires.
+
+Platform notes: on macOS, function keys may need `Fn`, and `Ctrl+F6` belongs to the system, so do not depend on it. In a desktop shell such as Tauri, do not add a native menu only to expose the region key, because a custom menu replaces the platform's default Edit menu; document the key in the in-app shortcut help instead.
+
+Verify `F6` / `Shift+F6` cycling in both directions, editor `Tab` commands with focus kept inside the editor, native `Tab` between shell controls, no ring or outline after pointer input, a visible indicator after region entry, containment inside an open modal, and that a clicked text input still accepts text.
+
 ### Existing shadcn / Tailwind Migration Checklist
 
 Use this checklist when a project already has many `rounded-*`, `variant="default"`, and local Tailwind utilities:
@@ -147,12 +198,18 @@ Design files should annotate:
 
 ## Dark Mode
 
-The source theme is light-only; dark mode is a port-side extension. If porting to dark mode:
+kiln ships a dark theme in `tokens/dark.css`, loaded by `tokens/index.css`. Porting dark mode means **wiring the switch**, not inventing colors:
 
-- Do not just invert colors.
-- Re-check sidebar, table, dialog, badge, and dropdown contrast.
-- Lighten clay red with color mixing so it does not become muddy.
-- Shadows lose separation power on dark surfaces; there — and only there — lean on borders and surface steps instead.
+- Put `.dark` (or `[data-theme="dark"]`) on the root element. Tailwind v4 hosts map the `dark:` variant to the same class: `@custom-variant dark (&:is(.dark *));`.
+- The host owns the policy — follow system, fixed light, fixed dark. For "follow system", toggle the class from `matchMedia("(prefers-color-scheme: dark)")` and listen for its `change` event; kiln deliberately does not ship a media-query block, so a user's explicit choice always wins.
+- Apply the class before first paint (a tiny inline script in `<head>` that reads the stored choice), or dark users see one light frame on every launch.
+- Desktop shells (Tauri, Electron) should also set the native window theme so title bar, scrollbars, and system menus match the page.
+- Host overrides of kiln semantic tokens must not pin light values. A host `:root { --card: var(--palette-white) }` has the same specificity as the dark selector and loads later, so it silently beats the dark layer. Declare only real deviations, express them through semantic tokens (`color-mix(in srgb, var(--border-visible) 45%, var(--card))`), and re-declare truly light-only values inside the host's own `.dark` block.
+- Change the brand through the three brand inputs (`--kiln-brand-fill`, `--kiln-brand-on-fill`, `--kiln-brand-text`), declared once for light and once inside `.dark` with the matching `--palette-dark-*` glaze; never override `--primary`, `--sidebar-primary`, or `--ring` directly. Consume `--primary-text` (not `--primary`) wherever the brand colors text. Switch any host rgb-triplet mirrors together with the inputs. See Brand Inputs in `tokens.md`.
+- Hard-coded black overlays and rings vanish on dark surfaces: raise scrim opacity (`dark:bg-black/55`) and swap black hairlines for low-alpha warm white.
+- Keep exported artifacts (share images, PDFs, email) on the light theme; they leave the app and should not depend on the viewer's setting.
+
+The color decisions behind the layer — not inverted, glazes lightened in OKLCH, dark text on filled glaze, separation by surface steps plus a hairline — are in [Dark Theme Tokens](tokens.md#dark-theme-tokens). Re-check sidebar, table, dialog, badge, and dropdown contrast in the rendered page after wiring it; token values alone do not prove a composite surface.
 
 ## Mini Program / Mobile App
 
