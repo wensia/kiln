@@ -580,9 +580,22 @@ Resource package selectors, such as quota or package pickers, are compact choice
 - Viewport breathing space is part of the shared component, not page code. The frame width should be constrained to `calc(100vw - 2rem)` on mobile and `calc(100vw - 3rem)` on desktop, split-screen, and DevTools-narrow viewports. The same safe gap applies vertically through `max-height`: `calc(100svh - 2rem)` on mobile and `calc(100svh - 3rem)` on desktop.
 - Business code may set the semantic maximum width such as `sm:max-w-lg`, `sm:max-w-4xl`, or `sm:max-w-6xl`, but it must not cancel the shared safe width with `w-screen`, `sm:w-full`, or a larger viewport width. True fullscreen workflows should use Sheet or a clearly marked fullscreen exception.
 - Header includes title and only useful description.
-- Footer buttons align right on desktop.
+- Footer buttons align right on desktop. See [Dialog Footer](#dialog-footer).
 - Mobile may use bottom sheet posture.
 - Data-heavy dialogs such as details, configuration, employee selection, and import previews use a fixed content height. Keep header/footer fixed inside the dialog and scroll the body viewport; tabs, empty/loading states, and data volume must not change the outer dialog height.
+
+### Dialog Footer
+
+- **One row, trailing edge.** At the `sm` breakpoint and up, footer buttons sit in one row aligned to the trailing edge (`justify-end`) with `space-2` between them. The confirm's right edge lines up with the right edge of the body fields above it.
+- **Order.** The dismissive action (取消 / 关闭, `outline`) comes first and the confirm comes last, so the confirm sits at the trailing edge. Keep this DOM order as well, so Tab order and screen readers read dismiss → confirm.
+- **Size.** Buttons use `default` size and fit their content. On desktop, do not stretch footer buttons to the dialog width and do not stack them — two full-width bars read as a form, not a decision, and push the confirm below the fold in short windows.
+- **One filled button.** The confirm follows the Button decision above: an ordinary confirm is ink `default`; a high-risk confirm is `destructive`. Everything else in the footer is `outline` or `ghost`.
+- **Auxiliary action.** A third action that neither confirms nor dismisses (恢复默认, 下载模板) goes at the leading edge (`mr-auto`), apart from the dismiss/confirm pair. Do not put a third button inside the pair.
+- **Narrow viewports.** Below `sm`, stack the buttons at full width with the confirm on top (`flex-col-reverse`) while keeping the dismiss → confirm DOM order.
+- **Keyboard.** Enter in a single-field dialog submits the confirm; Esc and the close icon dismiss. A disabled or busy confirm (创建中…) keeps its width so the row does not shift.
+- **Shared, not per page.** This layout is the default of the shared dialog footer component. Page code does not re-patch flex direction or alignment. If several pages override the footer the same way, the default is wrong — fix the shared component and remove the overrides.
+- Anti-pattern: a shared footer that defaults to `flex-col`, so every desktop dialog shows 取消 and 创建 as stacked full-width bars, and some pages patch it back with local `flex-row justify-end` classes.
+- QA: on one representative desktop dialog, check that both buttons share a baseline, the confirm is the trailing button, its right edge meets the field column's right edge, and each button is far narrower than the dialog. Then check a narrow viewport: full-width buttons with the confirm on top.
 
 ### Scroll Body Gutter
 

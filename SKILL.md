@@ -342,6 +342,7 @@ Avoid:
 - Pagination that moves up, down, or disappears based on table/form data count instead of staying fixed at the screen/workspace bottom. A hand-rolled PREV/NEXT pager anywhere in the app.
 - Data-heavy dialogs whose outer height changes when switching tabs, loading data, showing empty states, or changing row count.
 - Dialog or AlertDialog frames that touch the viewport edge in split-screen, DevTools, mobile, or narrow-height contexts; ordinary dialogs must keep shared left/right and top/bottom breathing space, while true fullscreen workflows should use a Sheet or an explicit fullscreen exception.
+- Desktop dialog footers that stack 取消 and the confirm as full-width bars; the shared footer puts them in one right-aligned row, dismiss first and confirm at the trailing edge, and stacks only below `sm` (see `references/components.md` Dialog Footer).
 - Data tables that use only `min-height` and let row count or empty/loading content resize the table instead of a fixed viewport.
 - Data tables whose final data row loses its bottom divider through `last:border-0` or equivalent overrides.
 - Vertical grid lines carrying the same visual weight as the row divider — the newspaper grid. The row divider is the structure; a column line, where a data-dense table earns one, must be markedly lighter (≤60% of its weight) or absent entirely. (Structural edges — a frozen column edge, a pivot table's group boundary in the header — are edges, not a grid, and are exempt.)
