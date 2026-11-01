@@ -217,7 +217,7 @@ Structure:
 
 Specs:
 
-- Input stays 36px high.
+- Input height is `--control-height` (it follows the density tier); a submit button beside it in the same row uses the same height. Do not hard-code the field height.
 - Text reserves right space with `pr-10`.
 - Icon button is inside the input at the right, vertically centered.
 - Button size: 28-32px, recommended 32px.
@@ -225,6 +225,18 @@ Specs:
 - Icon size: 16px.
 - Button type is `button`.
 - Click toggles visibility only, not form submission.
+
+Input method (IME):
+
+- A password field accepts no IME composition. `type="password"` gets this from the engine: WebKit and Chromium switch to a Roman input source while it is focused, so pinyin never reaches a candidate window or an input-method dictionary.
+- A host that renders a masked `type="text"` field instead — for example because macOS WKWebView paints a caps-lock indicator inside `type="password"` that CSS cannot remove — must guard composition itself, in the shared password component:
+  - On `compositionstart`, snapshot the value and selection, then end the composition at once (blur, refocus on the next frame) so the candidate window closes and letters cannot accumulate.
+  - Restore the snapshot on `compositionend` **and** again on the next frame — some input methods commit their text only after the blur. Keep the snapshot until that second restore.
+  - In `beforeinput`, cancel `insertCompositionText` / `insertFromComposition` where the engine allows it; the restore covers engines where it is not cancelable.
+  - Composed characters never enter the value. Direct, non-composed insertion — typing, full-width punctuation, paste — stays allowed, so passwords set earlier remain enterable.
+  - Show 「请切换到英文输入法」 in the field's single subtext line (after an error, before any helper text) and clear it on the next ordinary keystroke. Keep focus in the field.
+- A masked text field also turns off autocomplete, autocorrect, autocapitalize, spellcheck, copy and cut, and draws its own caps-lock hint as a thin icon inside the input boundary beside the show/hide button.
+- Verify with a real composition (Chromium CDP `Input.imeSetComposition`), not dispatched `CompositionEvent`s — synthetic events never reach the browser's IME path. Assert the value, caret, focus, and hint after the composition starts.
 
 ## SMS Code Input
 
@@ -415,6 +427,10 @@ Line tabs (`variant="line"`):
 - Use for second-level content divisions.
 - Trigger height 40px.
 - Active state: short clay underline under muted-to-ink text. **No plate, no shadow, no radius.**
+- The underline is 2px, spans the label (icon included), and uses `--primary-text`, so it follows the host brand and keeps non-text contrast on every surface. An active tab's icon takes the same color.
+- Raising the active label to 500 must not move its neighbors: reserve the bold width (for example a hidden bold copy of the label) or keep every label at the same weight. Keep that reserve copy out of the accessible name.
+- Line tabs may sit flush in a toolbar or title bar; they stretch to the bar's height so the underline lands on the bar's bottom edge. When text-only commands sit beside them in the same bar, separate the two with a full-height structural divider — without a track, a plain command reads as another tab.
+- A product may use line tabs for every tab family (view switches, inspector sections, table views, compact navigation) instead of mixing in button tabs; one language across the product outranks the page-level / second-level split above.
 
 Do not place two button-tab groups in one viewport.
 
@@ -647,7 +663,16 @@ Header stays fixed, content scrolls independently, footer is fixed or clearly at
 - Use toast for success, failure, save, delete, status update.
 - Do not use browser alert/confirm/prompt.
 - Long tasks need visible page state in addition to toast.
-- Toast status should be carried by the icon, title, subtle tint, or whole weak border/ring. Do not add a thicker or colored single-side border stripe to a toast unless it is a deliberately documented structural edge.
+- **One entry point.** Route every toast through one product wrapper (for example `notify.success / info / warning / error / failure / progress`) that enforces the anatomy below; business code does not call the toast library directly. Direct calls are how raw error strings, ad hoc durations, and a second visual style creep back in.
+- **Surface.** Popover surface, `--radius-card`, `--shadow-popover` (the dark theme's popover shadow already carries its hairline). Stack in the bottom trailing corner **above** shell chrome — a status bar, a pinned pagination strip — never over a shell control; offset by that chrome's height token plus a spacing step.
+- **Status lives in the 16px leading icon only.** The title stays in the surface foreground and the description in `--muted-foreground`. Tinting the whole title or card in a status glaze drops small text below 4.5:1 on its own tint — warning and success worst. A failure may add one whole hairline ring in the destructive tone on top of the popover shadow; never a single-side stripe, never a filled status card.
+- **Anatomy.** Title = object + result in the user's words, no trailing period, no raw error, no colon-joined `失败：<error>`. Optional description = one sentence of consequence, what was preserved, or the next step; omit it when the title already says enough. At most one action button (retry, view, undo — only when a safe handler already exists; never invent undo). A dismissive choice on a prompt (「不用了」) is a text link beside it, not a second button. Technical detail (the error string, a path) goes into a collapsed 「详情」 link that expands in place and can be copied.
+- **Close** is overlay chrome: an icon button, transparent and borderless at rest, muted hover surface.
+- **Lifetime.** Success and info close after a short read (about 4s), warning after about twice that; both pause on hover. Failures persist until dismissed. Progress persists until its result replaces it under the same id.
+- **No pile-ups.** The same kind with the same title updates one toast instead of stacking another. Cap the visible stack (three) and collapse the rest behind the front toast with their content hidden.
+- **Keyboard.** Under `managed-navigation` the toast region is a focus region, so its actions are reachable with the region key. Toasts never take focus on arrival.
+- **Measure after growing.** Toast libraries measure a toast's height when its content prop changes, not when inner state changes. Expanding details must re-issue the toast under the same id, or the stack keeps the old height and the next toast overlaps it.
+- Verify on the rendered page in both themes: title and description contrast on the actual surface, stack bottom above the shell chrome, dedupe, expanded-detail stacking, and collapsed back-toast content hidden.
 
 ## Empty / Loading
 

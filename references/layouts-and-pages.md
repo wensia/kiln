@@ -98,6 +98,7 @@ Navigation item:
 - Radius: 4px.
 - Hover uses weak feedback only (`--sidebar-accent`).
 - Active uses solid clay background, canvas/white text and icons, weight 600.
+- Product variant: a navigation may instead use a subtle leaf selection. Only the current leaf uses `--primary-subtle` background, `--primary-text` text and icons, and `--weight-medium`; ancestors stay neutral and only that leaf carries `aria-current="page"`. Counts are right-aligned plain numbers without a filled badge.
 - Collapsed state hides text and centers the 18px icon.
 - No "quick create" button inside the rail.
 
